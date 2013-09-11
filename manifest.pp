@@ -65,6 +65,18 @@ package { "south":
     ensure => present,
 }
 
+package { "django-tastypie":
+    provider => "pip",
+    require => Package["python-pip"],
+    ensure => present,
+}
+
+package { "mimeparse":
+    provider => "pip",
+    require => Package["python-pip"],
+    ensure => present,
+}
+
 package { "django-debug-toolbar":
     provider => "pip",
     require => Package["python-pip"],

@@ -10,6 +10,8 @@ from doppel2.core.models import ScalarData, Unit, Metric
 from datetime import datetime
 from django.db.models import Avg
 
+BASE_API_URL = '/api/v1/'
+
 
 class SensorDataTest(TestCase):
     def setUp(self):
@@ -25,7 +27,7 @@ class SensorDataTest(TestCase):
         self.assertEqual(data.metric.name, 'Temperature')
         self.assertEqual(data.value, 25)
 
-    def test_large_datasets_can_be_queried(self):
+    def test_largeish_datasets_can_be_queried_quickly(self):
         data = [ScalarData(unit=self.unit, metric=self.metric, value=val)
                 for val in range(10000)]
         ScalarData.objects.bulk_create(data)
@@ -37,5 +39,21 @@ class SensorDataTest(TestCase):
         avg = ScalarData.objects.all().aggregate(Avg('value'))['value__avg']
         end_time = datetime.now()
         elapsed_time = end_time - start_time
+        # delete the data we created at the beginning of the test
+        ScalarData.objects.all().delete()
         self.assertEqual(avg, 4999.5)
         self.assertLess(elapsed_time.total_seconds(), 0.1)
+
+
+class ApiTest(TestCase):
+    def test_base_uri_should_be_gettable(self):
+        base_response = self.client.get(BASE_API_URL,
+                                        Accept="application/json")
+        self.assertEqual(base_response.status_code, 200)
+
+
+
+#class SensorDataApiTest(TestCase):
+#    api_url = "api/"
+#    def test_sensor_data_can_be_queried(self):
+#        pass
