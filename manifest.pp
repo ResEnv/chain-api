@@ -81,6 +81,11 @@ package { "django-debug-toolbar":
 
 # Set up DB schema and users
 
+postgresql::database_user { 'doppellab':
+    # enable createdb permissions so django can create test DBs
+    createdb => true
+}
+
 postgresql::db { 'doppellab':
   user     => 'doppellab',
   password => 'secret'
