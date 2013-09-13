@@ -6,7 +6,7 @@ Replace this with more appropriate tests for your application.
 """
 
 from django.test import TestCase
-from doppel2.core.models import ScalarData, Unit, Metric
+from doppel2.core.models import ScalarData, Unit, Metric, SensorGroup, Sensor
 from datetime import datetime
 from django.db.models import Avg
 import json
@@ -20,16 +20,21 @@ class SensorDataTest(TestCase):
         self.unit.save()
         self.metric = Metric(name='Temperature')
         self.metric.save()
+        self.sensor_group = SensorGroup(name="Thermostat")
+        self.sensor_group.save()
+        self.sensor = Sensor(unit=self.unit, sensor_group=self.sensor_group,
+                             metric=self.metric)
+        self.sensor.save()
 
     def test_data_can_be_added(self):
-        data = ScalarData(unit=self.unit, metric=self.metric, value=25)
+        data = ScalarData(sensor=self.sensor, value=25)
         data.save()
-        self.assertEqual(data.unit.name, 'C')
-        self.assertEqual(data.metric.name, 'Temperature')
+        self.assertEqual(data.sensor.unit.name, 'C')
+        self.assertEqual(data.sensor.metric.name, 'Temperature')
         self.assertEqual(data.value, 25)
 
     def test_largeish_datasets_can_be_queried_quickly(self):
-        data = [ScalarData(unit=self.unit, metric=self.metric, value=val)
+        data = [ScalarData(sensor=self.sensor, value=val)
                 for val in range(10000)]
         ScalarData.objects.bulk_create(data)
         avg = 0
@@ -52,7 +57,11 @@ class ApiTest(TestCase):
         unit.save()
         metric = Metric(name='Temperature')
         metric.save()
-        data = ScalarData(unit=unit, metric=metric, value=25)
+        sensor_group = SensorGroup(name="Thermostat")
+        sensor_group.save()
+        sensor = Sensor(unit=unit, sensor_group=sensor_group, metric=metric)
+        sensor.save()
+        data = ScalarData(sensor=sensor, value=25)
         data.save()
 
     def test_base_uri_should_be_gettable(self):

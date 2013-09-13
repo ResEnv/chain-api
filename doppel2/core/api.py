@@ -9,6 +9,6 @@ class ScalarDataResource(ModelResource):
         excludes = ['id']
 
     def dehydrate(self, bundle):
-        bundle.data['unit'] = bundle.obj.unit.name
-        bundle.data['metric'] = bundle.obj.metric.name
+        bundle.data['unit'] = bundle.obj.sensor.unit.name
+        bundle.data['metric'] = bundle.obj.sensor.metric.name
         return bundle
