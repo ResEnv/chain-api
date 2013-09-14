@@ -10,6 +10,7 @@ from doppel2.core.models import ScalarData, Unit, Metric, SensorGroup, Sensor
 from datetime import datetime
 from django.db.models import Avg
 import json
+from django.utils.timezone import make_aware, utc
 
 BASE_API_URL = '/api/v1/'
 
@@ -53,16 +54,15 @@ class SensorDataTest(TestCase):
 
 class ApiTest(TestCase):
     def setUp(self):
-        unit = Unit(name='C')
-        unit.save()
-        metric = Metric(name='Temperature')
-        metric.save()
-        sensor_group = SensorGroup(name="Thermostat")
-        sensor_group.save()
-        sensor = Sensor(unit=unit, sensor_group=sensor_group, metric=metric)
-        sensor.save()
-        data = ScalarData(sensor=sensor, value=25)
-        data.save()
+        self.unit = Unit(name='C')
+        self.unit.save()
+        self.metric = Metric(name='Temperature')
+        self.metric.save()
+        self.sensor_group = SensorGroup(name="Thermostat")
+        self.sensor_group.save()
+        self.sensor = Sensor(unit=self.unit, sensor_group=self.sensor_group,
+                             metric=self.metric)
+        self.sensor.save()
 
     def test_base_uri_should_be_gettable(self):
         base_response = self.client.get(BASE_API_URL,
@@ -70,14 +70,38 @@ class ApiTest(TestCase):
         self.assertEqual(base_response.status_code, 200)
 
     def test_scalar_data_should_be_gettable_from_api(self):
+        data = ScalarData(sensor=self.sensor, value=25)
+        data.save()
         base_response = self.client.get(BASE_API_URL + "scalar_data/",
                                         Accept="application/json")
         self.assertEqual(base_response.status_code, 200)
         data = json.loads(base_response.content)['objects']
         self.assertEqual(len(data), 1)
         self.assertEqual(data[0]['value'], 25)
-        self.assertEqual(data[0]['unit'], 'C')
-        self.assertEqual(data[0]['metric'], 'Temperature')
+        self.assertEqual(data[0]['unit'], self.unit.name)
+        self.assertEqual(data[0]['metric'], self.metric.name)
+
+    def test_scalar_data_should_accept_a_date_range(self):
+        data = []
+        for value, hour in zip([20, 21, 23, 27], [2, 4, 6, 8]):
+            data.append(
+                ScalarData(sensor=self.sensor, value=value,
+                           timestamp=make_aware(
+                               datetime(2013, 4, 12, hour, 0, 0), utc)))
+        ScalarData.objects.bulk_create(data)
+
+        # create a date range that should only grab the middle 2 data points
+        query_string = ('?timestamp__gt=2013-04-12T03:30:00Z&' +
+                        'timestamp__lt=2013-04-12T06:30:00Z')
+        url = BASE_API_URL + "scalar_data/" + query_string
+        response = self.client.get(url, Accept="application/json")
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.content)['objects']
+        self.assertEqual(len(data), 2)
+        self.assertEqual(data[0]['value'], 21)
+        self.assertEqual(data[1]['value'], 23)
+
+
 
 
 
