@@ -12,7 +12,9 @@ from django.db.models import Avg
 import json
 from django.utils.timezone import make_aware, utc
 
-BASE_API_URL = '/api/v1/'
+BASE_API_URL = '/api/'
+SCALAR_DATA_URL = BASE_API_URL + 'scalar_data/'
+AGGREGATE_DATA_URL = BASE_API_URL + 'aggregate_scalar_data/'
 
 
 class SensorDataTest(TestCase):
@@ -69,10 +71,16 @@ class ApiTest(TestCase):
                                         Accept="application/json")
         self.assertEqual(base_response.status_code, 200)
 
+    def test_base_url_should_have_uri_for_scalar_data(self):
+        base_response = self.client.get(BASE_API_URL,
+                                        Accept="application/json")
+        data = json.loads(base_response.content)
+        self.assertEqual(data['scalar_data'], SCALAR_DATA_URL)
+
     def test_scalar_data_should_be_gettable_from_api(self):
         data = ScalarData(sensor=self.sensor, value=25)
         data.save()
-        base_response = self.client.get(BASE_API_URL + "scalar_data/",
+        base_response = self.client.get(SCALAR_DATA_URL,
                                         Accept="application/json")
         self.assertEqual(base_response.status_code, 200)
         data = json.loads(base_response.content)['objects']
@@ -93,7 +101,7 @@ class ApiTest(TestCase):
         # create a date range that should only grab the middle 2 data points
         query_string = ('?timestamp__gt=2013-04-12T03:30:00Z&' +
                         'timestamp__lt=2013-04-12T06:30:00Z')
-        url = BASE_API_URL + "scalar_data/" + query_string
+        url = SCALAR_DATA_URL + query_string
         response = self.client.get(url, Accept="application/json")
         self.assertEqual(response.status_code, 200)
         data = json.loads(response.content)['objects']
@@ -102,8 +110,26 @@ class ApiTest(TestCase):
         self.assertEqual(data[1]['value'], 23)
 
 
+    def test_aggregatescalar_data_should_give_average(self):
+        data = []
+        for value, hour in zip([20, 21, 23, 27], [2, 4, 6, 8]):
+            data.append(
+                ScalarData(sensor=self.sensor, value=value,
+                           timestamp=make_aware(
+                               datetime(2013, 4, 12, hour, 0, 0), utc)))
+        ScalarData.objects.bulk_create(data)
 
-
+        # create a date range that should only grab the middle 2 data points
+        query_string = ('?timestamp__gt=2013-04-12T03:30:00Z&' +
+                        'timestamp__lt=2013-04-12T06:30:00Z')
+        url = AGGREGATE_DATA_URL + query_string
+        response = self.client.get(url, Accept="application/json")
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.content)['objects']
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]['aggregate_value'], 22)
+        self.assertEqual(data[0]['unit'], self.unit.name)
+        self.assertEqual(data[0]['metric'], self.metric.name)
 
 
 

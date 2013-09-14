@@ -1,12 +1,8 @@
 from django.conf.urls import patterns, include, url
-from doppel2.core.api import ScalarDataResource
+from doppel2.core import api
 from django.contrib import admin
-from tastypie.api import Api
 
 admin.autodiscover()
-
-api = Api(api_name='v1')
-api.register(ScalarDataResource())
 
 urlpatterns = patterns(
     '',
