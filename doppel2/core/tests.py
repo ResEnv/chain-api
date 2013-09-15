@@ -80,14 +80,26 @@ class ApiTest(TestCase):
     def test_scalar_data_should_be_gettable_from_api(self):
         data = ScalarData(sensor=self.sensor, value=25)
         data.save()
-        base_response = self.client.get(SCALAR_DATA_URL,
-                                        Accept="application/json")
-        self.assertEqual(base_response.status_code, 200)
-        data = json.loads(base_response.content)['objects']
+        response = self.client.get(SCALAR_DATA_URL,
+                                   Accept="application/json")
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.content)['objects']
         self.assertEqual(len(data), 1)
         self.assertEqual(data[0]['value'], 25)
         self.assertEqual(data[0]['unit'], self.unit.name)
         self.assertEqual(data[0]['metric'], self.metric.name)
+
+    def test_scalar_data_should_return_total_in_meta(self):
+        data = ScalarData(sensor=self.sensor, value=25)
+        data.save()
+        # clear the id so we re-insert instead of updating
+        data.id = None
+        data.save()
+        response = self.client.get(SCALAR_DATA_URL,
+                                   Accept="application/json")
+        self.assertEqual(response.status_code, 200)
+        metadata = json.loads(response.content)['meta']
+        self.assertEqual(metadata['total_count'], 2)
 
     def test_scalar_data_should_accept_a_date_range(self):
         data = []
@@ -108,7 +120,6 @@ class ApiTest(TestCase):
         self.assertEqual(len(data), 2)
         self.assertEqual(data[0]['value'], 21)
         self.assertEqual(data[1]['value'], 23)
-
 
     def test_aggregatescalar_data_should_give_average(self):
         data = []

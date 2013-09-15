@@ -29,15 +29,7 @@ def api_home(request):
     return HttpResponse(json.dumps(api_endpoints))
 
 
-def scalar_data(request):
-    # plus fields from model
-    # allow filtering on timestamp
-    #unit = fields.CharField()
-    #metric = fields.CharField()
-    response_meta = {}
-    response_objects = []
-
-    objs = ScalarData.objects.all()
+def filter_by_request(objs, request):
     if request.GET:
         filters = {}
         for k, v in request.GET.iteritems():
@@ -48,6 +40,19 @@ def scalar_data(request):
 
         objs = objs.filter(**filters)
 
+    return objs
+
+
+def scalar_data(request):
+    # plus fields from model
+    # allow filtering on timestamp
+    #unit = fields.CharField()
+    #metric = fields.CharField()
+    response_meta = {}
+    response_objects = []
+
+    objs = filter_by_request(ScalarData.objects.all(), request)
+
     for obj in objs:
         obj_dict = {
             'value': obj.value,
@@ -57,6 +62,7 @@ def scalar_data(request):
         }
         response_objects.append(obj_dict)
 
+    response_meta['total_count'] = len(response_objects)
     response = {'meta': response_meta, 'objects': response_objects}
     return HttpResponse(json.dumps(response))
 
