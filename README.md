@@ -10,57 +10,141 @@ The API entry point is at /api/, so a GET request will give you links to the
 available base resources in the following format:
 
     {
-        'scalar_data': '/api/scalar_data/',
-        'sensor': '/api/sensor/',
-        'device': '/api/device/'
+        'href': '/api/',
+        'sites': { 'href': '/api/sites/' }
     }
 
-New resource types may be added in the future. Clients should not assume
-hard-coded URIs, but should instead get the proper URI from the API entry
-point.
+Currently the only top-level resource available is the collection of Sites.
+The client first selects which site they are interested in and can navigate
+from there to explore that site.  Clients should not assume hard-coded URIs,
+but should instead get the proper URI from the API entry point.
+
+Resource Represenation
+----------------------
+
+All resources are specified with a URI. When presented to the client, the
+resource is represented as a JSON object with at minimum an 'href' property
+that contains its URI. When a parent resource (such as a Collection Resource or
+some other related resource) contains embedded child resources, those resources
+may be fully embedded or may only contain the 'href' property, in which case
+the client should follow the given link to access the child resource. Clients
+should be written to handle both cases transparently, to support future
+server-side changes and optimizations.
+
+### Example of an embedded resource
+
+    GET http://example.com/api/books/483
+
+    {
+        'href': '/api/books/483',
+        'title': 'Jane Eyre',
+        'author': {
+            'href': '/api/authors/910',
+            'firstName': 'Charlotte',
+            'lastName': 'Bronte',
+            'books': { 'href': '/api/authors/910/books/' }
+        }
+    }
+
+### Example of a linked resource
+
+    GET http://example.com/api/book/483
+
+    {
+        'href': '/api/books/483',
+        'title': 'Jane Eyre',
+        'author': { 'href': '/api/authors/910' }
+    }
+
+A Parent resource might also contain a list of related resources, such as the
+list of books by an author. In this case the 'books' field would be itself
+a Collection Resource, so the Author resource would look like:
+
+    GET http://example.com/api/authors/910
+
+    {
+        'href': '/api/authors/910',
+        'firstName': 'Charlotte',
+        'lastName': 'Bronte'
+        'books': { 'href': '/api/authors/910/books }
+    }
+
+Or if the 'books' resource is expanded:
+
+    GET http://example.com/api/authors/910
+
+    {
+        'href': '/api/authors/910',
+        'firstName': 'Charlotte',
+        'lastName': 'Bronte'
+        'books': {
+            'href': '/api/authors/910/books
+            'meta': { 'total_count': 3 },
+            'objects': [
+                {
+                    'href': '/api/books/483',
+                    'title': 'Jane Eyre',
+                    'author': { 'href': '/api/authors/910' }
+                },
+                {
+                    'href': '/api/books/918',
+                    'title': 'Shirley',
+                    'author': { 'href': '/api/authors/910' }
+                },
+                {
+                    'href': '/api/books/710',
+                    'title': 'The Professor',
+                    'author': { 'href': '/api/authors/910' }
+                },
+            ]
+        }
+    }
 
 Getting Resources
 -----------------
 
-The URIs given at the API entry point point to Resource Lists. Sending an HTTP
-GET request to a Resource List will return a response with the requested
+The URIs given at the API entry point point to Collection Resources. Sending an
+HTTP GET request to a Resource List will return a response with the requested
 resources as well as metadata about the response. Currently the only supported
 metadata is the total count of that resource. In the future this metadata will
 include information mostly useful for pagination such as the limit, offset, and
 a link to the next page of data. See below for an example response.
 
+    GET http://example.com/api/some_resources/
+
     {
-        'meta': {
-            "total_count": 2
-        },
-        'objects': [{
-            'resource_uri': '/api/some_resource/192',
-            'name': 'A great resource',
-            'state': 'Idaho'
-        },
-        {
-            'resource_uri': '/api/some_resource/193',
-            'name': 'Another Resource',
-            'state': 'New York'
-        }]
+        'href': '/api/some_resources/',
+        'meta': { "total_count": 2 },
+        'objects': [
+            {
+                'href': '/api/some_resources/192',
+                'name': 'A great resource',
+                'state': 'Idaho'
+            },
+            {
+                'href': '/api/some_resources/193',
+                'name': 'Another Resource',
+                'state': 'New York'
+            }
+        ]
     }
 
-In addition to the resource-specific data, each resource in the 'objects' list
-will contain a 'resource_uri' field where the client can access that specific
-resource, for instance if the client wanted to modify it. Sending a GET to the
-URI for a specific resource will return only that resource, e.g.
+Sending a GET to the URI for a specific resource will return only that
+resource, e.g.
 
-        {
-            'resource_uri': '/api/some_resource/193',
-            'name': 'Another Resource',
-            'state': 'New York'
-        }
+    GET http://example.com/api/some_resources/193
+
+    {
+        'href': '/api/some_resources/193',
+        'name': 'Another Resource',
+        'state': 'New York'
+    }
 
 Filtering Resources
 -------------------
 
-In general the resource lists can be filtered with any filter available through
-the django ORM, described at
+In general the Collection Resources can be filtered with any filter available
+through the django ORM, described at
 https://docs.djangoproject.com/en/1.5/ref/models/querysets/#field-lookups. The
 filters are given in the query string, for example if a resource has a field
 called 'timestamp' and the client wished to retreive all the resources since
@@ -84,7 +168,7 @@ in an aggregate value across a set of resources, such as calculating the
 average, or getting the maximum. Currently only averaging is supported, and can
 be accessed using the 'average_by=FIELD' query parameter.
 
-For example, a GET request to /api/room_temp/ might return:
+For example, a GET request to /api/room_temps/ might return:
 
     {
         'meta': {
@@ -92,25 +176,25 @@ For example, a GET request to /api/room_temp/ might return:
         },
         'objects': [
             {
-                'resource_uri': '/api/room_temp/192',
+                'resource_uri': '/api/room_temps/192',
                 'room': 'Bedroom',
                 'temperature': 26,
                 'timestamp': '2013-04-12T03:30:00Z'
             },
             {
-                'resource_uri': '/api/room_temp/193',
+                'resource_uri': '/api/room_temps/193',
                 'room': 'Bedroom',
                 'temperature': 27,
                 'timestamp': '2013-04-12T03:35:00Z'
             },
             {
-                'resource_uri': '/api/room_temp/194',
+                'resource_uri': '/api/room_temps/194',
                 'room': 'Living Room',
                 'temperature': 22,
                 'timestamp': '2013-04-12T03:30:00Z'
             },
             {
-                'resource_uri': '/api/room_temp/195',
+                'resource_uri': '/api/room_temps/195',
                 'room': 'Living Room',
                 'temperature': 28,
                 'timestamp': '2013-04-12T03:35:00Z'
@@ -118,7 +202,7 @@ For example, a GET request to /api/room_temp/ might return:
         ]
     }
 
-whereas a GET request to /api/room_temp/?group_by=room would return:
+whereas a GET request to /api/room_temps/?group_by=room would return:
 
     {
         "meta": {
@@ -127,24 +211,24 @@ whereas a GET request to /api/room_temp/?group_by=room would return:
         "room_groups": {
             "Bedroom": [
                 {
-                    "resource_uri": "/api/room_temp/192",
+                    "resource_uri": "/api/room_temps/192",
                     "temperature": 26,
                     "timestamp": "2013-04-12T03:30:00Z"
                 },
                 {
-                    "resource_uri": "/api/room_temp/193",
+                    "resource_uri": "/api/room_temps/193",
                     "temperature": 27,
                     "timestamp": "2013-04-12T03:35:00Z"
                 }
             ],
             "Living Room": [
                 {
-                    "resource_uri": "/api/room_temp/194",
+                    "resource_uri": "/api/room_temps/194",
                     "temperature": 22,
                     "timestamp": "2013-04-12T03:30:00Z"
                 },
                 {
-                    "resource_uri": "/api/room_temp/195",
+                    "resource_uri": "/api/room_temps/195",
                     "temperature": 28,
                     "timestamp": "2013-04-12T03:35:00Z"
                 }
@@ -152,7 +236,7 @@ whereas a GET request to /api/room_temp/?group_by=room would return:
         }
     }
 
-and a GET request to /api/room_temp/?average_by=temperature would return:
+and a GET request to /api/room_temps/?average_by=temperature would return:
 
     {
         "meta": {
@@ -165,7 +249,7 @@ Note that when aggregating data, the other fields from the original resources
 are discarded. The dictionary key for the aggregate value is given by
 FIELD_average. Grouping and Aggregating can be combined, in which case the
 aggregation happens within each group. so a GET request to
-/api/room_temp/?average_by=temperature&group_by=room would return:
+/api/room_temps/?average_by=temperature&group_by=room would return:
 
     {
         "meta": {
@@ -226,8 +310,8 @@ TBD data types.
 ### Example
 
     {
-        'resource_uri': '/api/sensor/758',
-        'device_uri': '/api/device/358',
+        'resource_uri': '/api/sensors/758',
+        'device_uri': '/api/devices/358',
         'metric': 'temperature',
         'unit': 'C'
         'value': 25.2,
@@ -264,7 +348,7 @@ Scalar Data is the raw data captured by the sensors.
 
     {
         'resource_uri': '/api/scalar_data/193',
-        'sensor_uri': '/api/sensor/91',
+        'sensor_uri': '/api/sensors/91',
         'value': 25.2,
         'timestamp': '2013-04-12T03:30:00Z',
     }
