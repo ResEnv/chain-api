@@ -1,14 +1,4 @@
-Doppel2 Server Setup Instructions
-=================================
-
-Install puppet and the proper puppet modules with
-
-    sudo apt-get install puppet
-    sudo puppet module install puppetlabs/postgresql
-
-Then set up the server with
-
-    sudo puppet apply manifest.pp
+*NOTE: DOPPEL2 IS IN HEAVY DEVELOPMENT AND NOT YET READY FOR USE*
 
 API Overview
 ============
@@ -21,7 +11,8 @@ available base resources in the following format:
 
     {
         'scalar_data': '/api/scalar_data/',
-        'aggregate_scalar_data': '/api/aggregate_scalar_data'
+        'sensor': '/api/sensor/',
+        'device': '/api/device/'
     }
 
 New resource types may be added in the future. Clients should not assume
@@ -72,15 +63,15 @@ In general the resource lists can be filtered with any filter available through
 the django ORM, described at
 https://docs.djangoproject.com/en/1.5/ref/models/querysets/#field-lookups. The
 filters are given in the query string, for example if a resource has a field
-called 'timestamp' and the client wished to retreive all the resources since April
-12, 2013 at midnight, it could send a GET request to:
+called 'timestamp' and the client wished to retreive all the resources since
+April 12, 2013 at midnight, it could send a GET request to:
 
     /api/scalar_data/?timestamp__gt=2013-04-12T00:00:00Z
 
 Note that when filtering, dates should be given ISO 8601 format with the time
 zone specified.
 
-Aggregating and Grouping
+Grouping and Aggregating
 ------------------------
 
 Often the client will want to collect a large number of resources, each of
@@ -210,20 +201,46 @@ Sensor
 ------
 
 A sensor captures a single channel of data. There may be multiple sensors on a
-single device. Issuing a GET request for a Sensor resource will also include
-the current value for that sensor. The value could be a scalar value or some
-other TBD data types.
+single device. Issuing a GET request for a Sensor resource also includes the
+current value for that sensor. The value could be a scalar value or some other
+TBD data types.
+
+### Resource Fields
+
+* resource_uri (string) - URI of this resource
+* device_uri (string) - URI of the device this sensor is part of
+* metric (string) - What the sensor is measuring (e.g. 'temperature')
+* unit (string) - The unit the data is in (e.g. 'kWh')
+* value (variable type) - The last reported value of the sensor
+* updated_timestamp (ISO 8601 timestamp) - Timestamp marking when the data was captured
+
+### Groupable Fields
+
+* device_uri
+* metric
+
+### Aggregatable Fields
+
+* value
+
+### Filterable Fields
+
+* device_uri
+* metric
+* unit
+* value
+* updated_timestamp
 
 ### Example
 
     {
-        'resource_uri': '/api/scalar_data/193',
-        'value': 25.2,
+        'resource_uri': '/api/sensor/758',
+        'device_uri': '/api/device/358',
         'metric': 'temperature',
         'unit': 'C'
+        'value': 25.2,
+        'updated_timestamp': '2013-04-12T03:30:00Z'
     }
-
-TODO: Scalar Data should be a more general "Sensor Data" with a type field.
 
 Scalar Data
 -----------
@@ -236,14 +253,12 @@ Scalar Data is the raw data captured by the sensors.
 * sensor_uri (string) - URI of the sensor that captured this data
 * value (float) - The value of the sensor data
 * timestamp (ISO 8601 timestamp) - Timestamp marking when the data was captured
-* metric (string) - What the data is measuring (e.g. 'temperature')
-* unit (string) - The unit the data is in (e.g. 'kWh')
 
 ### Groupable Fields
 
 * sensor_uri
 
-### Aggregatble Fields
+### Aggregatable Fields
 
 * value
 
@@ -257,16 +272,20 @@ Scalar Data is the raw data captured by the sensors.
 
     {
         'resource_uri': '/api/scalar_data/193',
+        'sensor_uri': '/api/sensor/91',
         'value': 25.2,
         'timestamp': '2013-04-12T03:30:00Z',
-        'metric': 'temperature',
-        'unit': 'C'
     }
 
-Aggregate Scalar Data
----------------------
+Doppel2 Server Setup Instructions
+=================================
 
-Aggregate Scalar Data provides an interface for requesting aggregate data, for
-instance getting the time average of a set of data.
+Install puppet and the proper puppet modules with
 
-### Accepted Query String Parameters
+    sudo apt-get install puppet
+    sudo puppet module install puppetlabs/postgresql
+
+Then set up the server with
+
+    sudo puppet apply manifest.pp
+

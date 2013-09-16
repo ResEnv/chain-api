@@ -1,4 +1,4 @@
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseBadRequest
 from doppel2.core.models import ScalarData
 from django.db.models import Avg
 from django.conf.urls import url, patterns
@@ -24,23 +24,29 @@ def api_home(request):
     # define all the api endpoints
     api_endpoints = {
         'scalar_data': reverse(scalar_data),
-        'aggragate_scalar_data': reverse(aggregate_scalar_data),
     }
     return HttpResponse(json.dumps(api_endpoints))
 
 
-def filter_by_request(objs, request):
+def parse_query(request):
+    '''Parses the query string of the incoming request and splits the arguments
+    into filters, groupers, and aggregators. It also converts arguments into
+    django-compatible formats if necessary'''
+
+    filters = {}
+    groupers = {}
+    aggregators = {}
+
     if request.GET:
-        filters = {}
         for k, v in request.GET.iteritems():
-            if k.startswith('timestamp'):
+            if k == 'average_by':
+                aggregators[k] = v
+            elif k.startswith('timestamp'):
                 filters[k] = dateutil.parser.parse(v)
             else:
                 filters[k] = v
 
-        objs = objs.filter(**filters)
-
-    return objs
+    return filters, groupers, aggregators
 
 
 def scalar_data(request):
@@ -48,22 +54,35 @@ def scalar_data(request):
     # allow filtering on timestamp
     #unit = fields.CharField()
     #metric = fields.CharField()
-    response_meta = {}
-    response_objects = []
+    response = {}
 
-    objs = filter_by_request(ScalarData.objects.all(), request)
+    filters, groupers, aggregators = parse_query(request)
 
-    for obj in objs:
-        obj_dict = {
-            'value': obj.value,
-            'timestamp': obj.timestamp.isoformat(),
-            'metric': obj.sensor.metric.name,
-            'unit': obj.sensor.unit.name,
-        }
-        response_objects.append(obj_dict)
+    objs = ScalarData.objects.all()
+    if filters:
+        objs = objs.filter(**filters)
 
-    response_meta['total_count'] = len(response_objects)
-    response = {'meta': response_meta, 'objects': response_objects}
+    response['meta'] = {'total_count': objs.count()}
+
+    if aggregators:
+#        if aggregators['average_by'] != 'value':
+#            return HttpResponseBadRequest()
+        # currently just assume we're averaging by value
+        avg_value = objs.aggregate(Avg('value'))['value__avg']
+        response['average_value'] = avg_value
+    else:
+        # no aggregators, so just put all the objects in the response
+        response_objects = []
+        for obj in objs:
+            obj_dict = {
+                'value': obj.value,
+                'timestamp': obj.timestamp.isoformat(),
+                'metric': obj.sensor.metric.name,
+                'unit': obj.sensor.unit.name,
+            }
+            response_objects.append(obj_dict)
+        response['objects'] = response_objects
+
     return HttpResponse(json.dumps(response))
 
 
