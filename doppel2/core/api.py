@@ -1,4 +1,4 @@
-from django.http import HttpResponse, HttpResponseBadRequest
+from django.http import HttpResponse
 from doppel2.core.models import ScalarData
 from django.db.models import Avg
 from django.conf.urls import url, patterns
@@ -41,6 +41,8 @@ def parse_query(request):
         for k, v in request.GET.iteritems():
             if k == 'average_by':
                 aggregators[k] = v
+            elif k == 'group_by':
+                groupers[k] = v
             elif k.startswith('timestamp'):
                 filters[k] = dateutil.parser.parse(v)
             else:
@@ -50,10 +52,10 @@ def parse_query(request):
 
 
 def scalar_data(request):
-    # plus fields from model
-    # allow filtering on timestamp
-    #unit = fields.CharField()
-    #metric = fields.CharField()
+
+    # TODO: fix URIs returned in response. Currently they're just the index,
+    # but they should be the full URI
+
     response = {}
 
     filters, groupers, aggregators = parse_query(request)
@@ -64,21 +66,35 @@ def scalar_data(request):
 
     response['meta'] = {'total_count': objs.count()}
 
-    if aggregators:
-#        if aggregators['average_by'] != 'value':
-#            return HttpResponseBadRequest()
+    if groupers:
+        # currently assume we're grouping by the sensor_uri
+        groups = {}
+        for obj in objs:
+            obj_dict = {
+                'resource_uri': obj.id,
+                'value': obj.value,
+                'timestamp': obj.timestamp.isoformat(),
+            }
+            if obj.sensor_id in groups:
+                groups[obj.sensor_id].append(obj_dict)
+            else:
+                groups[obj.sensor_id] = [obj_dict]
+        response['sensor_uri_groups'] = groups
+
+    elif aggregators:
         # currently just assume we're averaging by value
         avg_value = objs.aggregate(Avg('value'))['value__avg']
         response['average_value'] = avg_value
+
     else:
-        # no aggregators, so just put all the objects in the response
+        # no aggregators or groups, so just put all the objects in the response
         response_objects = []
         for obj in objs:
             obj_dict = {
+                'resource_uri': obj.id,
+                'sensor_uri': obj.sensor_id,
                 'value': obj.value,
                 'timestamp': obj.timestamp.isoformat(),
-                'metric': obj.sensor.metric.name,
-                'unit': obj.sensor.unit.name,
             }
             response_objects.append(obj_dict)
         response['objects'] = response_objects

@@ -92,25 +92,25 @@ For example, a GET request to /api/room_temp/ might return:
         },
         'objects': [
             {
-                'resource_uri': '/api/some_resource/192',
+                'resource_uri': '/api/room_temp/192',
                 'room': 'Bedroom',
                 'temperature': 26,
                 'timestamp': '2013-04-12T03:30:00Z'
             },
             {
-                'resource_uri': '/api/some_resource/193',
+                'resource_uri': '/api/room_temp/193',
                 'room': 'Bedroom',
                 'temperature': 27,
                 'timestamp': '2013-04-12T03:35:00Z'
             },
             {
-                'resource_uri': '/api/some_resource/194',
+                'resource_uri': '/api/room_temp/194',
                 'room': 'Living Room',
                 'temperature': 22,
                 'timestamp': '2013-04-12T03:30:00Z'
             },
             {
-                'resource_uri': '/api/some_resource/195',
+                'resource_uri': '/api/room_temp/195',
                 'room': 'Living Room',
                 'temperature': 28,
                 'timestamp': '2013-04-12T03:35:00Z'
@@ -124,38 +124,32 @@ whereas a GET request to /api/room_temp/?group_by=room would return:
         "meta": {
             "total_count": 4
         },
-        "groups": [
-            {
-                "room": "BedRoom",
-                "objects": [
-                    {
-                        "resource_uri": "/api/some_resource/192",
-                        "temperature": 26,
-                        "timestamp": "2013-04-12T03:30:00Z"
-                    },
-                    {
-                        "resource_uri": "/api/some_resource/193",
-                        "temperature": 27,
-                        "timestamp": "2013-04-12T03:35:00Z"
-                    }
-                ]
-            },
-            {
-                "room": "Living Room",
-                "objects": [
-                    {
-                        "resource_uri": "/api/some_resource/194",
-                        "temperature": 22,
-                        "timestamp": "2013-04-12T03:30:00Z"
-                    },
-                    {
-                        "resource_uri": "/api/some_resource/195",
-                        "temperature": 28,
-                        "timestamp": "2013-04-12T03:35:00Z"
-                    }
-                ]
-            }
-        ]
+        "room_groups": {
+            "Bedroom": [
+                {
+                    "resource_uri": "/api/room_temp/192",
+                    "temperature": 26,
+                    "timestamp": "2013-04-12T03:30:00Z"
+                },
+                {
+                    "resource_uri": "/api/room_temp/193",
+                    "temperature": 27,
+                    "timestamp": "2013-04-12T03:35:00Z"
+                }
+            ],
+            "Living Room": [
+                {
+                    "resource_uri": "/api/room_temp/194",
+                    "temperature": 22,
+                    "timestamp": "2013-04-12T03:30:00Z"
+                },
+                {
+                    "resource_uri": "/api/room_temp/195",
+                    "temperature": 28,
+                    "timestamp": "2013-04-12T03:35:00Z"
+                }
+            ]
+        }
     }
 
 and a GET request to /api/room_temp/?average_by=temperature would return:
@@ -164,12 +158,12 @@ and a GET request to /api/room_temp/?average_by=temperature would return:
         "meta": {
             "total_count": 4
         },
-        "average_temperature": 25.75
+        "temperature_average": 25.75
     }
 
 Note that when aggregating data, the other fields from the original resources
 are discarded. The dictionary key for the aggregate value is given by
-average_FIELD.Grouping and Aggregating can be combined, in which case the
+FIELD_average. Grouping and Aggregating can be combined, in which case the
 aggregation happens within each group. so a GET request to
 /api/room_temp/?average_by=temperature&group_by=room would return:
 
@@ -177,16 +171,14 @@ aggregation happens within each group. so a GET request to
         "meta": {
             "total_count": 4
         },
-        "groups": [
-            {
-                "room": "BedRoom",
-                "average_temperature": 26.5
+        "room_groups": {
+            "BedRoom": {
+                "temperature_average": 26.5
             },
-            {
-                "room": "Living Room",
-                "average_temperature": 25.0
+            "Living Room": {
+                "temperature_average": 25.0
             }
-        ]
+        }
     }
 
 To summarize, the order of operations is always filtering, then grouping, then

@@ -107,13 +107,20 @@ class ScalarDataFilteringApiTest(TestCase):
         metric.save()
         sensor_group = SensorGroup(name="Thermostat")
         sensor_group.save()
-        sensor = Sensor(unit=unit, sensor_group=sensor_group,
-                        metric=metric)
-        sensor.save()
+        sensor1 = Sensor(unit=unit, sensor_group=sensor_group,
+                         metric=metric)
+        sensor1.save()
+        sensor2 = Sensor(unit=unit, sensor_group=sensor_group,
+                         metric=metric)
+        sensor2.save()
         data = []
         for value, hour in zip([20, 21, 23, 27], [2, 4, 6, 8]):
             data.append(
-                ScalarData(sensor=sensor, value=value,
+                ScalarData(sensor=sensor1, value=value,
+                           timestamp=make_aware(
+                               datetime(2013, 4, 12, hour, 0, 0), utc)))
+            data.append(
+                ScalarData(sensor=sensor2, value=value,
                            timestamp=make_aware(
                                datetime(2013, 4, 12, hour, 0, 0), utc)))
         ScalarData.objects.bulk_create(data)
@@ -126,12 +133,9 @@ class ScalarDataFilteringApiTest(TestCase):
         response = self.client.get(url, Accept="application/json")
         self.assertEqual(response.status_code, 200)
         data = json.loads(response.content)['objects']
-        self.assertEqual(len(data), 2)
-        self.assertEqual(data[0]['value'], 21)
-        self.assertEqual(data[1]['value'], 23)
+        self.assertEqual(len(data), 4)
 
     def test_scalar_data_should_accept_average(self):
-        # create a date range that should only grab the middle 2 data points
         query_string = ('?timestamp__gt=2013-04-12T03:30:00Z&' +
                         'timestamp__lt=2013-04-12T06:30:00Z&' +
                         'average_by=value')
@@ -140,6 +144,14 @@ class ScalarDataFilteringApiTest(TestCase):
         self.assertEqual(response.status_code, 200)
         data = json.loads(response.content)
         self.assertEqual(data['average_value'], 22)
+
+    def test_scalar_data_should_support_grouping(self):
+        query_string = ('?group_by=sensor_uri')
+        url = SCALAR_DATA_URL + query_string
+        response = self.client.get(url, Accept="application/json")
+        self.assertEqual(response.status_code, 200)
+        groups = json.loads(response.content)['sensor_uri_groups']
+        self.assertEqual(len(groups), 2)
 
 
 
