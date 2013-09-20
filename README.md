@@ -3,24 +3,8 @@
 API Overview
 ============
 
-Entry Point
------------
-
-The API entry point is at /api/, so a GET request will give you links to the
-available base resources in the following format:
-
-    {
-        'href': '/api/',
-        'sites': { 'href': '/api/sites/' }
-    }
-
-Currently the only top-level resource available is the collection of Sites.
-The client first selects which site they are interested in and can navigate
-from there to explore that site.  Clients should not assume hard-coded URIs,
-but should instead get the proper URI from the API entry point.
-
-Resource Represenation
-----------------------
+Resource Representation
+-----------------------
 
 All resources are specified with a URI. When presented to the client, the
 resource is represented as a JSON object with at minimum an 'href' property
@@ -78,7 +62,7 @@ Or if the 'books' resource is expanded:
         'firstName': 'Charlotte',
         'lastName': 'Bronte'
         'books': {
-            'href': '/api/authors/910/books
+            'href': '/api/authors/910/books',
             'meta': { 'total_count': 3 },
             'objects': [
                 {
@@ -270,8 +254,63 @@ aggregation. The 'total_count' field represents the number of resources
 reprensented by the response, so it is the count after filtering but before
 aggregation (grouping doesn't effect the number of returned resources).
 
+Entry Point
+-----------
+
+The API entry point is at /api/, so a GET request will give you links to the
+available base resources in the following format:
+
+    {
+        'href': '/api/',
+        'sites': {
+            'href': '/api/sites/',
+            'meta': { 'total_count': 2 },
+            'objects': [
+                {
+                    'href': '/sites/92',
+                    'name': 'DoppelLab',
+                },
+                {
+                    'href': '/sites/12',
+                    'name': 'TidMarsh',
+                }
+            }
+        }
+    }
+
+Currently the only top-level resource available is the collection of Sites.
+The client first selects which site they are interested in and can navigate
+from there to explore that site.  Clients should not assume hard-coded URIs,
+but should instead get the proper URI from the API entry point.
+
 Base Resource Types
 ===================
+
+Site
+----
+
+An installation of Doppel2, usually on the scale of several or many buildings.
+
+### Example
+
+    {
+        'resource_uri': '/api/sites/758',
+        'name': 'TidMarsh',
+        'sensors': { 'href': '/api/sites/758/sensors' },
+        'devices': { 'href': '/api/sites/758/devices' }
+    }
+
+Device
+------
+
+A device that may contain several sensor channels.
+
+### Example
+
+    {
+        'resource_uri': '/api/devices/129',
+        'sensors': { 'href': '/api/devices/129/sensors' }
+    }
 
 Sensor
 ------
