@@ -127,6 +127,9 @@ resource, e.g.
 Filtering Resources
 -------------------
 
+NOTE: this section is under revision, and may not be how we handle things in
+the end
+
 In general the Collection Resources can be filtered with any filter available
 through the django ORM, described at
 https://docs.djangoproject.com/en/1.5/ref/models/querysets/#field-lookups. The
@@ -141,6 +144,14 @@ zone specified.
 
 Grouping and Aggregating
 ------------------------
+
+NOTE: THIS ISN'T HOW WE'RE DOING THINGS
+
+rather than trying to implement a general query language, we're going to
+provide the client with useful groupings via the URL linkages. For now I'm
+keeping the below content for reference as the API develops.
+
+END NOTE
 
 Often the client will want to collect a large number of resources, each of
 which might have a lot of data in common. For instance, when requesting a block
