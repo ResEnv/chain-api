@@ -415,3 +415,15 @@ Then set up the server with
 
     sudo puppet apply manifest.pp
 
+Now you can initialize your django environment
+
+    ./manage.py syncdb
+    ./manage.py migrate
+
+Now you should be able to run the server with:
+
+    ./manage.py runserver 0.0.0.0:8000
+
+and access it from your host machine's browser at
+
+    http://localhost:8000
