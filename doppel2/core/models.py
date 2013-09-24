@@ -26,10 +26,13 @@ class Person(models.Model):
     information'''
     first_name = models.CharField(max_length=255)
     last_name = models.CharField(max_length=255)
-    picture_url = models.CharField(max_length=255)
-    twitter_handle = models.CharField(max_length=255)
-    rfid = models.CharField(max_length=255)
+    picture_url = models.CharField(max_length=255, null=True, blank=True)
+    twitter_handle = models.CharField(max_length=255, null=True, blank=True)
+    rfid = models.CharField(max_length=255, null=True, blank=True)
     site = models.ForeignKey(Site, related_name='people')
+
+    class Meta:
+        verbose_name_plural = "people"
 
     def __repr__(self):
         return ('Person(first_name=%s, last_name=%s, picture_url=%s, ' +
@@ -38,7 +41,7 @@ class Person(models.Model):
                     self.twitter_handle, self.rfid)
 
     def __str__(self):
-        return " ".join(self.first_name, self.last_name)
+        return " ".join([self.first_name, self.last_name])
 
 
 class Device(models.Model):
@@ -95,7 +98,10 @@ class Sensor(models.Model):
     device = models.ForeignKey(Device, related_name='sensors')
     metric = models.ForeignKey(Metric, related_name='sensors')
     unit = models.ForeignKey(Unit, related_name='sensors')
-    metadata = models.CharField(max_length=255)
+    metadata = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        unique_together = ['device', 'metric']
 
     def __repr__(self):
         return 'Sensor(device=%r, metric=%r, unit=%r)' % (
