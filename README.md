@@ -403,6 +403,29 @@ Scalar Data is the raw data captured by the sensors.
         'timestamp': '2013-04-12T03:30:00Z',
     }
 
+Dev Server Initial Setup
+========================
+
+To develop for doppel2 the best way is with a virtual machine. The following
+instructions should guide you through setting up a development environment that
+should match the production machine.
+
+First you'll want to make sure that both Virtualbox and Vagrant are installed,
+as well as mercurial.
+
+Then clone the code from the repository with:
+
+    hg clone http://simonetti.media.mit.edu/hg/doppel2
+
+Mercurial (hg) will create a folder called doppel2 and check out the code into
+it.
+
+from within that folder run 'vagrant up' and it should instantiate the virtual
+machine.
+
+after the machine is up you can run 'vagrant ssh' to ssh into the new VM. From
+there you can follow the below instructions on setting up a Doppel2 server.
+
 Doppel2 Server Setup Instructions
 =================================
 
