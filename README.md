@@ -415,6 +415,15 @@ Then set up the server with
 
     sudo puppet apply manifest.pp
 
+Currently the puppet manifest doesn't correctly set up the database user, so
+for now you need to:
+
+    sudo su postgres
+    psql
+    alter user doppellab with password 'secret';
+    \q
+    exit
+
 Now you can initialize your django environment
 
     ./manage.py syncdb
