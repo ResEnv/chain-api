@@ -458,4 +458,4 @@ Now you should be able to run the server with:
 
 and access it from your host machine's browser at
 
-    http://localhost:8000
+    http://localhost:8000/admin
