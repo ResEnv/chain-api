@@ -65,7 +65,19 @@ package { "south":
     ensure => present,
 }
 
-package { "django-tastypie":
+package { "djangorestframework":
+    provider => "pip",
+    require => Package["python-pip"],
+    ensure => present,
+}
+
+package { "markdown":
+    provider => "pip",
+    require => Package["python-pip"],
+    ensure => present,
+}
+
+package { "django-filter":
     provider => "pip",
     require => Package["python-pip"],
     ensure => present,

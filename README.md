@@ -492,3 +492,13 @@ Now you should be able to run the server with:
 and access it from your host machine's browser at
 
     http://localhost:8000/admin
+
+Browsable API Customisation
+===========================
+
+The Django Rest Framework comes with a very nice browsable representation of
+the API that the client can explore from his or her browser. To customize the
+look and feel you need to edit `doppel2/core/rest_framework/api.html`. The
+blocks you can override are described briefly at
+`http://django-rest-framework.org/topics/browsable-api.html`
+
