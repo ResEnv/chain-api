@@ -81,12 +81,12 @@ class SensorDataTest(DoppelTestCase):
 class ApiTest(DoppelTestCase):
     def test_base_url_should_have_href(self):
         data = self.get_resource(BASE_API_URL)
-        self.assertEqual(data['_href'], BASE_API_URL)
+        self.assertEqual(data['_href'][-len(BASE_API_URL):], BASE_API_URL)
 
     def test_base_url_should_have_sites_collection(self):
         data = self.get_resource(BASE_API_URL)
         sites_coll = data['sites']
-        self.assertEqual(sites_coll['_href'], SITES_URL)
+        self.assertEqual(sites_coll['_href'][-len(SITES_URL):], SITES_URL)
 
 #    def test_base_sites_collection_should_have_metadata(self):
 #        data = self.get_resource(BASE_API_URL)
@@ -95,13 +95,13 @@ class ApiTest(DoppelTestCase):
 
     def test_sites_should_be_expanded_in_base_url(self):
         response = self.get_resource(BASE_API_URL)
-        sites = response['sites']['objects']
+        sites = response['sites']['data']
         self.assertIn(sites[0]['name'], [self.sites[0].name,
                                          self.sites[1].name])
 
     def test_site_resource_should_have_devices(self):
         base_response = self.get_resource(BASE_API_URL)
-        sites = base_response['sites']['objects']
+        sites = base_response['sites']['data']
         site_url = sites[0]['_href']
         # following the link like a good RESTful client
         site = self.get_resource(site_url)
@@ -109,13 +109,13 @@ class ApiTest(DoppelTestCase):
         db_site = Site.objects.get(name=site['name'])
 #        self.assertEqual(device_coll['meta']['total_count'],
 #                         db_site.devices.count())
-        self.assertEqual(len(device_coll['objects']),
+        self.assertEqual(len(device_coll['data']),
                          db_site.devices.count())
 
 #    def test_scalar_data_should_be_gettable_from_api(self):
 #        data = ScalarData(sensor=self.sensors[0], value=25)
 #        data.save()
-#        data = self.get_resource(SCALAR_DATA_URL)['objects']
+#        data = self.get_resource(SCALAR_DATA_URL)['data']
 #        self.assertEqual(len(data), 1)
 #        self.assertEqual(data[0]['value'], 25)
 #
@@ -157,7 +157,7 @@ class ApiTest(DoppelTestCase):
 #        query_string = ('?timestamp__gt=2013-04-12T03:30:00Z&' +
 #                        'timestamp__lt=2013-04-12T06:30:00Z')
 #        url = SCALAR_DATA_URL + query_string
-#        data = self.get_resource(url)['objects']
+#        data = self.get_resource(url)['data']
 #        self.assertEqual(len(data), 4)
 #
 #    def test_scalar_data_should_accept_average(self):
