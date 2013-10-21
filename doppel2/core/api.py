@@ -10,16 +10,24 @@ class Doppel2Serializer(serializers.HyperlinkedModelSerializer):
     @property
     def data(self):
         '''If a collection was requested (self.many is True), then we want to
-        return the full collection resource, including its own URL'''
-        data = super(Doppel2Serializer, self).data
-        view_name = self.opts.model._meta.object_name.lower() + '-list'
-        if self.many:
-            data = {
-                '_href': reverse(view_name, request=self.context['request']),
-                '_type': 'resource-list',
-                'data': data,
-            }
-        return data
+        return the full collection resource, including its own URL. This is
+        mostly cribbed from the BaseSerializer definition'''
+        if self._data is None:
+            obj = self.object
+
+            if self.many:
+                self._data = [self.to_native(item) for item in obj]
+                view_name = self.opts.model._meta.object_name.lower() + '-list'
+                data = {
+                    '_href': reverse(view_name,
+                                     request=self.context['request']),
+                    '_type': 'resource-list',
+                    'data': self._data,
+                }
+                return data
+            else:
+                self._data = self.to_native(obj)
+                return self._data
 
 
 class SensorSerializer(serializers.HyperlinkedModelSerializer):
