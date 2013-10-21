@@ -12,14 +12,17 @@ def full_reverse(view_name, request, *args, **kwargs):
 
 
 class EmbeddedCollectionField:
-    def __init__(self, child_resource_class, reverse):
-        self._reverse = reverse
+    def __init__(self, child_resource_class, reverse_name):
+        self._reverse_name = reverse_name
         self._child_resource_class = child_resource_class
 
-    def serialize(self, parent):
-        pass
-#        base_queryset = self._child_resource_class.queryset
-#        return self._child_resource_class()
+    def serialize(self, parent, request):
+        queryset = self._child_resource_class.queryset
+        # generate a filter on the child collection so we get the actual
+        # children, and not all the resources
+        parent_filter = {self._reverse_name: parent._obj.id}
+        return self._child_resource_class(queryset=queryset).serialize(
+            request, filters=parent_filter)
 
 
 class ResourceFactory:
@@ -57,11 +60,11 @@ class Resource:
                                   args=(self._obj.id,)),
             '_type': self.resource_type,
         }
-        for field in self.model_fields:
-            data[field] = getattr(self._obj, field)
-        for field, resource_class in self.child_collections.items():
-            data[field] = resource_class(
-                queryset=getattr(self._obj, field)).serialize(request)
+        for field_name in self.model_fields:
+            data[field_name] = getattr(self._obj, field_name)
+        for field_name, collection in self.child_collections.items():
+            # collection is an EmbeddedCollectionField here
+            data[field_name] = collection.serialize(self, request)
 
         return data
 
@@ -77,7 +80,8 @@ class Resource:
             query_string = "?" + '&'.join(
                 ['%s=%s' % (k, v) for (k, v) in filters.items()])
         return {
-            '_href': full_reverse(self.resource_name + '-list', request) + query_string,
+            '_href': full_reverse(self.resource_name + '-list',
+                                  request) + query_string,
             '_type': 'resource-list',
             'data': [self.__class__(obj=obj).serialize(request)
                      for obj in queryset]
@@ -118,9 +122,9 @@ class SiteResource(Resource):
     resource_name = 'sites'
     resource_type = 'site'
     model_fields = ['name', 'latitude', 'longitude']
-    #child_collections = {'devices': EmbeddedCollectionField(DeviceResource,
-    #                                                        reverse='site')}
-    child_collections = {'devices': DeviceResource}
+    child_collections = {
+        'devices': EmbeddedCollectionField(DeviceResource, reverse_name='site')
+    }
     queryset = Site.objects
 
 
