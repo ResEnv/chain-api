@@ -110,6 +110,13 @@ class ApiTest(DoppelTestCase):
         self.assertEqual(len(device_coll['data']),
                          db_site.devices.count())
 
+    def test_devices_can_be_filtered_by_site(self):
+        full_devices_coll = self.get_resource(BASE_API_URL + 'devices/')
+        filtered_devices_coll = self.get_resource(
+            BASE_API_URL + 'devices/?site=%d' % self.sites[0].id)
+        self.assertEqual(len(full_devices_coll['data']), 5)
+        self.assertEqual(len(filtered_devices_coll['data']), 3)
+
 #    def test_scalar_data_should_be_gettable_from_api(self):
 #        data = ScalarData(sensor=self.sensors[0], value=25)
 #        data.save()

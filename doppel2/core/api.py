@@ -11,6 +11,17 @@ def full_reverse(view_name, request, *args, **kwargs):
     return request.build_absolute_uri(partial_reverse)
 
 
+class EmbeddedCollectionField:
+    def __init__(self, child_resource_class, reverse):
+        self._reverse = reverse
+        self._child_resource_class = child_resource_class
+
+    def serialize(self, parent):
+        pass
+#        base_queryset = self._child_resource_class.queryset
+#        return self._child_resource_class()
+
+
 class ResourceFactory:
     def __init__(self, resource_class):
         base_name = resource_class.resource_name
@@ -26,6 +37,7 @@ class ResourceFactory:
 class Resource:
     resource_name = None
     resource_type = None
+    queryset = None
     model_fields = []
     child_collections = {}
 
@@ -41,7 +53,6 @@ class Resource:
         '''Serializes this object, assuming that there is a single instance to
         be serialized'''
         data = {
-            #TODO _href should be the external URL if present
             '_href': full_reverse(self.resource_name + '-single', request,
                                   args=(self._obj.id,)),
             '_type': self.resource_type,
@@ -54,16 +65,24 @@ class Resource:
 
         return data
 
-    def serialize_list(self, request):
+    def serialize_list(self, request, filters=None):
         '''Serializes this object, assuming that there is a queryset that needs
         to be serialized as a collection'''
+
+        filters = filters or {}
 
         return {
             '_href': full_reverse(self.resource_name + '-list', request),
             '_type': 'resource-list',
             'data': [self.__class__(obj=obj).serialize(request)
-                     for obj in self._queryset.all()]
+                     for obj in self.filter_queryset(request)]
         }
+
+    def filter_queryset(self, request):
+        '''Filters our queryset based on the passed parameters. Currently
+        we're not doing any error checking on these'''
+        #TODO: do some error checking here
+        return self._queryset.filter(**request.GET.dict())
 
     def serialize(self, request):
         '''Serializes this instance into a dictionary that can be rendered'''
@@ -74,41 +93,35 @@ class Resource:
                 self._data = self.serialize_single(request)
         return self._data
 
+    @classmethod
+    def list_view(cls, request):
+        response_data = cls(queryset=cls.queryset).serialize(request)
+        return HttpResponse(json.dumps(response_data))
+
+    @classmethod
+    def single_view(cls, request, id):
+        response_data = cls(
+            obj=cls.queryset.get(id=id)).serialize(request)
+        return HttpResponse(json.dumps(response_data))
+
 
 class DeviceResource(Resource):
     resource_name = 'devices'
     resource_type = 'device'
-    #TODO: add site field
+    #TODO: add site linked field
     model_fields = ['name', 'description', 'building', 'floor', 'room']
-
-    @classmethod
-    def list_view(cls, request):
-        response_data = cls(queryset=Device.objects).serialize(request)
-        return HttpResponse(json.dumps(response_data))
-
-    @classmethod
-    def single_view(cls, request, id):
-        response_data = cls(
-            obj=Device.objects.get(id=id)).serialize(request)
-        return HttpResponse(json.dumps(response_data))
+    queryset = Device.objects
 
 
 class SiteResource(Resource):
+    #TODO _href should be the external URL if present
     resource_name = 'sites'
     resource_type = 'site'
     model_fields = ['name', 'latitude', 'longitude']
+    #child_collections = {'devices': EmbeddedCollectionField(DeviceResource,
+    #                                                        reverse='site')}
     child_collections = {'devices': DeviceResource}
-
-    @classmethod
-    def list_view(cls, request):
-        response_data = cls(queryset=Site.objects).serialize(request)
-        return HttpResponse(json.dumps(response_data))
-
-    @classmethod
-    def single_view(cls, request, id):
-        response_data = cls(
-            obj=Site.objects.get(id=id)).serialize(request)
-        return HttpResponse(json.dumps(response_data))
+    queryset = Site.objects
 
 
 class ApiRootResource:
