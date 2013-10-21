@@ -10,6 +10,8 @@ from doppel2.core.models import ScalarData, Unit, Metric, Device, Sensor, Site
 from datetime import datetime
 from django.db.models import Avg
 import json
+from doppel2.core.api import HTTP_STATUS_SUCCESS, HTTP_STATUS_CREATED
+
 #from django.utils.timezone import make_aware, utc
 
 BASE_API_URL = '/api/'
@@ -49,7 +51,15 @@ class DoppelTestCase(TestCase):
     def get_resource(self, url):
         response = self.client.get(url,
                                    Accept="application/json")
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, HTTP_STATUS_SUCCESS)
+        data = json.loads(response.content)
+        return data
+
+    def post_resource(self, url, resource):
+        response = self.client.post(url, json.dumps(resource),
+                                    content_type='application/json',
+                                    Accept="application/json")
+        self.assertEqual(response.status_code, HTTP_STATUS_CREATED)
         data = json.loads(response.content)
         return data
 
@@ -98,6 +108,19 @@ class ApiTest(DoppelTestCase):
         sites = response['sites']['data']
         self.assertIn(sites[0]['name'], [self.sites[0].name,
                                          self.sites[1].name])
+
+    def test_sites_should_be_postable(self):
+        new_site = {
+            "_type": "site",
+            "latitude": 42.360461,
+            "longitude": -71.087347,
+            "name": "MIT Media Lab"
+        }
+        response = self.post_resource(SITES_URL, new_site)
+        db_obj = Site.objects.get(name='MIT Media Lab')
+        for field in ['latitude', 'longitude', 'name']:
+            self.assertEqual(new_site[field], response[field])
+            self.assertEqual(new_site[field], getattr(db_obj, field))
 
     def test_site_resource_should_have_devices(self):
         base_response = self.get_resource(BASE_API_URL)

@@ -6,6 +6,10 @@ from django.http import HttpResponse
 from django.core.urlresolvers import reverse
 
 
+HTTP_STATUS_SUCCESS = 200
+HTTP_STATUS_CREATED = 201
+
+
 def full_reverse(view_name, request, *args, **kwargs):
     partial_reverse = reverse(view_name, *args, **kwargs)
     return request.build_absolute_uri(partial_reverse)
@@ -38,6 +42,7 @@ class ResourceFactory:
 
 
 class Resource:
+    model = None
     resource_name = None
     resource_type = None
     queryset = None
@@ -97,11 +102,39 @@ class Resource:
                 self._data = self.serialize_single(request)
         return self._data
 
+    def deserialize(self):
+        '''Deserializes this instance and returns the object representation'''
+        if not self._obj:
+            new_obj_data = {}
+            # take the intersection of the fields given and the fields in
+            # self.model_fields
+            for field_name in [f for f in self.model_fields
+                               if f in self._data]:
+                new_obj_data[field_name] = self._data[field_name]
+            self._obj = self.model(**new_obj_data)
+        return self._obj
+
+    def save(self):
+        if not self._obj:
+            # here we're using the side-effect of serialization that we save
+            # the object after deserialization
+            self.deserialize()
+        self._obj.save()
+
     @classmethod
     def list_view(cls, request):
-        filters = request.GET.dict()
-        response_data = cls(queryset=cls.queryset).serialize(request, filters)
-        return HttpResponse(json.dumps(response_data))
+        if request.method == 'GET':
+            filters = request.GET.dict()
+            response_data = cls(queryset=cls.queryset).serialize(request,
+                                                                 filters)
+            return HttpResponse(json.dumps(response_data))
+        elif request.method == 'POST':
+            #import pdb; pdb.set_trace()
+            new_object = cls(data=json.loads(request.body))
+            new_object.save()
+            response_data = new_object.serialize(request)
+            return HttpResponse(json.dumps(response_data),
+                                status=HTTP_STATUS_CREATED)
 
     @classmethod
     def single_view(cls, request, id):
@@ -111,6 +144,7 @@ class Resource:
 
 
 class DeviceResource(Resource):
+    model = Device
     resource_name = 'devices'
     resource_type = 'device'
     #TODO: add site linked field
@@ -119,6 +153,7 @@ class DeviceResource(Resource):
 
 
 class SiteResource(Resource):
+    model = Site
     #TODO _href should be the external URL if present
     resource_name = 'sites'
     resource_type = 'site'
