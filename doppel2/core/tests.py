@@ -107,8 +107,6 @@ class ApiTest(DoppelTestCase):
         site = self.get_resource(site_url)
         device_coll = self.get_resource(site['devices']['_href'])
         db_site = Site.objects.get(name=site['name'])
-#        self.assertEqual(device_coll['meta']['total_count'],
-#                         db_site.devices.count())
         self.assertEqual(len(device_coll['data']),
                          db_site.devices.count())
 
