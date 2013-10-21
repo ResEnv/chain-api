@@ -70,32 +70,32 @@ class Resource:
         to be serialized as a collection'''
 
         filters = filters or {}
+        queryset = self._queryset.filter(**filters)
+        query_string = ''
 
+        if filters:
+            query_string = "?" + '&'.join(
+                ['%s=%s' % (k, v) for (k, v) in filters.items()])
         return {
-            '_href': full_reverse(self.resource_name + '-list', request),
+            '_href': full_reverse(self.resource_name + '-list', request) + query_string,
             '_type': 'resource-list',
             'data': [self.__class__(obj=obj).serialize(request)
-                     for obj in self.filter_queryset(request)]
+                     for obj in queryset]
         }
 
-    def filter_queryset(self, request):
-        '''Filters our queryset based on the passed parameters. Currently
-        we're not doing any error checking on these'''
-        #TODO: do some error checking here
-        return self._queryset.filter(**request.GET.dict())
-
-    def serialize(self, request):
+    def serialize(self, request, filters=None):
         '''Serializes this instance into a dictionary that can be rendered'''
         if not self._data:
             if self._queryset:
-                self._data = self.serialize_list(request)
+                self._data = self.serialize_list(request, filters)
             elif self._obj:
                 self._data = self.serialize_single(request)
         return self._data
 
     @classmethod
     def list_view(cls, request):
-        response_data = cls(queryset=cls.queryset).serialize(request)
+        filters = request.GET.dict()
+        response_data = cls(queryset=cls.queryset).serialize(request, filters)
         return HttpResponse(json.dumps(response_data))
 
     @classmethod

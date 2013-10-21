@@ -81,12 +81,12 @@ class SensorDataTest(DoppelTestCase):
 class ApiTest(DoppelTestCase):
     def test_base_url_should_have_href(self):
         data = self.get_resource(BASE_API_URL)
-        self.assertEqual(data['_href'][-len(BASE_API_URL):], BASE_API_URL)
+        self.assertRegexpMatches(data['_href'], 'http://.*' + BASE_API_URL)
 
     def test_base_url_should_have_sites_collection(self):
         data = self.get_resource(BASE_API_URL)
         sites_coll = data['sites']
-        self.assertEqual(sites_coll['_href'][-len(SITES_URL):], SITES_URL)
+        self.assertRegexpMatches(sites_coll['_href'], 'http://.*' + SITES_URL)
 
 #    def test_base_sites_collection_should_have_metadata(self):
 #        data = self.get_resource(BASE_API_URL)
@@ -116,6 +116,13 @@ class ApiTest(DoppelTestCase):
             BASE_API_URL + 'devices/?site=%d' % self.sites[0].id)
         self.assertEqual(len(full_devices_coll['data']), 5)
         self.assertEqual(len(filtered_devices_coll['data']), 3)
+
+    def test_filtered_collection_has_filtered_url(self):
+        site_id = self.sites[0].id
+        coll = self.get_resource(
+            BASE_API_URL + 'devices/?site=%d' % site_id)
+        self.assertRegexpMatches(coll['_href'],
+                                 'http://.*/api/devices/\?site=%d' % site_id)
 
 #    def test_scalar_data_should_be_gettable_from_api(self):
 #        data = ScalarData(sensor=self.sensors[0], value=25)
