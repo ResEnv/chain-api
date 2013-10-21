@@ -83,6 +83,7 @@ class Resource:
             '_href': full_reverse(self.resource_name + '-list',
                                   request) + query_string,
             '_type': 'resource-list',
+            'meta': {'totalCount': len(queryset)},
             'data': [self.__class__(obj=obj).serialize(request)
                      for obj in queryset]
         }

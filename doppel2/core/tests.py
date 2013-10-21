@@ -88,10 +88,10 @@ class ApiTest(DoppelTestCase):
         sites_coll = data['sites']
         self.assertRegexpMatches(sites_coll['_href'], 'http://.*' + SITES_URL)
 
-#    def test_base_sites_collection_should_have_metadata(self):
-#        data = self.get_resource(BASE_API_URL)
-#        sites_coll = data['sites']
-#        self.assertEqual(sites_coll['meta']['total_count'], len(self.sites))
+    def test_base_sites_collection_should_have_metadata(self):
+        data = self.get_resource(BASE_API_URL)
+        sites_coll = data['sites']
+        self.assertEqual(sites_coll['meta']['totalCount'], len(self.sites))
 
     def test_sites_should_be_expanded_in_base_url(self):
         response = self.get_resource(BASE_API_URL)
