@@ -1,176 +1,109 @@
-from doppel2.core.models import Site, Device, Person, Sensor
-from rest_framework import views, viewsets, serializers, permissions
-from rest_framework.response import Response
+import logging
+from doppel2.core.models import Site
 from django.conf.urls import patterns, url, include
-from rest_framework import routers
-from rest_framework.reverse import reverse
+import json
+from django.http import HttpResponse
+from django.core.urlresolvers import reverse
 
 
-class Doppel2Serializer(serializers.HyperlinkedModelSerializer):
-    @property
-    def data(self):
-        '''If a collection was requested (self.many is True), then we want to
-        return the full collection resource, including its own URL. This is
-        mostly cribbed from the BaseSerializer definition'''
-        if self._data is None:
-            obj = self.object
-
-            if self.many:
-                self._data = [self.to_native(item) for item in obj]
-                view_name = self.opts.model._meta.object_name.lower() + '-list'
-                data = {
-                    '_href': reverse(view_name,
-                                     request=self.context['request']),
-                    '_type': 'resource-list',
-                    'data': self._data,
-                }
-                return data
-            else:
-                self._data = self.to_native(obj)
-                return self._data
+class ResourceFactory:
+    def __init__(self, resource_class):
+        base_name = resource_class.resource_name
+        self.urls = patterns(
+            '',
+            url(r'^$', resource_class.list_view,
+                name=base_name + '-list'),
+            url(r'^(\d+)$', resource_class.single_view,
+                name=base_name + '-single')
+        )
 
 
-class SensorSerializer(serializers.HyperlinkedModelSerializer):
-    class Meta:
-        model = Sensor
-        exclude = ('url',)
-
-    def _get_type(self, obj):
-        return 'sensor'
-
-    _href = serializers.HyperlinkedIdentityField(view_name='sensor-detail')
-    _type = serializers.SerializerMethodField('_get_type')
-    metric = serializers.SlugRelatedField(slug_field='name')
-    unit = serializers.SlugRelatedField(slug_field='name')
+def show_urls(urllist, depth=0):
+    for entry in urllist:
+        print "  " * depth, entry.regex.pattern
+        if hasattr(entry, 'url_patterns'):
+            show_urls(entry.url_patterns, depth + 1)
 
 
-class PersonSerializer(Doppel2Serializer):
-    class Meta:
-        model = Person
-        exclude = ('url',)
-
-    def _get_type(self, obj):
-        return 'person'
-
-    _href = serializers.HyperlinkedIdentityField(view_name='person-detail')
-    _type = serializers.SerializerMethodField('_get_type')
+def full_reverse(view_name, request, *args, **kwargs):
+    partial_reverse = reverse(view_name, *args, **kwargs)
+    return request.build_absolute_uri(partial_reverse)
 
 
-class DeviceSerializer(serializers.HyperlinkedModelSerializer):
-    class Meta:
-        model = Device
-        exclude = ('url',)
+class SiteResource:
+    resource_name = 'sites'
 
-    def _get_type(self, obj):
-        return 'device'
+    def __init__(self, obj=None, queryset=None, data=None):
+        if len([arg for arg in [obj, queryset, data] if arg]) != 1:
+            logging.error(
+                'Exactly 1 object, queryset, or primitive data is required')
+        self._queryset = queryset
+        self._data = data
+        self._obj = obj
 
-    # the ModelViewSet calls the detail view device-detail by default
-    _href = serializers.HyperlinkedIdentityField(view_name='device-detail')
-    _type = serializers.SerializerMethodField('_get_type')
-    sensors = SensorSerializer(many=True)
-    # TODO: we need to figure out how to include this relationship. Right now
-    # there's a circular dependency issue
-    #site = SiteSerializer()
+    def serialize_list(self, request):
+        '''Serializes this object, assuming that there is a queryset that needs
+        to be serialized as a collection'''
 
-
-class SiteSerializer(Doppel2Serializer):
-    class Meta:
-        model = Site
-        exclude = ('url',)
-
-    def _get_type(self, obj):
-        return 'site'
-
-    # TODO: if the url model field is non-empty the _href field should point to
-    # it instead of the URL on the local server
-    _href = serializers.HyperlinkedIdentityField(view_name='site-detail')
-    _type = serializers.SerializerMethodField('_get_type')
-    people = PersonSerializer(many=True)
-    devices = DeviceSerializer(many=True)
-
-
-# This was the first attempt to get the right collection behavior, but
-# it was abandoned because it didn't work well with nested collections
-#class Doppel2ViewSet(viewsets.ModelViewSet):
-#    '''This ViewSet superclass handles the custom format for list views
-#    (collections) that we want for doppel2, namely that collections are
-#    themselves actual resources and have their own _href and _type fields.'''
-#
-#    def list(self, request):
-#        '''This implementation was mostly lifted from the one from the
-#        ListModelMixin'''
-#        self.object_list = self.filter_queryset(self.get_queryset())
-#        list_data = self.get_serializer(self.object_list, many=True).data
-#        view_name = resource_router.get_default_base_name(self) + '-list'
-#        response = {
-#            '_href': reverse(view_name, request=request),
-#            'data': list_data,
-#            '_type': 'list',
-#        }
-#        return Response(response)
-
-
-class SiteViewSet(viewsets.ModelViewSet):
-    """
-    API endpoint that allows users to be viewed or edited.
-    """
-    queryset = Site.objects.all()
-    serializer_class = SiteSerializer
-
-
-class DeviceViewSet(viewsets.ModelViewSet):
-    """
-    represents a device, yo.
-    """
-    queryset = Device.objects.all()
-    serializer_class = DeviceSerializer
-
-
-class PersonViewSet(viewsets.ModelViewSet):
-    """
-    represents a person, yo.
-    """
-    queryset = Person.objects.all()
-    serializer_class = PersonSerializer
-
-
-class SensorViewSet(viewsets.ModelViewSet):
-    """
-    represents a sensor, yo.
-    """
-    queryset = Sensor.objects.all()
-    serializer_class = SensorSerializer
-
-
-class ApiRootView(views.APIView):
-    permission_classes = (permissions.AllowAny,)
-
-    def get(self, request, format=None):
-        # note that we're passing in the request in the serializer context so
-        # it knows how to render a full URL
-        site_serializer = SiteSerializer(Site.objects.all(),
-                                         many=True,
-                                         context={'request': request})
-        person_serializer = PersonSerializer(Person.objects.all(),
-                                             many=True,
-                                             context={'request': request})
-        response = {
-            '_href': reverse('api-root', request=request),
-            '_type': 'api-root',
-            'sites': site_serializer.data,
-            'person': person_serializer.data
+        return {
+            '_href': full_reverse('sites-list', request),
+            '_type': 'resource-list',
+            'data': [SiteResource(obj=obj).serialize(request)
+                     for obj in self._queryset.all()]
         }
-        return Response(response)
+
+    def serialize_single(self, request):
+        '''Serializes this object, assuming that there is a single instance to
+        be serialized'''
+        return {
+            #TODO _href should be the external URL if present
+            '_href': full_reverse('sites-single', request,
+                                  args=(self._obj.id,)),
+            '_type': 'site',
+            'name': self._obj.name,
+            'latitude': self._obj.latitude,
+            'longitude': self._obj.longitude,
+        }
+
+    def serialize(self, request):
+        '''Serializes this instance into a dictionary that can be rendered'''
+        if not self._data:
+            if self._queryset:
+                self._data = self.serialize_list(request)
+            elif self._obj:
+                self._data = self.serialize_single(request)
+        return self._data
+
+    @classmethod
+    def list_view(cls, request):
+        response_data = cls(queryset=Site.objects).serialize(request)
+        return HttpResponse(json.dumps(response_data))
+
+    @classmethod
+    def single_view(cls, request, id):
+        response_data = cls(
+            obj=Site.objects.get(id=id)).serialize(request)
+        return HttpResponse(json.dumps(response_data))
 
 
-resource_router = routers.SimpleRouter()
-resource_router.register('sites', SiteViewSet)
-resource_router.register('people', PersonViewSet)
-resource_router.register('devices', DeviceViewSet)
-resource_router.register('sensors', SensorViewSet)
+class ApiRootResource:
+    def serialize(self, request):
+        data = {
+            '_href': full_reverse('api-root', request),
+            '_type': 'api-root',
+            'sites': SiteResource(queryset=Site.objects).serialize(request),
+        }
+        return data
+
+    @classmethod
+    def single_view(cls, request):
+        resource = cls()
+        response_data = json.dumps(resource.serialize(request))
+        return HttpResponse(response_data)
+
 
 urls = patterns(
     '',
-    url(r'^$', ApiRootView.as_view(), name='api-root'),
-    url(r'^', include(resource_router.urls)),
+    url(r'^$', ApiRootResource.single_view, name='api-root'),
+    url(r'^sites/', include(ResourceFactory(SiteResource).urls)),
 )
