@@ -65,24 +65,6 @@ package { "south":
     ensure => present,
 }
 
-package { "djangorestframework":
-    provider => "pip",
-    require => Package["python-pip"],
-    ensure => present,
-}
-
-package { "markdown":
-    provider => "pip",
-    require => Package["python-pip"],
-    ensure => present,
-}
-
-package { "django-filter":
-    provider => "pip",
-    require => Package["python-pip"],
-    ensure => present,
-}
-
 package { "mimeparse":
     provider => "pip",
     require => Package["python-pip"],
