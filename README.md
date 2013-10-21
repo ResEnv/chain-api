@@ -8,24 +8,26 @@ Resource Representation
 
 All resources are specified with a URI. When presented to the client, the
 resource is represented as a JSON object with at minimum an `_href` property
-that contains its URI. When a parent resource (such as a Collection Resource or
-some other related resource) contains embedded child resources, those resources
-may be fully embedded or may only contain the `_href` property, in which case
-the client should follow the given link to access the child resource. Clients
-should be written to handle both cases transparently, to support future
-server-side changes and optimizations.
+that contains its URI. and a `_type` property that should be a link that both
+uniquely identifies that resource type and also provides its documentation.
+When a parent resource (such as a Collection Resource or some other related
+resource) contains embedded child resources, those resources may be fully
+embedded or may only contain the `_href` property, in which case the client
+should follow the given link to access the child resource. Clients should be
+written to handle both cases transparently, to support future server-side
+changes and optimizations.
 
 ### Example of an embedded resource
 
     GET http://example.com/api/books/483
 
     {
-        '_href': '/api/books/483',
-        '_type': '/api-types/book',
+        '_href': 'http://example.com/api/books/483',
+        '_type': 'http://example.com/api-types/book',
         'title': 'Jane Eyre',
         'author': {
-            '_href': '/api/authors/910',
-            '_type': '/api-types/author',
+            '_href': 'http://example.com/api/authors/910',
+            '_type': 'http://example.com/api-types/author',
             'firstName': 'Charlotte',
             'lastName': 'Bronte',
             'books': { '_href': '/api/authors/910/books/' }
@@ -37,10 +39,10 @@ server-side changes and optimizations.
     GET http://example.com/api/book/483
 
     {
-        '_href': '/api/books/483',
-        '_type': '/api-types/book',
+        '_href': 'http://example.com/api/books/483',
+        '_type': 'http://example.com/api-types/book',
         'title': 'Jane Eyre',
-        'author': { '_href': '/api/authors/910' }
+        'author': { '_href': 'http://example.com/api/authors/910' }
     }
 
 A Parent resource might also contain a list of related resources, such as the
@@ -50,11 +52,11 @@ a Collection Resource, so the Author resource would look like:
     GET http://example.com/api/authors/910
 
     {
-        '_href': '/api/authors/910',
-        '_type': '/api-types/author',
+        '_href': 'http://example.com/api/authors/910',
+        '_type': 'http://example.com/api-types/author',
         'firstName': 'Charlotte',
         'lastName': 'Bronte'
-        'books': { '_href': '/api/authors/910/books }
+        'books': { '_href': 'http://example.com/api/authors/910/books/ }
     }
 
 Or if the 'books' resource is expanded:
@@ -62,31 +64,32 @@ Or if the 'books' resource is expanded:
     GET http://example.com/api/authors/910
 
     {
-        '_href': '/api/authors/910',
-        '_type': '/api-types/author',
+        '_href': 'http://example.com/api/authors/910',
+        '_type': 'http://example.com/api-types/author',
         'firstName': 'Charlotte',
         'lastName': 'Bronte'
         'books': {
-            '_href': '/api/authors/910/books',
+            '_href': 'http://example.com/api/authors/910/books/',
             'meta': { 'total_count': 3 },
-            'objects': [
+            '_type': 'resource-list',
+            'data': [
                 {
-                    '_href': '/api/books/483',
-                    '_type': '/api-types/book',
+                    '_href': 'http://example.com/api/books/483',
+                    '_type': 'http://example.com/api-types/book',
                     'title': 'Jane Eyre',
-                    'author': { '_href': '/api/authors/910' }
+                    'author': { '_href': 'http://example.com/api/authors/910' }
                 },
                 {
-                    '_href': '/api/books/918',
-                    '_type': '/api-types/book',
+                    '_href': 'http://example.com/api/books/918',
+                    '_type': 'http://example.com/api-types/book',
                     'title': 'Shirley',
-                    'author': { '_href': '/api/authors/910' }
+                    'author': { '_href': 'http://example.com/api/authors/910' }
                 },
                 {
-                    '_href': '/api/books/710',
-                    '_type': '/api-types/book',
+                    '_href': 'http://example.com/api/books/710',
+                    '_type': 'http://example.com/api-types/book',
                     'title': 'The Professor',
-                    'author': { '_href': '/api/authors/910' }
+                    'author': { '_href': 'http://example.com/api/authors/910' }
                 },
             ]
         }
@@ -105,18 +108,18 @@ a link to the next page of data. See below for an example response.
     GET http://example.com/api/some_resources/
 
     {
-        '_href': '/api/some_resources/',
+        '_href': 'http://example.com/api/some_resources/',
         'meta': { "total_count": 2 },
-        'objects': [
+        'data': [
             {
-                '_href': '/api/some_resources/192',
-                '_type': '/api-types/some_resource',
+                '_href': 'http://example.com/api/some_resources/192',
+                '_type': 'http://example.com/api-types/some_resource',
                 'name': 'A great resource',
                 'state': 'Idaho'
             },
             {
-                '_href': '/api/some_resources/193',
-                '_type': '/api-types/some_resource',
+                '_href': 'http://example.com/api/some_resources/193',
+                '_type': 'http://example.com/api-types/some_resource',
                 'name': 'Another Resource',
                 'state': 'New York'
             }
@@ -129,8 +132,8 @@ resource, e.g.
     GET http://example.com/api/some_resources/193
 
     {
-        '_href': '/api/some_resources/193',
-        '_type': '/api-types/some_resource',
+        '_href': 'http://example.com/api/some_resources/193',
+        '_type': 'http://example.com/api-types/some_resource',
         'name': 'Another Resource',
         'state': 'New York'
     }
@@ -148,7 +151,7 @@ filters are given in the query string, for example if a resource has a field
 called `timestamp` and the client wished to retreive all the resources since
 April 12, 2013 at midnight, it could send a `GET` request to:
 
-    /api/scalar_data/?timestamp__gt=2013-04-12T00:00:00Z
+    http://example.com/api/scalar_data/?timestamp__gt=2013-04-12T00:00:00Z
 
 Note that when filtering, dates should be given ISO 8601 format with the time
 zone specified.
@@ -180,31 +183,31 @@ For example, a `GET` request to `api/room_temps/` might return:
         'meta': {
             "total_count": 4
         },
-        'objects': [
+        'data': [
             {
-                '_href': '/api/room_temps/192',
-                '_type': '/api-types/room_temp',
+                '_href': 'http://example.com/api/room_temps/192',
+                '_type': 'http://example.com/api-types/room_temp',
                 'room': 'Bedroom',
                 'temperature': 26,
                 'timestamp': '2013-04-12T03:30:00Z'
             },
             {
-                '_href': '/api/room_temps/193',
-                '_type': '/api-types/room_temp',
+                '_href': 'http://example.com/api/room_temps/193',
+                '_type': 'http://example.com/api-types/room_temp',
                 'room': 'Bedroom',
                 'temperature': 27,
                 'timestamp': '2013-04-12T03:35:00Z'
             },
             {
-                '_href': '/api/room_temps/194',
-                '_type': '/api-types/room_temp',
+                '_href': 'http://example.com/api/room_temps/194',
+                '_type': 'http://example.com/api-types/room_temp',
                 'room': 'Living Room',
                 'temperature': 22,
                 'timestamp': '2013-04-12T03:30:00Z'
             },
             {
-                '_href': '/api/room_temps/195',
-                '_type': '/api-types/room_temp',
+                '_href': 'http://example.com/api/room_temps/195',
+                '_type': 'http://example.com/api-types/room_temp',
                 'room': 'Living Room',
                 'temperature': 28,
                 'timestamp': '2013-04-12T03:35:00Z'
@@ -212,7 +215,7 @@ For example, a `GET` request to `api/room_temps/` might return:
         ]
     }
 
-whereas a `GET` request to `/api/room_temps/?group_by=room` would return:
+whereas a `GET` request to `http://example.com/api/room_temps/?group_by=room` would return:
 
     {
         "meta": {
@@ -221,28 +224,28 @@ whereas a `GET` request to `/api/room_temps/?group_by=room` would return:
         "room_groups": {
             "Bedroom": [
                 {
-                    "_href": "/api/room_temps/192",
-                    '_type': '/api-types/room_temp',
+                    "_href": "http://example.com/api/room_temps/192",
+                    '_type': 'http://example.com/api-types/room_temp',
                     "temperature": 26,
                     "timestamp": "2013-04-12T03:30:00Z"
                 },
                 {
-                    "_href": "/api/room_temps/193",
-                    '_type': '/api-types/room_temp',
+                    "_href": "http://example.com/api/room_temps/193",
+                    '_type': 'http://example.com/api-types/room_temp',
                     "temperature": 27,
                     "timestamp": "2013-04-12T03:35:00Z"
                 }
             ],
             "Living Room": [
                 {
-                    "_href": "/api/room_temps/194",
-                    '_type': '/api-types/room_temp',
+                    "_href": "http://example.com/api/room_temps/194",
+                    '_type': 'http://example.com/api-types/room_temp',
                     "temperature": 22,
                     "timestamp": "2013-04-12T03:30:00Z"
                 },
                 {
-                    "_href": "/api/room_temps/195",
-                    '_type': '/api-types/room_temp',
+                    "_href": "http://example.com/api/room_temps/195",
+                    '_type': 'http://example.com/api-types/room_temp',
                     "temperature": 28,
                     "timestamp": "2013-04-12T03:35:00Z"
                 }
@@ -250,7 +253,7 @@ whereas a `GET` request to `/api/room_temps/?group_by=room` would return:
         }
     }
 
-and a `GET` request to `/api/room_temps/?average_by=temperature` would return:
+and a `GET` request to `http://example.com/api/room_temps/?average_by=temperature` would return:
 
     {
         "meta": {
@@ -263,7 +266,7 @@ Note that when aggregating data, the other fields from the original resources
 are discarded. The dictionary key for the aggregate value is given by
 FIELD_average. Grouping and Aggregating can be combined, in which case the
 aggregation happens within each group. so a GET request to
-/api/room_temps/?average_by=temperature&group_by=room would return:
+http://example.com/api/room_temps/?average_by=temperature&group_by=room would return:
 
     {
         "meta": {
@@ -287,24 +290,25 @@ aggregation (grouping doesn't effect the number of returned resources).
 Entry Point
 -----------
 
-The API entry point is at `/api/`, so a `GET` request will give you links to
+The API entry point is at `http://example.com/api/`, so a `GET` request will give you links to
 the available base resources in the following format:
 
     {
-        '_href': '/api/',
-        '_type': '/api-types/',
+        '_href': 'http://example.com/api/',
+        '_type': 'http://example.com/api-types/api-root',
         'sites': {
-            '_href': '/api/sites/',
+            '_href': 'http://example.com/api/sites/',
+            '_type': 'resource-list',
             'meta': { 'total_count': 2 },
-            'objects': [
+            'data': [
                 {
-                    '_href': '/api/sites/92',
-                    '_type': '/api-types/site',
+                    '_href': 'http://example.com/api/sites/92',
+                    '_type': 'http://example.com/api-types/site',
                     'name': 'DoppelLab',
                 },
                 {
-                    '_href': '/api/sites/12',
-                    '_type': '/api-types/site',
+                    '_href': 'http://example.com/api/sites/12',
+                    '_type': 'http://example.com/api-types/site',
                     'name': 'TidMarsh',
                 }
             }
@@ -319,6 +323,10 @@ but should instead get the proper URI from the API entry point.
 Base Resource Types
 ===================
 
+NOTE: At some point this information should be moved into the docstrings of
+the resources themselves, so we can generate the documentation as well as the
+information at the `_type` URLs from the same info.
+
 Site
 ----
 
@@ -327,10 +335,10 @@ An installation of Doppel2, usually on the scale of several or many buildings.
 ### Example
 
     {
-        '_href': '/api/sites/758',
+        '_href': 'http://example.com/api/sites/758',
+        '_type': 'http://example.com/api-types/site',
         'name': 'TidMarsh',
-        'sensors': { '_href': '/api/sites/758/sensors' },
-        'devices': { '_href': '/api/sites/758/devices' }
+        'devices': { '_href': 'http://example.com/api/sites/758/devices' }
     }
 
 Device
@@ -341,14 +349,14 @@ A device that may contain several sensor channels.
 ### Example
 
     {
-        '_href': '/api/devices/129',
-        '_type': '/api-types/device',
+        '_href': 'http://example.com/api/devices/129',
+        '_type': 'http://example.com/api-types/device',
         'name': 'Bathroom Thermostat',
-        'site': { '_href': '/api/sites/928' },
+        'site': { '_href': 'http://example.com/api/sites/928' },
         'building': 'Pool House',
         'floor': '2',
         'room': 'Bathroom',
-        'sensors': { '_href': '/api/devices/129/sensors' }
+        'sensors': { '_href': 'http://example.com/api/devices/129/sensors' }
     }
 
 Sensor
@@ -363,36 +371,19 @@ TBD data types.
 
 * `_href` (string) - URI of this resource
 * `_type` (string) - Type of this resource
-* `device_uri` (string) - URI of the device this sensor is part of
+* `device` (string) - URI of the device this sensor is part of
 * `metric` (string) - What the sensor is measuring (e.g. 'temperature')
 * `unit` (string) - The unit the data is in (e.g. 'kWh')
 * `value` (variable type) - The last reported value of the sensor
 * `updated_timestamp` (ISO 8601 timestamp) - Timestamp marking when the data
   was captured
 
-### Groupable Fields
-
-* `device_uri`
-* `metric`
-
-### Aggregatable Fields
-
-* `value`
-
-### Filterable Fields
-
-* `device_uri`
-* `metric`
-* `unit`
-* `value`
-* `updated_timestamp`
-
 ### Example
 
     {
-        '_href': '/api/sensors/758',
-        '_type': '/api-types/sensor',
-        'device_uri': '/api/devices/358',
+        '_href': 'http://example.com/api/sensors/758',
+        '_type': 'http://example.com/api-types/sensor',
+        'device': { '_href': 'http://example.com/api/devices/358' },
         'metric': 'temperature',
         'unit': 'C'
         'value': 25.2,
@@ -412,26 +403,12 @@ Scalar Data is the raw data captured by the sensors.
 * `timestamp` (ISO 8601 timestamp) - Timestamp marking when the data was
   captured
 
-### Groupable Fields
-
-* `sensor_uri`
-
-### Aggregatable Fields
-
-* `value`
-
-### Filterable Fields
-
-* `timestamp`
-* `sensor_uri`
-* `value`
-
 ### Example
 
     {
-        '_href': '/api/scalar_data/193',
-        '_type': '/api-types/scalar_data',
-        'sensor_uri': '/api/sensors/91',
+        '_href': 'http://example.com/api/scalar_data/193',
+        '_type': 'http://example.com/api-types/scalar_data',
+        'sensor': { '_href': 'http://example.com/api/sensors/91' },
         'value': 25.2,
         'timestamp': '2013-04-12T03:30:00Z',
     }
@@ -492,13 +469,3 @@ Now you should be able to run the server with:
 and access it from your host machine's browser at
 
     http://localhost:8000/admin
-
-Browsable API Customisation
-===========================
-
-The Django Rest Framework comes with a very nice browsable representation of
-the API that the client can explore from his or her browser. To customize the
-look and feel you need to edit `doppel2/core/rest_framework/api.html`. The
-blocks you can override are described briefly at
-`http://django-rest-framework.org/topics/browsable-api.html`
-
