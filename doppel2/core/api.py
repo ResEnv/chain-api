@@ -24,9 +24,9 @@ class EmbeddedCollectionField:
         queryset = self._child_resource_class.queryset
         # generate a filter on the child collection so we get the actual
         # children, and not all the resources
-        parent_filter = {self._reverse_name: parent._obj.id}
-        return self._child_resource_class(queryset=queryset).serialize(
-            request, filters=parent_filter)
+        parent_filter = {self._reverse_name + '_id': parent._obj.id}
+        return self._child_resource_class(queryset=queryset, request=request,
+                                          filters=parent_filter).serialize()
 
 
 class ResourceFactory:
@@ -49,57 +49,59 @@ class Resource:
     model_fields = []
     child_collections = {}
 
-    def __init__(self, obj=None, queryset=None, data=None):
+    def __init__(self, obj=None, queryset=None, data=None,
+                 request=None, filters=None):
         if len([arg for arg in [obj, queryset, data] if arg]) != 1:
             logging.error(
                 'Exactly 1 object, queryset, or primitive data is required')
         self._queryset = queryset
         self._data = data
         self._obj = obj
+        self._filters = filters or {}
+        self._request = request
 
-    def serialize_single(self, request):
+    def serialize_single(self):
         '''Serializes this object, assuming that there is a single instance to
         be serialized'''
         data = {
-            '_href': full_reverse(self.resource_name + '-single', request,
-                                  args=(self._obj.id,)),
+            '_href': full_reverse(self.resource_name + '-single',
+                                  self._request, args=(self._obj.id,)),
             '_type': self.resource_type,
         }
         for field_name in self.model_fields:
             data[field_name] = getattr(self._obj, field_name)
         for field_name, collection in self.child_collections.items():
             # collection is an EmbeddedCollectionField here
-            data[field_name] = collection.serialize(self, request)
+            data[field_name] = collection.serialize(self, self._request)
 
         return data
 
-    def serialize_list(self, request, filters=None):
+    def serialize_list(self):
         '''Serializes this object, assuming that there is a queryset that needs
         to be serialized as a collection'''
 
-        filters = filters or {}
-        queryset = self._queryset.filter(**filters)
+        queryset = self._queryset.filter(**self._filters)
         query_string = ''
 
-        if filters:
+        if self._filters:
             query_string = "?" + '&'.join(
-                ['%s=%s' % (k, v) for (k, v) in filters.items()])
+                ['%s=%s' % (k, v) for (k, v) in self._filters.items()])
         return {
             '_href': full_reverse(self.resource_name + '-list',
-                                  request) + query_string,
+                                  self._request) + query_string,
             '_type': 'resource-list',
             'meta': {'totalCount': len(queryset)},
-            'data': [self.__class__(obj=obj).serialize(request)
+            'data': [self.__class__(obj=obj, request=self._request).serialize()
                      for obj in queryset]
         }
 
-    def serialize(self, request, filters=None):
+    def serialize(self):
         '''Serializes this instance into a dictionary that can be rendered'''
         if not self._data:
             if self._queryset:
-                self._data = self.serialize_list(request, filters)
+                self._data = self.serialize_list()
             elif self._obj:
-                self._data = self.serialize_single(request)
+                self._data = self.serialize_single()
         return self._data
 
     def deserialize(self):
@@ -111,6 +113,9 @@ class Resource:
             for field_name in [f for f in self.model_fields
                                if f in self._data]:
                 new_obj_data[field_name] = self._data[field_name]
+            # the query string may contain more object data, for instance if
+            # we're posting to a child collection resource
+            new_obj_data.update(self._filters)
             self._obj = self.model(**new_obj_data)
         return self._obj
 
@@ -125,21 +130,22 @@ class Resource:
     def list_view(cls, request):
         if request.method == 'GET':
             filters = request.GET.dict()
-            response_data = cls(queryset=cls.queryset).serialize(request,
-                                                                 filters)
+            response_data = cls(queryset=cls.queryset, request=request,
+                                filters=filters).serialize()
             return HttpResponse(json.dumps(response_data))
         elif request.method == 'POST':
-            #import pdb; pdb.set_trace()
-            new_object = cls(data=json.loads(request.body))
+            data = json.loads(request.body)
+            new_object = cls(data=data, request=request,
+                             filters=request.GET.dict())
             new_object.save()
-            response_data = new_object.serialize(request)
+            response_data = new_object.serialize()
             return HttpResponse(json.dumps(response_data),
                                 status=HTTP_STATUS_CREATED)
 
     @classmethod
     def single_view(cls, request, id):
         response_data = cls(
-            obj=cls.queryset.get(id=id)).serialize(request)
+            obj=cls.queryset.get(id=id), request=request).serialize()
         return HttpResponse(json.dumps(response_data))
 
 
@@ -165,18 +171,22 @@ class SiteResource(Resource):
 
 
 class ApiRootResource:
-    def serialize(self, request):
+    def __init__(self, request):
+        self._request = request
+
+    def serialize(self):
         data = {
-            '_href': full_reverse('api-root', request),
+            '_href': full_reverse('api-root', self._request),
             '_type': 'api-root',
-            'sites': SiteResource(queryset=Site.objects).serialize(request),
+            'sites': SiteResource(queryset=Site.objects,
+                                  request=self._request).serialize(),
         }
         return data
 
     @classmethod
     def single_view(cls, request):
-        resource = cls()
-        response_data = json.dumps(resource.serialize(request))
+        resource = cls(request=request)
+        response_data = json.dumps(resource.serialize())
         return HttpResponse(response_data)
 
 

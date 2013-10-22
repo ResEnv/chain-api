@@ -122,6 +122,22 @@ class ApiTest(DoppelTestCase):
             self.assertEqual(new_site[field], response[field])
             self.assertEqual(new_site[field], getattr(db_obj, field))
 
+    def test_devices_should_be_postable_to_a_site(self):
+        sites_coll = self.get_resource(SITES_URL)['data']
+        dev_url = sites_coll[0]['devices']['_href']
+        new_device = {
+            "_type": "device",
+            "building": "E14",
+            "description": "A great device",
+            "floor": "5",
+            "name": "Thermostat 42",
+            "room": "E14-548R"
+        }
+        self.post_resource(dev_url, new_device)
+        db_device = Device.objects.get(name=new_device['name'])
+        db_site = Site.objects.get(name=sites_coll[0]['name'])
+        self.assertEqual(db_device.site, db_site)
+
     def test_site_resource_should_have_devices(self):
         base_response = self.get_resource(BASE_API_URL)
         sites = base_response['sites']['data']
