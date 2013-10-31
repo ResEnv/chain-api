@@ -50,7 +50,7 @@ class Resource:
     queryset = None
     model_fields = []
     child_collections = {}
-    stub_fields = []
+    stub_fields = {}
 
     def __init__(self, obj=None, queryset=None, data=None,
                  request=None, filters=None):
@@ -72,11 +72,13 @@ class Resource:
             '_type': self.resource_type,
         }
         for field_name in self.model_fields:
-            data[field_name] = gettattr(getattr(self._obj, field_name),"name")
+            data[field_name] = getattr(self._obj, field_name)
         for field_name, collection in self.child_collections.items():
             # collection is an EmbeddedCollectionField here
             data[field_name] = collection.serialize(self, self._request)
-
+        for stub in self.stub_fields.keys():
+            stub_data = getattr(self._obj, stub)
+            data[stub] = getattr(stub_data, self.stub_fields[stub])
         return data
 
     def serialize_list(self):
@@ -166,7 +168,8 @@ class SensorResource(Resource):
     model = Sensor
     resource_name = 'sensors'
     resource_type = 'sensor'
-    model_fields = ['metric','unit']
+    # for now, name is hardcoded as the only attribute of metric and unit
+    stub_fields = {'metric':'name','unit':'name'}
     queryset = Sensor.objects
 
 
