@@ -1,5 +1,5 @@
 import logging
-from doppel2.core.models import Site, Device
+from doppel2.core.models import Site, Device, Sensor
 from django.conf.urls import patterns, url, include
 import json
 from django.http import HttpResponse
@@ -50,6 +50,7 @@ class Resource:
     queryset = None
     model_fields = []
     child_collections = {}
+    stub_fields = []
 
     def __init__(self, obj=None, queryset=None, data=None,
                  request=None, filters=None):
@@ -71,7 +72,7 @@ class Resource:
             '_type': self.resource_type,
         }
         for field_name in self.model_fields:
-            data[field_name] = getattr(self._obj, field_name)
+            data[field_name] = gettattr(getattr(self._obj, field_name),"name")
         for field_name, collection in self.child_collections.items():
             # collection is an EmbeddedCollectionField here
             data[field_name] = collection.serialize(self, self._request)
@@ -161,6 +162,13 @@ class DeviceResource(Resource):
     model_fields = ['name', 'description', 'building', 'floor', 'room']
     queryset = Device.objects
 
+class SensorResource(Resource):
+    model = Sensor
+    resource_name = 'sensors'
+    resource_type = 'sensor'
+    model_fields = ['metric','unit']
+    queryset = Sensor.objects
+
 
 class SiteResource(Resource):
     model = Site
@@ -199,4 +207,5 @@ urls = patterns(
     url(r'^$', ApiRootResource.single_view, name='api-root'),
     url(r'^sites/', include(ResourceFactory(SiteResource).urls)),
     url(r'^devices/', include(ResourceFactory(DeviceResource).urls)),
+    url(r'^sensors/', include(ResourceFactory(SensorResource).urls)),
 )
