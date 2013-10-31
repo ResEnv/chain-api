@@ -10,8 +10,8 @@ import requests
 
 STAT_BASE_URL = \
     "http://tac.mit.edu/E14_displays/get_controller_data.aspx?floor="
-DOPPEL_BASE_URL = "http://localhost:8001/api/"
-DOPPEL_SITE_URL = DOPPEL_BASE_URL + "sites/3/"
+DOPPEL_BASE_URL = "http://localhost:8000/api/"
+DOPPEL_SITE_URL = DOPPEL_BASE_URL + "sites/1/"
 
 # Strategy:
 # get a list of devices/sensors from doppel2
@@ -27,12 +27,23 @@ DOPPEL_SITE_URL = DOPPEL_BASE_URL + "sites/3/"
 
 if __name__ == "__main__":
 
-    site_id = "5" # for testing purposes
+    site_id = "1" # for testing purposes
     listDevices = requests.get(DOPPEL_BASE_URL + "devices/?site_id=" + site_id)
-        
+
+    unique_sensors = {} # {'device': 'metric'}
     # get the list of devices from doppel2 and store key:value as device_name:device_floor
     unique_devices = {}
     for device in listDevices.json()['data']:
+        # get the list of sensors for each device
+        device_id = device["_href"].split("/devices/")[1]
+        listSensors = requests.get(DOPPEL_BASE_URL + "sensors/?device_id=" + device_id)
+
+        for sensor in listSensors.json()['data']:
+            if not unique_sensors.has_key(device["name"]):
+                unique_sensors[device["name"]] = sensor["metric"]
+            else:
+                unique_sensors[device["name"]] += sensor["metric"]
+
         if not unique_devices.has_key(device["name"]):
             unique_devices[device["name"]] = device["floor"]
         else:
@@ -58,15 +69,16 @@ if __name__ == "__main__":
         # loop through each device and check to see if we already have it in doppel2 
         for therm in data.json():
             data = json.dumps(therm)
+            doPost = False
 
             # if we don't, POST it
             if unique_devices.has_key(therm["name"]):
                 if therm["floor"] in unique_devices[therm["name"]] :
                     print "Device " + therm["name"] + " already in the DB" 
                 else:
-                    r = requests.post(DOPPEL_BASE_URL + "devices/?site_id=" + site_id, data=data)
+                    doPost = True
 
-            else:
+            if not unique_devices.has_key(therm["name"]):
                 r = requests.post(DOPPEL_BASE_URL + "devices/?site_id=" + site_id, data=data)
                 
             # name = therm["name"] # names look like 'E14_Rm189'
