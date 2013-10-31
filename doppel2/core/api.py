@@ -4,6 +4,7 @@ from django.conf.urls import patterns, url, include
 import json
 from django.http import HttpResponse
 from django.core.urlresolvers import reverse
+from django.views.decorators.csrf import csrf_exempt
 
 
 HTTP_STATUS_SUCCESS = 200
@@ -42,6 +43,7 @@ class ResourceFactory:
 
 
 class Resource:
+
     model = None
     resource_name = None
     resource_type = None
@@ -127,7 +129,9 @@ class Resource:
         self._obj.save()
 
     @classmethod
+    @csrf_exempt
     def list_view(cls, request):
+
         if request.method == 'GET':
             filters = request.GET.dict()
             response_data = cls(queryset=cls.queryset, request=request,
