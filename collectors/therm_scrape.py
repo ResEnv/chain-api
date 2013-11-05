@@ -74,15 +74,24 @@ if __name__ == "__main__":
             # if we don't, POST it
             if unique_devices.has_key(therm["name"]):
                 if therm["floor"] in unique_devices[therm["name"]] :
-                    print "Device " + therm["name"] + " already in the DB" 
+                    print "Device " + therm["name"] + " already in the doppel2 database" 
                 else:
                     doPost = True
 
-            if not unique_devices.has_key(therm["name"]):
+            if not unique_devices.has_key(therm["name"]) or doPost:
                 r = requests.post(DOPPEL_BASE_URL + "devices/?site_id=" + site_id, data=data)
                 
-            # name = therm["name"] # names look like 'E14_Rm189'
-            # temp_sensor = lookup_sensor(s, name, "temperature")
-            # setpoint_sensor = lookup_sensor(s, name, "temperature_setpoint")
-            # s.add(StaticSample(now, therm["temp"], temp_sensor))
-            # s.add(StaticSample(now, therm["setpoint"], setpoint_sensor))
+            name = therm["name"] # names look like 'E14_Rm189'
+            floor = therm["floor"] # floor is an int
+
+            temp_sensor = therm["temp"]
+            setpoint_sensor = therm["setpoint"]
+            sensor_data = json.dumps({"temp": temp_sensor, "setpoint": setpoint_sensor, "metric": "temperature", "unit":"celcius", "metric_id":"1"})
+            
+            devices = listDevices.json()['data']
+            for device in devices:
+                if device["name"] == therm["name"]:
+                    device_id = device["_href"].split("/devices/")[1]
+
+            if True:
+                requests.post(DOPPEL_BASE_URL + "sensors/?device_id=" + device_id, data=sensor_data)
