@@ -51,6 +51,7 @@ class Resource:
     model_fields = []
     child_collections = {}
     stub_fields = {}
+    callback_fields = []
 
     def __init__(self, obj=None, queryset=None, data=None,
                  request=None, filters=None):
@@ -73,6 +74,8 @@ class Resource:
         }
         for field_name in self.model_fields:
             data[field_name] = getattr(self._obj, field_name)
+        for field_name in callback_fields:
+            SensorResource.callback()
         for field_name, collection in self.child_collections.items():
             # collection is an EmbeddedCollectionField here
             data[field_name] = collection.serialize(self, self._request)
@@ -156,10 +159,14 @@ class Resource:
         return HttpResponse(json.dumps(response_data))
 
 class SensorResource(Resource):
+    def callback():
+        pass
+
     model = Sensor
     resource_name = 'sensors'
     resource_type = 'sensor'
     # for now, name is hardcoded as the only attribute of metric and unit
+    callback_fields = ['timestamp', 'value']
     stub_fields = {'metric':'name','unit':'name'}
     queryset = Sensor.objects
 
