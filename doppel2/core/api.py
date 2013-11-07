@@ -155,15 +155,6 @@ class Resource:
             obj=cls.queryset.get(id=id), request=request).serialize()
         return HttpResponse(json.dumps(response_data))
 
-
-class DeviceResource(Resource):
-    model = Device
-    resource_name = 'devices'
-    resource_type = 'device'
-    #TODO: add site linked field
-    model_fields = ['name', 'description', 'building', 'floor', 'room']
-    queryset = Device.objects
-
 class SensorResource(Resource):
     model = Sensor
     resource_name = 'sensors'
@@ -172,6 +163,16 @@ class SensorResource(Resource):
     stub_fields = {'metric':'name','unit':'name'}
     queryset = Sensor.objects
 
+class DeviceResource(Resource):
+    model = Device
+    resource_name = 'devices'
+    resource_type = 'device'
+    #TODO: add site linked field
+    model_fields = ['name', 'description', 'building', 'floor', 'room']
+    child_collections = {
+        'sensors': EmbeddedCollectionField(SensorResource, reverse_name='device')
+    }
+    queryset = Device.objects
 
 class SiteResource(Resource):
     model = Site
