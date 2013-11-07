@@ -11,7 +11,7 @@ import requests
 STAT_BASE_URL = \
     "http://tac.mit.edu/E14_displays/get_controller_data.aspx?floor="
 DOPPEL_BASE_URL = "http://localhost:8000/api/"
-DOPPEL_SITE_URL = DOPPEL_BASE_URL + "sites/1/"
+DOPPEL_SITE_URL = DOPPEL_BASE_URL + "sites/1"
 
 # Strategy:
 # get a list of devices/sensors from doppel2
@@ -27,9 +27,8 @@ DOPPEL_SITE_URL = DOPPEL_BASE_URL + "sites/1/"
 
 if __name__ == "__main__":
 
-    sitePositionLocal = 0 # for testing purposes points to the first site I created, sites/1/
-    listSites = requests.get(DOPPEL_BASE_URL + "sites/")
-    listDevicesHref = listSites.json()['data'][0]['devices']['_href']
+    listSites = requests.get(DOPPEL_SITE_URL)
+    listDevicesHref = listSites.json()['devices']['_href']
     listDevices = requests.get(listDevicesHref).json()['data']
     
 
@@ -38,24 +37,30 @@ if __name__ == "__main__":
     unique_devices = {}
     for device in listDevices:
         # get the list of sensors for each device
-        listSensors = requests.get(DOPPEL_BASE_URL + "sensors/?device_id=" + "1")
+        listSensorsHref = device['sensors']['_href']
+        listSensors = requests.get(listSensorsHref).json()['data']
 
-        for sensor in listSensors.json()['data']:
-            if not unique_sensors.has_key(device["name"]):
-                unique_sensors[device["name"]] = sensor["metric"]
+        for sensor in listSensors:
+            unique_sensor = sensor["metric"]
+            if unique_sensors.get(device["name"]) != None:
+                if unique_sensor not in unique_sensors.get(device["name"]):
+                    unique_sensors[device["name"]] += unique_sensor
             else:
-                unique_sensors[device["name"]] += sensor["metric"]
+                unique_sensors[device["name"]] = sensor["metric"]
 
-        if not unique_devices.has_key(device["name"]):
-            unique_devices[device["name"]] = device["floor"]
+        unique_device = device["floor"] + device["building"] + device["room"]
+        if unique_devices.get(device["name"]) != None:
+            if unique_device not in unique_devices.get(device["name"]):
+                unique_devices[device["name"]] += unique_device
         else:
-            unique_devices[device["name"]] += device["floor"]
+            unique_devices[device["name"]] = unique_device
 
     # scrape data per floor
     for floor in range(1, 7):
         url = STAT_BASE_URL + str(floor)
-        data = requests.get(url)
+        floorData = requests.get(url)
         now = datetime.datetime.now()
+        print now
 
         """each datapoint is a json object that looks like
         [
@@ -69,30 +74,43 @@ if __name__ == "__main__":
         """
 
         # loop through each device and check to see if we already have it in doppel2 
-        for therm in data.json():
-            data = json.dumps(therm)
-            doPost = False
+        for therm in floorData.json():
 
-            # if we don't, POST it
-            if unique_devices.has_key(therm["name"]):
-                if therm["floor"] in unique_devices[therm["name"]] :
+            # parse the "name" field so that we can extract the building and room number
+            name = therm["name"]
+            dataParsed = name.split("_")
+
+            building = dataParsed[0]
+            room = dataParsed[1]
+
+            # add it to the dictionary
+            therm["building"] = building
+            therm["room"] = room
+
+            device_data = {"building": building, "floor": floor, "room" : room, "name" : name}
+
+            doDevicePost = False
+            # if we don't have the device in doppel2, POST it
+            if unique_devices.get(therm["name"]) != None:
+                therm_device = device["floor"] + device["building"] + device["room"]
+                if therm_device in unique_devices[therm["name"]] :
                     print "Device " + therm["name"] + " already in the doppel2 database" 
                 else:
-                    doPost = True
+                    doDevicePost = True
 
-            if not unique_devices.has_key(therm["name"]) or doPost:
-                r = requests.post(DOPPEL_BASE_URL + "devices/?site_id=" + site_id, data=data)
+            if unique_devices.get(therm["name"]) == None or doDevicePost:
+                r = requests.post(listDevicesHref, data=json.dumps(device_data))
                 
-            name = therm["name"] # names look like 'E14_Rm189'
-            floor = therm["floor"] # floor is an int
 
-            temp_sensor = therm["temp"]
-            setpoint_sensor = therm["setpoint"]
-            sensor_data = json.dumps({"temp": temp_sensor, "setpoint": setpoint_sensor, "metric": "temperature", "unit":"celcius", "metric_id":"1"})
+            sensor_temp_value = therm["temp"]
+            sensor_setpoint_value = therm["setpoint"]
+
+            sensor_metric_temp = "temp"
+            sensor_metric_setpoint = "setpoint"
+
+            sensor_temp_data = {"metric" : sensor_metric, "value" : sensor_temp_value, "timestamp" : now}
+            sensor_setpoint_data = {"metric" : sensor_metric_setpoint, "value" : sensor_setpoint_value, "timestamp" : now}
+
             
-            for device in listDevices:
-                if device["name"] == therm["name"]:
-                    device_id = device["_href"].split("/devices/")[1]
-
-            if True:
-                requests.post(DOPPEL_BASE_URL + "sensors/?device_id=" + device_id, data=sensor_data)
+            if sensor_metric == unique_sensors.get(name):
+                    requests.post(DOPPEL_BASE_URL + "sensors/?device_id=" + device_id, data=json.dumps(sensor_data))
