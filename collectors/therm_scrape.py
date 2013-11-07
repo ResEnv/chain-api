@@ -27,16 +27,18 @@ DOPPEL_SITE_URL = DOPPEL_BASE_URL + "sites/1/"
 
 if __name__ == "__main__":
 
-    site_id = "1" # for testing purposes
-    listDevices = requests.get(DOPPEL_BASE_URL + "devices/?site_id=" + site_id)
+    sitePositionLocal = 0 # for testing purposes points to the first site I created, sites/1/
+    listSites = requests.get(DOPPEL_BASE_URL + "sites/")
+    listDevicesHref = listSites.json()['data'][0]['devices']['_href']
+    listDevices = requests.get(listDevicesHref).json()['data']
+    
 
     unique_sensors = {} # {'device': 'metric'}
     # get the list of devices from doppel2 and store key:value as device_name:device_floor
     unique_devices = {}
-    for device in listDevices.json()['data']:
+    for device in listDevices:
         # get the list of sensors for each device
-        device_id = device["_href"].split("/devices/")[1]
-        listSensors = requests.get(DOPPEL_BASE_URL + "sensors/?device_id=" + device_id)
+        listSensors = requests.get(DOPPEL_BASE_URL + "sensors/?device_id=" + "1")
 
         for sensor in listSensors.json()['data']:
             if not unique_sensors.has_key(device["name"]):
@@ -88,8 +90,7 @@ if __name__ == "__main__":
             setpoint_sensor = therm["setpoint"]
             sensor_data = json.dumps({"temp": temp_sensor, "setpoint": setpoint_sensor, "metric": "temperature", "unit":"celcius", "metric_id":"1"})
             
-            devices = listDevices.json()['data']
-            for device in devices:
+            for device in listDevices:
                 if device["name"] == therm["name"]:
                     device_id = device["_href"].split("/devices/")[1]
 
