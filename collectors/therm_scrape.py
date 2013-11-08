@@ -27,8 +27,8 @@ DOPPEL_SITE_URL = DOPPEL_BASE_URL + "sites/1"
 
 if __name__ == "__main__":
 
-    listSites = requests.get(DOPPEL_SITE_URL)
-    listDevicesHref = listSites.json()['devices']['_href']
+    site = requests.get(DOPPEL_SITE_URL)
+    listDevicesHref = site.json()['devices']['_href']
     listDevices = requests.get(listDevicesHref).json()['data']
     
 
@@ -60,7 +60,6 @@ if __name__ == "__main__":
         url = STAT_BASE_URL + str(floor)
         floorData = requests.get(url)
         now = datetime.datetime.now()
-        print now
 
         """each datapoint is a json object that looks like
         [
@@ -90,17 +89,20 @@ if __name__ == "__main__":
             device_data = {"building": building, "floor": floor, "room" : room, "name" : name}
 
             doDevicePost = False
+            printDBStatement = True
             # if we don't have the device in doppel2, POST it
-            if unique_devices.get(therm["name"]) != None:
+            if unique_devices.get(name) != None:
                 therm_device = device["floor"] + device["building"] + device["room"]
                 if therm_device in unique_devices[therm["name"]] :
-                    print "Device " + therm["name"] + " already in the doppel2 database" 
+                    printDBStatement = False 
                 else:
                     doDevicePost = True
 
-            if unique_devices.get(therm["name"]) == None or doDevicePost:
+            if unique_devices.get(name) == None or doDevicePost:
                 r = requests.post(listDevicesHref, data=json.dumps(device_data))
                 
+            # sensor parsing
+            tempSensors = {}
 
             sensor_temp_value = therm["temp"]
             sensor_setpoint_value = therm["setpoint"]
@@ -108,9 +110,15 @@ if __name__ == "__main__":
             sensor_metric_temp = "temp"
             sensor_metric_setpoint = "setpoint"
 
-            sensor_temp_data = {"metric" : sensor_metric, "value" : sensor_temp_value, "timestamp" : now}
-            sensor_setpoint_data = {"metric" : sensor_metric_setpoint, "value" : sensor_setpoint_value, "timestamp" : now}
+            tempSensors["temp"] = {"metric" : sensor_metric_temp, "value" : sensor_temp_value, "timestamp" : str(now)}
+            tempSensors["setpoint"] = {"metric" : sensor_metric_setpoint, "value" : sensor_setpoint_value, "timestamp" : str(now)}
 
-            
-            if sensor_metric == unique_sensors.get(name):
-                    requests.post(DOPPEL_BASE_URL + "sensors/?device_id=" + device_id, data=json.dumps(sensor_data))
+            for sensor in tempSensors.keys():
+                if unique_sensors.get(name) == None:
+                    requests.post(listSensorsHref, data=json.dumps(tempSensors[sensor]))
+                
+                elif tempSensors[sensor]["metric"] not in unique_sensors.get(name):
+                    requests.post(listSensorsHref, data=json.dumps(tempSensors[sensor]))
+
+        if printDBStatement:
+            print "All devices already on doppel DB on floor " + str(floor)        
