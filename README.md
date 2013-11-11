@@ -442,20 +442,12 @@ Doppel2 Server Setup Instructions
 Install puppet and the proper puppet modules with
 
     sudo apt-get install puppet
-    sudo puppet module install puppetlabs/postgresql
+    sudo puppet module install puppetlabs/postgresql -v3.2.0
 
 Then set up the server with
 
     sudo puppet apply manifest.pp
 
-Currently the puppet manifest doesn't correctly set up the database user, so
-for now you need to:
-
-    sudo su postgres
-    psql
-    alter user doppellab with password 'secret';
-    \q
-    exit
 
 Now you can initialize your django environment
 

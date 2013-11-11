@@ -1,4 +1,4 @@
-include postgresql::server
+class { 'postgresql::server': }
 
 exec { "apt-update":
     command => "apt-get update",
@@ -12,22 +12,7 @@ package { "python-dev":
     require => Exec["apt-update"],
 }
 
-#package { "libxml2-dev":
-#    ensure  => present,
-#    require => Exec["apt-update"],
-#}
-#
-#package { "libxslt-dev":
-#    ensure  => present,
-#    require => Exec["apt-update"],
-#}
-
 package { "libpq-dev":
-    ensure  => present,
-    require => Exec["apt-update"],
-}
-
-package { "postgresql":
     ensure  => present,
     require => Exec["apt-update"],
 }
@@ -78,21 +63,14 @@ package { "django-debug-toolbar":
 }
 
 
-# Running Services
-
-#service { "postgresql":
-#    ensure  => "running",
-#    require => Package["postgresql"],
-#}
-
 # Set up DB schema and users
 
-postgresql::database_user { 'doppellab':
-    # enable createdb permissions so django can create test DBs
-    createdb => true
+postgresql::server::role { 'doppellab':
+    createdb => true,
+    password_hash => postgresql_password('doppellab', 'secret'),
 }
 
-postgresql::db { 'doppellab':
-  user     => 'doppellab',
-  password => 'secret'
+postgresql::server::db { 'doppellab':
+    user     => 'doppellab',
+    password => postgresql_password('doppellab', 'secret')
 }
