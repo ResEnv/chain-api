@@ -63,6 +63,22 @@ class DoppelTestCase(TestCase):
         data = json.loads(response.content)
         return data
 
+    def get_a_site(self):
+        '''GETs a site through the API for testing'''
+        base_response = self.get_resource(BASE_API_URL)
+        sites = base_response['sites']['data']
+        site_url = sites[0]['_href']
+        # following the link like a good RESTful client
+        return self.get_resource(site_url)
+
+    def get_a_device(self):
+        '''GETs a device through the API for testing'''
+        site = self.get_a_site()
+        devices_url = site['devices']['_href']
+        devices = self.get_resource(devices_url)
+        device_url = devices['data'][0]['_href']
+        return self.get_resource(device_url)
+
 
 class SensorDataTest(DoppelTestCase):
     def test_data_can_be_added(self):
@@ -139,11 +155,7 @@ class ApiTest(DoppelTestCase):
         self.assertEqual(db_device.site, db_site)
 
     def test_site_resource_should_have_devices(self):
-        base_response = self.get_resource(BASE_API_URL)
-        sites = base_response['sites']['data']
-        site_url = sites[0]['_href']
-        # following the link like a good RESTful client
-        site = self.get_resource(site_url)
+        site = self.get_a_site()
         device_coll = self.get_resource(site['devices']['_href'])
         db_site = Site.objects.get(name=site['name'])
         self.assertEqual(len(device_coll['data']),
@@ -162,6 +174,18 @@ class ApiTest(DoppelTestCase):
             BASE_API_URL + 'devices/?site=%d' % site_id)
         self.assertRegexpMatches(coll['_href'],
                                  'http://.*/api/devices/\?site=%d' % site_id)
+
+    def test_device_resource_should_have_sensors(self):
+        device = self.get_a_device()
+        db_device = Device.objects.get(name=device['name'])
+        self.assertEqual(len(device['sensors']['data']),
+                         db_device.sensors.count())
+
+    def test_site_should_link_to_device_coll(self):
+        site = self.get_a_site()
+        # a link is a resource with only an _href field
+        self.assertIn('_href', site['devices'])
+        self.assertEquals(1, len(site['devices']))
 
 #    def test_scalar_data_should_be_gettable_from_api(self):
 #        data = ScalarData(sensor=self.sensors[0], value=25)

@@ -16,10 +16,16 @@ def full_reverse(view_name, request, *args, **kwargs):
     return request.build_absolute_uri(partial_reverse)
 
 
-class EmbeddedCollectionField:
-    def __init__(self, child_resource_class, reverse_name):
+class CollectionField:
+    '''A Collection field is a field on a resource that points to a child
+    collection, e.g. an Author resource might have a 'books' field that is a
+    collection of all the books by that author. By default the serialized data
+    will only have a link to the child collection, but by setting embed=True
+    you can actually embed the full collection inside the parent object.'''
+    def __init__(self, child_resource_class, reverse_name, embed=False):
         self._reverse_name = reverse_name
         self._child_resource_class = child_resource_class
+        self._embed = embed
 
     def serialize(self, parent, request):
         queryset = self._child_resource_class.queryset
@@ -27,7 +33,8 @@ class EmbeddedCollectionField:
         # children, and not all the resources
         parent_filter = {self._reverse_name + '_id': parent._obj.id}
         return self._child_resource_class(queryset=queryset, request=request,
-                                          filters=parent_filter).serialize()
+                                          filters=parent_filter).serialize(
+                                              embed=self._embed)
 
 
 class ResourceFactory:
@@ -64,9 +71,12 @@ class Resource:
         self._filters = filters or {}
         self._request = request
 
-    def serialize_single(self):
+    def serialize_single(self, embed):
         '''Serializes this object, assuming that there is a single instance to
         be serialized'''
+        if not embed:
+            raise NotImplementedError(
+                "linking to single resource not implemented yet")
         data = {
             '_href': full_reverse(self.resource_name + '-single',
                                   self._request, args=(self._obj.id,)),
@@ -77,14 +87,14 @@ class Resource:
 #        for field_name in callback_fields:
 #            SensorResource.callback()
         for field_name, collection in self.child_collections.items():
-            # collection is an EmbeddedCollectionField here
+            # collection is an CollectionField here
             data[field_name] = collection.serialize(self, self._request)
         for stub in self.stub_fields.keys():
             stub_data = getattr(self._obj, stub)
             data[stub] = getattr(stub_data, self.stub_fields[stub])
         return data
 
-    def serialize_list(self):
+    def serialize_list(self, embed):
         '''Serializes this object, assuming that there is a queryset that needs
         to be serialized as a collection'''
 
@@ -94,22 +104,28 @@ class Resource:
         if self._filters:
             query_string = "?" + '&'.join(
                 ['%s=%s' % (k, v) for (k, v) in self._filters.items()])
-        return {
+        serialized_data = {
             '_href': full_reverse(self.resource_name + '-list',
                                   self._request) + query_string,
-            '_type': 'resource-list',
-            'meta': {'totalCount': len(queryset)},
-            'data': [self.__class__(obj=obj, request=self._request).serialize()
-                     for obj in queryset]
         }
+        if embed:
+            serialized_data.update(
+                {
+                    '_type': 'resource-list',
+                    'meta': {'totalCount': len(queryset)},
+                    'data': [self.__class__(obj=obj,
+                                            request=self._request).serialize()
+                             for obj in queryset]
+                })
+        return serialized_data
 
-    def serialize(self):
+    def serialize(self, embed=True):
         '''Serializes this instance into a dictionary that can be rendered'''
         if not self._data:
             if self._queryset:
-                self._data = self.serialize_list()
+                self._data = self.serialize_list(embed)
             elif self._obj:
-                self._data = self.serialize_single()
+                self._data = self.serialize_single(embed)
         return self._data
 
     def deserialize(self):
@@ -179,8 +195,8 @@ class DeviceResource(Resource):
     #TODO: add site linked field
     model_fields = ['name', 'description', 'building', 'floor', 'room']
     child_collections = {
-        'sensors': EmbeddedCollectionField(SensorResource,
-                                           reverse_name='device')
+        'sensors': CollectionField(SensorResource,
+                                   reverse_name='device', embed=True)
     }
     queryset = Device.objects
 
@@ -192,7 +208,8 @@ class SiteResource(Resource):
     resource_type = 'site'
     model_fields = ['name', 'latitude', 'longitude']
     child_collections = {
-        'devices': EmbeddedCollectionField(DeviceResource, reverse_name='site')
+        'devices': CollectionField(DeviceResource, reverse_name='site',
+                                   embed=False)
     }
     queryset = Site.objects
 
