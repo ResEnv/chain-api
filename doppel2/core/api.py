@@ -17,6 +17,16 @@ def full_reverse(view_name, request, *args, **kwargs):
     return request.build_absolute_uri(partial_reverse)
 
 
+def unlazy(given):
+    '''Sometimes to break dependency loops we need to give a string
+    representation of an object instead of the object itself, especially when
+    classes refer to each other. This function will turn the string
+    representation into a real object if necessary'''
+    if isinstance(given, str):
+        return eval(given)
+    return given
+
+
 class CollectionField:
     '''A Collection field is a field on a resource that points to a child
     collection, e.g. an Author resource might have a 'books' field that is a
@@ -36,6 +46,23 @@ class CollectionField:
         return self._child_resource_class(queryset=queryset, request=request,
                                           filters=parent_filter).serialize(
                                               embed=self._embed)
+
+
+class ResourceField:
+    '''Describes a related single resource field, e.g. a Book resource might
+    have an 'author' field that links (or embeds) the author resource'''
+    def __init__(self, related_resource_class, parent_field_name, embed=False):
+        self._related_resource_class = related_resource_class
+        self._parent_field_name = parent_field_name
+        self._embed = embed
+
+    def serialize(self, parent, request):
+        self._related_resource_class = unlazy(self._related_resource_class)
+        # TODO: shouldn't be reaching directly into parent._obj! refactor
+        obj = getattr(parent._obj, self._parent_field_name)
+        return self._related_resource_class(obj=obj,
+                                            request=request).serialize(
+                                                embed=self._embed)
 
 
 class ResourceFactory:
@@ -58,7 +85,7 @@ class Resource:
     resource_type = None
     queryset = None
     model_fields = []
-    child_collections = {}
+    related_fields = {}
     stub_fields = {}
     callback_fields = []
 
@@ -76,20 +103,19 @@ class Resource:
     def serialize_single(self, embed):
         '''Serializes this object, assuming that there is a single instance to
         be serialized'''
-        if not embed:
-            raise NotImplementedError(
-                "linking to single resource not implemented yet")
         data = {
             '_href': full_reverse(self.resource_name + '-single',
-                                  self._request, args=(self._obj.id,)),
-            '_type': self.resource_type,
+                                  self._request, args=(self._obj.id,))
         }
+        if not embed:
+            return data
+        data['_type'] = self.resource_type
         for field_name in self.model_fields:
             data[field_name] = self.serialize_field(
                 getattr(self._obj, field_name))
 #        for field_name in callback_fields:
 #            SensorResource.callback()
-        for field_name, collection in self.child_collections.items():
+        for field_name, collection in self.related_fields.items():
             # collection is an CollectionField here
             data[field_name] = collection.serialize(self, self._request)
         for stub in self.stub_fields.keys():
@@ -190,6 +216,7 @@ class SensorDataResource(Resource):
     resource_name = 'data'
     resource_type = 'data'
     model_fields = ['timestamp', 'value']
+    related_fields = {'sensor': ResourceField('SensorResource', 'sensor')}
     queryset = ScalarData.objects
 
 
@@ -204,9 +231,10 @@ class SensorResource(Resource):
     callback_fields = ['timestamp', 'value']
     stub_fields = {'metric': 'name', 'unit': 'name'}
     queryset = Sensor.objects
-    child_collections = {
+    related_fields = {
         'history': CollectionField(SensorDataResource,
-                                   reverse_name='sensor', embed=False)
+                                   reverse_name='sensor'),
+        'device': ResourceField('DeviceResource', 'device')
     }
 
 
@@ -216,9 +244,10 @@ class DeviceResource(Resource):
     resource_type = 'device'
     #TODO: add site linked field
     model_fields = ['name', 'description', 'building', 'floor', 'room']
-    child_collections = {
+    related_fields = {
         'sensors': CollectionField(SensorResource,
-                                   reverse_name='device', embed=True)
+                                   reverse_name='device', embed=True),
+        'site': ResourceField('SiteResource', 'site')
     }
     queryset = Device.objects
 
@@ -229,7 +258,7 @@ class SiteResource(Resource):
     resource_name = 'sites'
     resource_type = 'site'
     model_fields = ['name', 'latitude', 'longitude']
-    child_collections = {
+    related_fields = {
         'devices': CollectionField(DeviceResource, reverse_name='site',
                                    embed=False)
     }
