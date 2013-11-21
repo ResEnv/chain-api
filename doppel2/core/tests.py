@@ -171,6 +171,54 @@ class ApiTest(DoppelTestCase):
         db_site = Site.objects.get(name=sites_coll[0]['name'])
         self.assertEqual(db_device.site, db_site)
 
+    def test_sensors_should_be_postable_to_existing_device(self):
+        sites_coll = self.get_resource(SITES_URL)['data']
+        dev_url = sites_coll[0]['devices']['_href']
+        device = self.get_resource(dev_url)['data'][0]
+        
+        pressure_metric = Metric(name='Pressure')
+        pressure_metric.save()
+
+        dev_href = device['sensors']['_href']
+        new_sensor = {
+            "_type": "sensor",
+            'metric':'Pressure',
+            'unit': 'C',
+            'value': 0,
+            'timestamp': 0,
+        }
+        self.post_resource(dev_href, new_sensor)
+        db_sensor = Sensor.objects.get(metric=pressure_metric)
+        self.assertEqual(pressure_metric, db_sensor.metric)
+
+    def test_sensors_should_be_postable_to_newly_posted_device(self):
+        sites_coll = self.get_resource(SITES_URL)['data']
+        dev_url = sites_coll[0]['devices']['_href']
+
+        new_device = {
+            "_type": "device",
+            "building": "E14",
+            "description": "A great device",
+            "floor": "5",
+            "name": "Thermostat 42",
+            "room": "E14-548R"
+        }
+        device = self.post_resource(dev_url, new_device)
+
+        pressure_metric = Metric(name='Pressure')
+        pressure_metric.save()
+        dev_href = device['sensors']['_href']
+        new_sensor = {
+            "_type": "sensor",
+            'metric':'Pressure',
+            'unit': 'C',
+            'value': 0,
+            'timestamp': 0,
+        }
+        self.post_resource(dev_href, new_sensor)
+        db_sensor = Sensor.objects.get(metric=pressure_metric)
+        self.assertEqual(pressure_metric, db_sensor.metric)
+
     def test_site_resource_should_have_devices(self):
         site = self.get_a_site()
         device_coll = self.get_resource(site['devices']['_href'])
