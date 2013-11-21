@@ -74,8 +74,8 @@ class Resource:
         }
         for field_name in self.model_fields:
             data[field_name] = getattr(self._obj, field_name)
-        for field_name in callback_fields:
-            SensorResource.callback()
+#        for field_name in callback_fields:
+#            SensorResource.callback()
         for field_name, collection in self.child_collections.items():
             # collection is an EmbeddedCollectionField here
             data[field_name] = collection.serialize(self, self._request)
@@ -158,6 +158,7 @@ class Resource:
             obj=cls.queryset.get(id=id), request=request).serialize()
         return HttpResponse(json.dumps(response_data))
 
+
 class SensorResource(Resource):
     def callback():
         pass
@@ -167,8 +168,9 @@ class SensorResource(Resource):
     resource_type = 'sensor'
     # for now, name is hardcoded as the only attribute of metric and unit
     callback_fields = ['timestamp', 'value']
-    stub_fields = {'metric':'name','unit':'name'}
+    stub_fields = {'metric': 'name', 'unit': 'name'}
     queryset = Sensor.objects
+
 
 class DeviceResource(Resource):
     model = Device
@@ -177,9 +179,11 @@ class DeviceResource(Resource):
     #TODO: add site linked field
     model_fields = ['name', 'description', 'building', 'floor', 'room']
     child_collections = {
-        'sensors': EmbeddedCollectionField(SensorResource, reverse_name='device')
+        'sensors': EmbeddedCollectionField(SensorResource,
+                                           reverse_name='device')
     }
     queryset = Device.objects
+
 
 class SiteResource(Resource):
     model = Site
