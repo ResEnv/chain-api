@@ -1,25 +1,25 @@
 class { 'postgresql::server': }
 
-exec { "apt-update":
-    command => "apt-get update",
-    path => "/usr/bin",
-}
+#exec { "apt-update":
+#    command => "apt-get update",
+#    path => "/usr/bin",
+#}
 
 # Installed Packages
 
 package { "python-dev":
     ensure  => present,
-    require => Exec["apt-update"],
+#    require => Exec["apt-update"],
 }
 
 package { "libpq-dev":
     ensure  => present,
-    require => Exec["apt-update"],
+#    require => Exec["apt-update"],
 }
 
 package { "python-pip":
     ensure  => present,
-    require => Exec["apt-update"],
+#    require => Exec["apt-update"],
 }
 
 # Pip packages
