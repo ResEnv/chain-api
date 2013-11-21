@@ -1,3 +1,5 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
 import logging
 from doppel2.core.models import Site, Device, Sensor, ScalarData
 from django.conf.urls import patterns, url, include
@@ -7,12 +9,16 @@ from django.core.urlresolvers import reverse
 from django.views.decorators.csrf import csrf_exempt
 from datetime import datetime
 
-
 HTTP_STATUS_SUCCESS = 200
 HTTP_STATUS_CREATED = 201
 
 
-def full_reverse(view_name, request, *args, **kwargs):
+def full_reverse(
+    view_name,
+    request,
+    *args,
+    **kwargs
+    ):
     partial_reverse = reverse(view_name, *args, **kwargs)
     return request.build_absolute_uri(partial_reverse)
 
@@ -40,8 +46,10 @@ class CollectionField:
 
     def serialize(self, parent, request):
         queryset = self._child_resource_class.queryset
+
         # generate a filter on the child collection so we get the actual
         # children, and not all the resources
+
         parent_filter = {self._reverse_name + '_id': parent._obj.id}
         return self._child_resource_class(queryset=queryset, request=request,
                                           filters=parent_filter).serialize(
@@ -66,15 +74,13 @@ class ResourceField:
 
 
 class ResourceFactory:
+
     def __init__(self, resource_class):
         base_name = resource_class.resource_name
-        self.urls = patterns(
-            '',
-            url(r'^$', resource_class.list_view,
-                name=base_name + '-list'),
-            url(r'^(\d+)$', resource_class.single_view,
-                name=base_name + '-single')
-        )
+        self.urls = patterns('', url(r'^$', resource_class.list_view,
+                             name=base_name + '-list'), url(r'^(\d+)$',
+                             resource_class.single_view, name=base_name
+                             + '-single'))
 
 
 class Resource:
@@ -89,11 +95,17 @@ class Resource:
     stub_fields = {}
     callback_fields = []
 
-    def __init__(self, obj=None, queryset=None, data=None,
-                 request=None, filters=None):
+    def __init__(
+        self,
+        obj=None,
+        queryset=None,
+        data=None,
+        request=None,
+        filters=None,
+        ):
         if len([arg for arg in [obj, queryset, data] if arg]) != 1:
-            logging.error(
-                'Exactly 1 object, queryset, or primitive data is required')
+            logging.error('Exactly 1 object, queryset, or primitive data is required'
+                          )
         self._queryset = queryset
         self._data = data
         self._obj = obj
@@ -157,32 +169,59 @@ class Resource:
 
     def serialize(self, embed=True):
         '''Serializes this instance into a dictionary that can be rendered'''
-        if not self._data:
-            if self._queryset:
-                self._data = self.serialize_list(embed)
-            elif self._obj:
-                self._data = self.serialize_single(embed)
+
+        if self._queryset:
+            self._data = self.serialize_list(embed)
+        elif self._obj:
+            self._data = self.serialize_single(embed)
         return self._data
+
+    def stub_object_finding(self, obj, field_name,field_value):
+
+        stub_field = self.stub_fields[field_name]
+        # obviously the above would be dynamic
+
+        # assuming here that obj is the in-progress de-serialized object we're building up
+        field = getattr(self.model, field_name).field
+        related_class = field.rel.to  # so now we have a model we can run queries against
+
+        query_args = {stub_field: field_value}
+        # not sure if you've seen this before, but the double-splat just converts a
+        # dictionary to keyword arguments for a function
+        # Note that this will throw an exception if the client tries to post a sensor with
+        # a non-existant metric. Once this is working we should add code to create new metrics
+        # and units as necessary
+        matching_related_obj = related_class.objects.get(**query_args)
+
+        return matching_related_obj
 
     def deserialize(self):
         '''Deserializes this instance and returns the object representation'''
+
         if not self._obj:
             new_obj_data = {}
+
             # take the intersection of the fields given and the fields in
             # self.model_fields
-            for field_name in [f for f in self.model_fields
-                               if f in self._data]:
+
+            for field_name in [f for f in self.model_fields if f in self._data]:
                 new_obj_data[field_name] = self._data[field_name]
+
+            for stub_field_name in self.stub_fields.keys():
+                new_obj_data[stub_field_name] = self.stub_object_finding(new_obj_data, stub_field_name, self._data[stub_field_name])
             # the query string may contain more object data, for instance if
             # we're posting to a child collection resource
+
             new_obj_data.update(self._filters)
             self._obj = self.model(**new_obj_data)
         return self._obj
 
     def save(self):
         if not self._obj:
+
             # here we're using the side-effect of serialization that we save
             # the object after deserialization
+
             self.deserialize()
         self._obj.save()
 
@@ -206,8 +245,8 @@ class Resource:
 
     @classmethod
     def single_view(cls, request, id):
-        response_data = cls(
-            obj=cls.queryset.get(id=id), request=request).serialize()
+        response_data = cls(obj=cls.queryset.get(id=id),
+                            request=request).serialize()
         return HttpResponse(json.dumps(response_data))
 
 
@@ -221,12 +260,11 @@ class SensorDataResource(Resource):
 
 
 class SensorResource(Resource):
-    def callback():
-        pass
 
     model = Sensor
     resource_name = 'sensors'
     resource_type = 'sensor'
+
     # for now, name is hardcoded as the only attribute of metric and unit
     callback_fields = ['timestamp', 'value']
     stub_fields = {'metric': 'name', 'unit': 'name'}
@@ -239,10 +277,13 @@ class SensorResource(Resource):
 
 
 class DeviceResource(Resource):
+
     model = Device
     resource_name = 'devices'
     resource_type = 'device'
-    #TODO: add site linked field
+
+    # TODO: add site linked field
+
     model_fields = ['name', 'description', 'building', 'floor', 'room']
     related_fields = {
         'sensors': CollectionField(SensorResource,
@@ -253,8 +294,11 @@ class DeviceResource(Resource):
 
 
 class SiteResource(Resource):
+
     model = Site
-    #TODO _href should be the external URL if present
+
+    # TODO _href should be the external URL if present
+
     resource_name = 'sites'
     resource_type = 'site'
     model_fields = ['name', 'latitude', 'longitude']
@@ -266,16 +310,15 @@ class SiteResource(Resource):
 
 
 class ApiRootResource:
+
     def __init__(self, request):
         self._request = request
 
     def serialize(self):
-        data = {
-            '_href': full_reverse('api-root', self._request),
-            '_type': 'api-root',
-            'sites': SiteResource(queryset=Site.objects,
-                                  request=self._request).serialize(),
-        }
+        data = {'_href': full_reverse('api-root', self._request),
+                '_type': 'api-root',
+                'sites': SiteResource(queryset=Site.objects,
+                request=self._request).serialize()}
         return data
 
     @classmethod
