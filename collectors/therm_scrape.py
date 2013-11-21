@@ -13,7 +13,7 @@ import requests
 STAT_BASE_URL = \
     'http://tac.mit.edu/E14_displays/get_controller_data.aspx?floor='
 DOPPEL_BASE_URL = 'http://localhost:8000/api/'
-DOPPEL_SITE_URL = DOPPEL_BASE_URL + 'sites/16'
+DOPPEL_SITE_URL = DOPPEL_BASE_URL + 'sites/18'
 
 # Strategy:
 # get a list of devices/sensors from doppel2
@@ -58,7 +58,7 @@ if __name__ == '__main__':
 
         # loop through the sensors in this device and add them to the unique_sensor dictionary
         for sensor in listSensors:
-            unique_sensors[(device['name'], sensor['metric'])] = listSensorsHref
+            unique_sensors[(device['name'], sensor['metric'])] = sensor['history']['_href']
 
     # scrape data per floor
     for floor in range(1, 7):
@@ -104,6 +104,7 @@ if __name__ == '__main__':
 
             # sensor parsing. specific to the data we poll in this script
             tempSensors = {}
+            tempSensordata = {}
 
             sensor_temp_value = therm['temp']
             sensor_setpoint_value = therm['setpoint']
@@ -114,23 +115,36 @@ if __name__ == '__main__':
             tempSensors['temp'] = {
                 'metric': sensor_metric_temp,
                 'unit': 'celsius',
+            }
+            tempSensordata['temp'] = {
                 'value': sensor_temp_value,
                 'timestamp': str(now),
-                }
+            }
+
             tempSensors['setpoint'] = {
                 'metric': sensor_metric_setpoint,
                 'unit': 'celsius',
+            }
+            tempSensordata['setpoint'] = {
                 'value': sensor_setpoint_value,
                 'timestamp': str(now),
-                }
+            }
 
             for sensor in tempSensors.keys():
                 # first get the device _href associated with the sensors. by now we should've 
                 # added the device so the call to the unique_devices dictionary should be valid
                 sensorHref = unique_devices[therm_device]
                 uniqueSensor = (name, tempSensors[sensor]['metric'])
+
                 if uniqueSensor not in unique_sensors.keys():
-                    requests.post(sensorHref, data=json.dumps(tempSensors[sensor]))
+                    p = requests.post(sensorHref, data=json.dumps(tempSensors[sensor]))
+                    sensorDataHref = p.json()['history']['_href']
+                    unique_sensors[uniqueSensor] = sensorDataHref
+
+                sensorDataHref = unique_sensors[uniqueSensor]
+
+                # post the data to the historical data field
+                requests.post(sensorDataHref, data=json.dumps(tempSensordata[sensor]))
                 
         if printDBStatement:
             print 'All devices already on doppel DB on floor ' + str(floor)
