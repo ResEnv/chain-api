@@ -1,10 +1,11 @@
 import logging
-from doppel2.core.models import Site, Device, Sensor
+from doppel2.core.models import Site, Device, Sensor, ScalarData
 from django.conf.urls import patterns, url, include
 import json
 from django.http import HttpResponse
 from django.core.urlresolvers import reverse
 from django.views.decorators.csrf import csrf_exempt
+from datetime import datetime
 
 
 HTTP_STATUS_SUCCESS = 200
@@ -50,6 +51,7 @@ class ResourceFactory:
 
 
 class Resource:
+    #TODO: errors (4xx, 5xx, etc.) should be returned JSON-encoded
 
     model = None
     resource_name = None
@@ -83,7 +85,8 @@ class Resource:
             '_type': self.resource_type,
         }
         for field_name in self.model_fields:
-            data[field_name] = getattr(self._obj, field_name)
+            data[field_name] = self.serialize_field(
+                getattr(self._obj, field_name))
 #        for field_name in callback_fields:
 #            SensorResource.callback()
         for field_name, collection in self.child_collections.items():
@@ -93,6 +96,13 @@ class Resource:
             stub_data = getattr(self._obj, stub)
             data[stub] = getattr(stub_data, self.stub_fields[stub])
         return data
+
+    def serialize_field(self, field_value):
+        '''some fields require special handling to be serialized. Handle
+        that here'''
+        if isinstance(field_value, datetime):
+            return field_value.isoformat()
+        return field_value
 
     def serialize_list(self, embed):
         '''Serializes this object, assuming that there is a queryset that needs
@@ -175,6 +185,14 @@ class Resource:
         return HttpResponse(json.dumps(response_data))
 
 
+class SensorDataResource(Resource):
+    model = ScalarData
+    resource_name = 'data'
+    resource_type = 'data'
+    model_fields = ['timestamp', 'value']
+    queryset = ScalarData.objects
+
+
 class SensorResource(Resource):
     def callback():
         pass
@@ -186,6 +204,10 @@ class SensorResource(Resource):
     callback_fields = ['timestamp', 'value']
     stub_fields = {'metric': 'name', 'unit': 'name'}
     queryset = Sensor.objects
+    child_collections = {
+        'history': CollectionField(SensorDataResource,
+                                   reverse_name='sensor', embed=False)
+    }
 
 
 class DeviceResource(Resource):
@@ -240,4 +262,5 @@ urls = patterns(
     url(r'^sites/', include(ResourceFactory(SiteResource).urls)),
     url(r'^devices/', include(ResourceFactory(DeviceResource).urls)),
     url(r'^sensors/', include(ResourceFactory(SensorResource).urls)),
+    url(r'^sensordata/', include(ResourceFactory(SensorDataResource).urls)),
 )

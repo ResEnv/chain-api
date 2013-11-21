@@ -11,8 +11,7 @@ from datetime import datetime
 from django.db.models import Avg
 import json
 from doppel2.core.api import HTTP_STATUS_SUCCESS, HTTP_STATUS_CREATED
-
-#from django.utils.timezone import make_aware, utc
+from django.utils.timezone import make_aware, utc
 
 BASE_API_URL = '/api/'
 SCALAR_DATA_URL = BASE_API_URL + 'scalar_data/'
@@ -35,18 +34,28 @@ class DoppelTestCase(TestCase):
                         Device(name='Thermostat 3', site=self.sites[0]),
                         Device(name='Thermostat 4', site=self.sites[1]),
                         Device(name='Thermostat 5', site=self.sites[1])]
-        for device in self.devices:
-            device.save()
         self.sensors = []
         for device in self.devices:
+            device.save()
             self.sensors.append(Sensor(device=device,
                                        metric=self.temp_metric,
                                        unit=self.unit))
             self.sensors.append(Sensor(device=device,
                                        metric=self.setpoint_metric,
                                        unit=self.unit))
+        self.scalar_data = []
         for sensor in self.sensors:
             sensor.save()
+            self.scalar_data.append(ScalarData(
+                sensor=sensor,
+                timestamp=make_aware(datetime(2013, 1, 1, 0, 0, 1), utc),
+                value=22.0))
+            self.scalar_data.append(ScalarData(
+                sensor=sensor,
+                timestamp=make_aware(datetime(2013, 1, 1, 0, 0, 2), utc),
+                value=23.0))
+        for data in self.scalar_data:
+            data.save()
 
     def get_resource(self, url):
         response = self.client.get(url,
@@ -79,6 +88,13 @@ class DoppelTestCase(TestCase):
         device_url = devices['data'][0]['_href']
         return self.get_resource(device_url)
 
+    def get_a_sensor(self):
+        device = self.get_a_device()
+        sensors_url = device['sensors']['_href']
+        sensors = self.get_resource(sensors_url)
+        sensor_url = sensors['data'][0]['_href']
+        return self.get_resource(sensor_url)
+
 
 class SensorDataTest(DoppelTestCase):
     def test_data_can_be_added(self):
@@ -87,7 +103,10 @@ class SensorDataTest(DoppelTestCase):
         self.assertEqual(data.value, 25)
 
     def test_largeish_datasets_can_be_queried_quickly(self):
-        data = [ScalarData(sensor=self.sensors[0], value=val)
+        sensor = Sensor(device=self.devices[0], metric=self.temp_metric,
+                        unit=self.unit)
+        sensor.save()
+        data = [ScalarData(sensor=sensor, value=val)
                 for val in range(10000)]
         ScalarData.objects.bulk_create(data)
         avg = 0
@@ -95,11 +114,9 @@ class SensorDataTest(DoppelTestCase):
         #for data in ScalarData.objects.all():
         #    avg += data.value
         #avg = avg / ScalarData.objects.all().count()
-        avg = ScalarData.objects.all().aggregate(Avg('value'))['value__avg']
+        avg = sensor.scalar_data.all().aggregate(Avg('value'))['value__avg']
         end_time = datetime.now()
         elapsed_time = end_time - start_time
-        # delete the data we created at the beginning of the test
-        ScalarData.objects.all().delete()
         self.assertEqual(avg, 4999.5)
         self.assertLess(elapsed_time.total_seconds(), 0.1)
 
@@ -186,6 +203,31 @@ class ApiTest(DoppelTestCase):
         # a link is a resource with only an _href field
         self.assertIn('_href', site['devices'])
         self.assertEquals(1, len(site['devices']))
+
+    def test_sensor_should_have_data_url(self):
+        sensor = self.get_a_sensor()
+        self.assertIn('_href', sensor['history'])
+
+    def test_sensor_data_should_have_timestamp_and_value(self):
+        sensor = self.get_a_sensor()
+        sensor_data = self.get_resource(sensor['history']['_href'])
+        self.assertIn('timestamp', sensor_data['data'][0])
+        self.assertIn('value', sensor_data['data'][0])
+
+    def test_sensor_should_have_parent_link(self):
+        sensor = self.get_a_sensor()
+        self.assertIn('device', sensor)
+
+    def test_sensor_data_should_be_postable(self):
+        sensor = self.get_a_sensor()
+        data_url = sensor['history']['_href']
+        timestamp = make_aware(datetime(2013, 1, 1, 0, 0, 0), utc)
+        data = {
+            'value': 23,
+            'timestamp': timestamp.isoformat()
+        }
+        self.post_resource(data_url, data)
+        # TODO: actually make sure the posted data is correct
 
 #    def test_scalar_data_should_be_gettable_from_api(self):
 #        data = ScalarData(sensor=self.sensors[0], value=25)
