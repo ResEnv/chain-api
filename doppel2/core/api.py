@@ -13,12 +13,7 @@ HTTP_STATUS_SUCCESS = 200
 HTTP_STATUS_CREATED = 201
 
 
-def full_reverse(
-    view_name,
-    request,
-    *args,
-    **kwargs
-    ):
+def full_reverse(view_name, request, *args, **kwargs):
     partial_reverse = reverse(view_name, *args, **kwargs)
     return request.build_absolute_uri(partial_reverse)
 
@@ -95,17 +90,11 @@ class Resource:
     stub_fields = {}
     callback_fields = []
 
-    def __init__(
-        self,
-        obj=None,
-        queryset=None,
-        data=None,
-        request=None,
-        filters=None,
-        ):
+    def __init__(self, obj=None, queryset=None, data=None, request=None,
+                 filters=None):
         if len([arg for arg in [obj, queryset, data] if arg]) != 1:
-            logging.error('Exactly 1 object, queryset, or primitive data is required'
-                          )
+            logging.error(
+                'Exactly 1 object, queryset, or primitive data is required')
         self._queryset = queryset
         self._data = data
         self._obj = obj
@@ -176,22 +165,22 @@ class Resource:
             self._data = self.serialize_single(embed)
         return self._data
 
-    def stub_object_finding(self, obj, field_name,field_value):
-
+    def stub_object_finding(self, obj, field_name, field_value):
         stub_field = self.stub_fields[field_name]
-        # obviously the above would be dynamic
 
-        # assuming here that obj is the in-progress de-serialized object we're building up
         field = getattr(self.model, field_name).field
-        related_class = field.rel.to  # so now we have a model we can run queries against
+        # so now we have a model we can run queries against
+        related_class = field.rel.to
 
         query_args = {stub_field: field_value}
-        # not sure if you've seen this before, but the double-splat just converts a
-        # dictionary to keyword arguments for a function
-        # Note that this will throw an exception if the client tries to post a sensor with
-        # a non-existant metric. Once this is working we should add code to create new metrics
-        # and units as necessary
-        matching_related_obj = related_class.objects.get(**query_args)
+        try:
+            matching_related_obj = related_class.objects.get(**query_args)
+        except related_class.DoesNotExist:
+            # a matching object doesn't exist, so we'll create it
+            # TODO: this will crash if we can't build up an object based on the
+            # given data
+            matching_related_obj = related_class(**query_args)
+            matching_related_obj.save()
 
         return matching_related_obj
 
@@ -204,11 +193,13 @@ class Resource:
             # take the intersection of the fields given and the fields in
             # self.model_fields
 
-            for field_name in [f for f in self.model_fields if f in self._data]:
+            for field_name in [f for f in self.model_fields
+                               if f in self._data]:
                 new_obj_data[field_name] = self._data[field_name]
 
             for stub_field_name in self.stub_fields.keys():
-                new_obj_data[stub_field_name] = self.stub_object_finding(new_obj_data, stub_field_name, self._data[stub_field_name])
+                new_obj_data[stub_field_name] = self.stub_object_finding(
+                    new_obj_data, stub_field_name, self._data[stub_field_name])
             # the query string may contain more object data, for instance if
             # we're posting to a child collection resource
 
