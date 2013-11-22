@@ -13,7 +13,7 @@ import requests
 STAT_BASE_URL = \
     'http://tac.mit.edu/E14_displays/get_controller_data.aspx?floor='
 DOPPEL_BASE_URL = 'http://localhost:8000/api/'
-DOPPEL_SITE_URL = DOPPEL_BASE_URL + 'sites/18'
+DOPPEL_SITE_URL = DOPPEL_BASE_URL + 'sites/1'
 
 # Strategy:
 # get a list of devices/sensors from doppel2

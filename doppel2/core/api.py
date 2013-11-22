@@ -114,8 +114,6 @@ class Resource:
         for field_name in self.model_fields:
             data[field_name] = self.serialize_field(
                 getattr(self._obj, field_name))
-#        for field_name in callback_fields:
-#            SensorResource.callback()
         for field_name, collection in self.related_fields.items():
             # collection is an CollectionField here
             data[field_name] = collection.serialize(self, self._request)
@@ -167,7 +165,6 @@ class Resource:
 
     def stub_object_finding(self, obj, field_name, field_value):
         stub_field = self.stub_fields[field_name]
-
         field = getattr(self.model, field_name).field
         # so now we have a model we can run queries against
         related_class = field.rel.to
