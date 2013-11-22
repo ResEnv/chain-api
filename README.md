@@ -442,7 +442,19 @@ Doppel2 Server Setup Instructions
 Install puppet and the proper puppet modules with
 
     sudo apt-get install puppet
+    (or on Arch use yaourt -S puppet)
     sudo puppet module install puppetlabs/postgresql -v3.2.0
+
+NOTE FOR ARCH:
+
+The puppet manifest doesn't work well on Arch, so just install the python
+packages with pip system packages with pacman that are listed in the manifest,
+and comment those stanzas out.  I also had to set the ownership of
+/var/lib/postgres with:
+
+    sudo chown -R postgres:users /var/lib/postgres
+
+END OF ARCH-SPECIFIC NOTE
 
 Then set up the server with
 
