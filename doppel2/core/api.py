@@ -22,7 +22,9 @@ def unlazy(given):
     '''Sometimes to break dependency loops we need to give a string
     representation of an object instead of the object itself, especially when
     classes refer to each other. This function will turn the string
-    representation into a real object if necessary'''
+    representation into a real object if necessary.
+
+    Note - NEVER call this on a string you received from the user'''
     if isinstance(given, str):
         return eval(given)
     return given
@@ -66,16 +68,6 @@ class ResourceField:
         return self._related_resource_class(obj=obj,
                                             request=request).serialize(
                                                 embed=self._embed)
-
-
-class ResourceFactory:
-
-    def __init__(self, resource_class):
-        base_name = resource_class.resource_name
-        self.urls = patterns('', url(r'^$', resource_class.list_view,
-                             name=base_name + '-list'), url(r'^(\d+)$',
-                             resource_class.single_view, name=base_name
-                             + '-single'))
 
 
 class Resource:
@@ -237,6 +229,15 @@ class Resource:
                             request=request).serialize()
         return HttpResponse(json.dumps(response_data))
 
+    @classmethod
+    def urls(cls):
+        base_name = cls.resource_name
+        return patterns('',
+                        url(r'^$',
+                            cls.list_view, name=base_name + '-list'),
+                        url(r'^(\d+)$',
+                            cls.single_view, name=base_name + '-single'))
+
 
 class SensorDataResource(Resource):
     model = ScalarData
@@ -319,8 +320,8 @@ class ApiRootResource:
 urls = patterns(
     '',
     url(r'^$', ApiRootResource.single_view, name='api-root'),
-    url(r'^sites/', include(ResourceFactory(SiteResource).urls)),
-    url(r'^devices/', include(ResourceFactory(DeviceResource).urls)),
-    url(r'^sensors/', include(ResourceFactory(SensorResource).urls)),
-    url(r'^sensordata/', include(ResourceFactory(SensorDataResource).urls)),
+    url(r'^sites/', include(SiteResource.urls())),
+    url(r'^devices/', include(DeviceResource.urls())),
+    url(r'^sensors/', include(SensorResource.urls())),
+    url(r'^sensordata/', include(SensorDataResource.urls())),
 )
