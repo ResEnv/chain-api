@@ -222,6 +222,10 @@ class Resource:
         self._obj.save()
 
     @classmethod
+    def render_response(cls, data, request, status=None):
+        return HttpResponse(json.dumps(data), status=status)
+
+    @classmethod
     @csrf_exempt
     def list_view(cls, request):
 
@@ -229,21 +233,21 @@ class Resource:
             filters = request.GET.dict()
             response_data = cls(queryset=cls.queryset, request=request,
                                 filters=filters).serialize()
-            return HttpResponse(json.dumps(response_data))
+            return cls.render_response(response_data, request)
         elif request.method == 'POST':
             data = json.loads(request.body)
             new_object = cls(data=data, request=request,
                              filters=request.GET.dict())
             new_object.save()
             response_data = new_object.serialize()
-            return HttpResponse(json.dumps(response_data),
-                                status=HTTP_STATUS_CREATED)
+            return cls.render_response(response_data, request,
+                                       status=HTTP_STATUS_CREATED)
 
     @classmethod
     def single_view(cls, request, id):
         response_data = cls(obj=cls.queryset.get(id=id),
                             request=request).serialize()
-        return HttpResponse(json.dumps(response_data))
+        return cls.render_response(response_data, request)
 
     @classmethod
     def urls(cls):
