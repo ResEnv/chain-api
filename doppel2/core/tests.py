@@ -1,10 +1,3 @@
-"""
-This file demonstrates writing tests using the unittest module. These will pass
-when you run "manage.py test".
-
-Replace this with more appropriate tests for your application.
-"""
-
 from django.test import TestCase
 from doppel2.core.models import ScalarData, Unit, Metric, Device, Sensor, Site
 from datetime import datetime
@@ -16,6 +9,10 @@ from django.utils.timezone import make_aware, utc
 BASE_API_URL = '/api/'
 SCALAR_DATA_URL = BASE_API_URL + 'scalar_data/'
 SITES_URL = BASE_API_URL + 'sites/'
+
+
+ACCEPT_TAIL = 'application/xhtml+xml,application/xml;q=0.9,\
+        image/webp,*/*;q=0.8'
 
 
 class DoppelTestCase(TestCase):
@@ -57,43 +54,48 @@ class DoppelTestCase(TestCase):
         for data in self.scalar_data:
             data.save()
 
-    def get_resource(self, url):
+    def get_resource(self, url, mime_type='application/json'):
+        accept_header = mime_type + ',' + ACCEPT_TAIL
         response = self.client.get(url,
-                                   Accept="application/json")
+                                   HTTP_ACCEPT=accept_header)
         self.assertEqual(response.status_code, HTTP_STATUS_SUCCESS)
-        data = json.loads(response.content)
-        return data
+        self.assertEqual(response['Content-Type'], mime_type)
+        if mime_type == 'application/json':
+            return json.loads(response.content)
+        return response.content
 
-    def post_resource(self, url, resource):
+    def post_resource(self, url, resource, mime_type='application/json'):
+        accept_header = mime_type + ',' + ACCEPT_TAIL
         response = self.client.post(url, json.dumps(resource),
-                                    content_type='application/json',
-                                    Accept="application/json")
+                                    content_type=mime_type,
+                                    HTTP_ACCEPT=accept_header)
         self.assertEqual(response.status_code, HTTP_STATUS_CREATED)
+        self.assertEqual(response['Content-Type'], mime_type)
         data = json.loads(response.content)
         return data
 
-    def get_a_site(self):
+    def get_a_site(self, mime_type='application/json'):
         '''GETs a site through the API for testing'''
-        base_response = self.get_resource(BASE_API_URL)
+        base_response = self.get_resource(BASE_API_URL, mime_type=mime_type)
         sites = base_response['sites']['data']
         site_url = sites[0]['_href']
         # following the link like a good RESTful client
-        return self.get_resource(site_url)
+        return self.get_resource(site_url, mime_type=mime_type)
 
-    def get_a_device(self):
+    def get_a_device(self, mime_type='application/json'):
         '''GETs a device through the API for testing'''
-        site = self.get_a_site()
+        site = self.get_a_site(mime_type=mime_type)
         devices_url = site['devices']['_href']
-        devices = self.get_resource(devices_url)
+        devices = self.get_resource(devices_url, mime_type=mime_type)
         device_url = devices['data'][0]['_href']
-        return self.get_resource(device_url)
+        return self.get_resource(device_url, mime_type=mime_type)
 
-    def get_a_sensor(self):
-        device = self.get_a_device()
+    def get_a_sensor(self, mime_type='application/json'):
+        device = self.get_a_device(mime_type=mime_type)
         sensors_url = device['sensors']['_href']
-        sensors = self.get_resource(sensors_url)
+        sensors = self.get_resource(sensors_url, mime_type=mime_type)
         sensor_url = sensors['data'][0]['_href']
-        return self.get_resource(sensor_url)
+        return self.get_resource(sensor_url, mime_type=mime_type)
 
 
 class SensorDataTest(DoppelTestCase):
@@ -175,14 +177,14 @@ class ApiTest(DoppelTestCase):
         sites_coll = self.get_resource(SITES_URL)['data']
         dev_url = sites_coll[0]['devices']['_href']
         device = self.get_resource(dev_url)['data'][0]
-        
+
         pressure_metric = Metric(name='Pressure')
         pressure_metric.save()
 
         dev_href = device['sensors']['_href']
         new_sensor = {
             "_type": "sensor",
-            'metric':'Pressure',
+            'metric': 'Pressure',
             'unit': 'C',
             'value': 0,
             'timestamp': 0,
@@ -210,7 +212,7 @@ class ApiTest(DoppelTestCase):
         dev_href = device['sensors']['_href']
         new_sensor = {
             "_type": "sensor",
-            'metric':'Pressure',
+            'metric': 'Pressure',
             'unit': 'C',
             'value': 0,
             'timestamp': 0,
@@ -292,6 +294,14 @@ class ApiTest(DoppelTestCase):
 #        data.save()
 #        metadata = self.get_resource(SCALAR_DATA_URL)['meta']
 #        self.assertEqual(metadata['total_count'], 2)
+
+
+class HTMLTests(DoppelTestCase):
+    def test_root_request_accepting_html_gets_it(self):
+        res = self.get_resource(BASE_API_URL, mime_type='text/html')
+        # check that it startswith a doctype
+        self.assertTrue(res.startswith("<!DOCTYPE html"))
+        self.assertTrue(res.endswith("</html>\n"))
 
 
 #class ScalarDataFilteringApiTest(DoppelTestCase):

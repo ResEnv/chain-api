@@ -7,6 +7,7 @@ from django.http import HttpResponse
 from django.core.urlresolvers import reverse
 from django.views.decorators.csrf import csrf_exempt
 from datetime import datetime
+from django.template import RequestContext, loader
 
 HTTP_STATUS_SUCCESS = 200
 HTTP_STATUS_CREATED = 201
@@ -223,7 +224,19 @@ class Resource:
 
     @classmethod
     def render_response(cls, data, request, status=None):
-        return HttpResponse(json.dumps(data), status=status)
+        # TODO: there's got to be a more robust library to parse accept headers
+        for accept in request.META['HTTP_ACCEPT'].split(','):
+            if accept == 'application/json':
+                return HttpResponse(json.dumps(data), status=status,
+                                    content_type=accept)
+            elif accept == 'text/html':
+                template = loader.get_template('resource.html')
+                context = RequestContext(request)
+                return HttpResponse(template.render(context),
+                                    status=status,
+                                    content_type=accept)
+            else:
+                raise NotImplementedError("Only supporting json and html")
 
     @classmethod
     @csrf_exempt

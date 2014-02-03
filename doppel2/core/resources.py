@@ -2,8 +2,6 @@ from doppel2.core.api import Resource, ResourceField, CollectionField
 from doppel2.core.api import full_reverse
 from doppel2.core.models import Site, Device, Sensor, ScalarData
 from django.conf.urls import include, patterns, url
-from django.http import HttpResponse
-import json
 
 
 class SensorDataResource(Resource):
@@ -68,7 +66,7 @@ class SiteResource(Resource):
     queryset = Site.objects
 
 
-class ApiRootResource:
+class ApiRootResource(Resource):
 
     def __init__(self, request):
         self._request = request
@@ -83,8 +81,8 @@ class ApiRootResource:
     @classmethod
     def single_view(cls, request):
         resource = cls(request=request)
-        response_data = json.dumps(resource.serialize())
-        return HttpResponse(response_data)
+        response_data = resource.serialize()
+        return cls.render_response(response_data, request)
 
 
 urls = patterns(
