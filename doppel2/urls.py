@@ -1,12 +1,12 @@
 from django.conf.urls import patterns, include, url
 from django.contrib import admin
-from doppel2.core import api
+from doppel2.core import resources
 
 admin.autodiscover()
 
 urlpatterns = patterns(
     '',
-    url(r'^api/', include(api.urls)),
+    url(r'^api/', include(resources.urls)),
     # Examples:
     # url(r'^$', 'doppel2.views.home', name='home'),
     # url(r'^doppel2/', include('doppel2.foo.urls')),

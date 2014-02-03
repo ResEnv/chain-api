@@ -1,8 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 import logging
-from doppel2.core.models import Site, Device, Sensor, ScalarData
-from django.conf.urls import patterns, url, include
+from django.conf.urls import patterns, url
 import json
 from django.http import HttpResponse
 from django.core.urlresolvers import reverse
@@ -18,15 +17,32 @@ def full_reverse(view_name, request, *args, **kwargs):
     return request.build_absolute_uri(partial_reverse)
 
 
+# store the objects referenced lazily so we only need to use eval() the first
+# time
+_lazy_refs = {}
+
+
 def unlazy(given):
     '''Sometimes to break dependency loops we need to give a string
     representation of an object instead of the object itself, especially when
     classes refer to each other. This function will turn the string
     representation into a real object if necessary.
 
+    The given string must be fully namespaced, e.g.
+    'myapp.resources.ThingResource'.
+
     Note - NEVER call this on a string you received from the user'''
     if isinstance(given, str):
-        return eval(given)
+        global _lazy_refs
+        try:
+            return _lazy_refs[given]
+        except KeyError:
+            # import the parent object's module so that we have the context to
+            # find the referenced class
+            mod_name = given.split('.')[0]
+            mods = {mod_name: __import__(mod_name)}
+            _lazy_refs[given] = eval(given, mods)
+            return _lazy_refs[given]
     return given
 
 
@@ -237,91 +253,3 @@ class Resource:
                             cls.list_view, name=base_name + '-list'),
                         url(r'^(\d+)$',
                             cls.single_view, name=base_name + '-single'))
-
-
-class SensorDataResource(Resource):
-    model = ScalarData
-    resource_name = 'data'
-    resource_type = 'data'
-    model_fields = ['timestamp', 'value']
-    related_fields = {'sensor': ResourceField('SensorResource', 'sensor')}
-    queryset = ScalarData.objects
-
-
-class SensorResource(Resource):
-
-    model = Sensor
-    resource_name = 'sensors'
-    resource_type = 'sensor'
-
-    # for now, name is hardcoded as the only attribute of metric and unit
-    callback_fields = ['timestamp', 'value']
-    stub_fields = {'metric': 'name', 'unit': 'name'}
-    queryset = Sensor.objects
-    related_fields = {
-        'history': CollectionField(SensorDataResource,
-                                   reverse_name='sensor'),
-        'device': ResourceField('DeviceResource', 'device')
-    }
-
-
-class DeviceResource(Resource):
-
-    model = Device
-    resource_name = 'devices'
-    resource_type = 'device'
-
-    # TODO: add site linked field
-
-    model_fields = ['name', 'description', 'building', 'floor', 'room']
-    related_fields = {
-        'sensors': CollectionField(SensorResource,
-                                   reverse_name='device', embed=True),
-        'site': ResourceField('SiteResource', 'site')
-    }
-    queryset = Device.objects
-
-
-class SiteResource(Resource):
-
-    model = Site
-
-    # TODO _href should be the external URL if present
-
-    resource_name = 'sites'
-    resource_type = 'site'
-    model_fields = ['name', 'latitude', 'longitude']
-    related_fields = {
-        'devices': CollectionField(DeviceResource, reverse_name='site',
-                                   embed=False)
-    }
-    queryset = Site.objects
-
-
-class ApiRootResource:
-
-    def __init__(self, request):
-        self._request = request
-
-    def serialize(self):
-        data = {'_href': full_reverse('api-root', self._request),
-                '_type': 'api-root',
-                'sites': SiteResource(queryset=Site.objects,
-                request=self._request).serialize()}
-        return data
-
-    @classmethod
-    def single_view(cls, request):
-        resource = cls(request=request)
-        response_data = json.dumps(resource.serialize())
-        return HttpResponse(response_data)
-
-
-urls = patterns(
-    '',
-    url(r'^$', ApiRootResource.single_view, name='api-root'),
-    url(r'^sites/', include(SiteResource.urls())),
-    url(r'^devices/', include(DeviceResource.urls())),
-    url(r'^sensors/', include(SensorResource.urls())),
-    url(r'^sensordata/', include(SensorDataResource.urls())),
-)
