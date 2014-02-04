@@ -1,28 +1,44 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
-    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
-
+<!DOCTYPE html>
+<html lang="en">
 <head>
-    <meta http-equiv="content-type" content="text/html; charset=utf-8"/>
-    <title>Resource</title>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Bootstrap 101 Template</title>
+
+    <!-- Bootstrap -->
+    <link href="/static/lib/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+    <!--[if lt IE 9]>
+    <script src="/static/lib/html5shiv.js"></script>
+    <script src="/static/lib/respond.min.js"></script>
+    <![endif]-->
 </head>
 
 <body>
-    <h1>{{ resource._type }}</h1>
-    <dl>
-        {% for key, val in resource.items() recursive %}
-        <dt>{{ key }}</dt>
-        {% if key == '_href' %}
-        <dd><a href="{{ val }}">{{ val }}</a></dd>
-        {% elif val.iteritems %}
-        <dd><dl>{{ loop(val.items()) }}</dl></dd>
-        {% elif val.__iter__ %}
-        <dd><dl>{{ loop(enumerate(val)) }}</dl></dd>
-        {% else %}
-        <dd>{{ val }}</dd>
-        {% endif %}
-        {% endfor %}
-    </dl>
-</body>
+    <div class="container">
+        <h1>{{ resource._type }}</h1>
+        <dl>
+            {% for key, val in resource.items() recursive %}
+            <dt>{{ key }}</dt>
+            {% if key == '_href' %}
+            <dd><a href="{{ val }}">{{ val }}</a></dd>
+            {% elif val.iteritems %}
+            <dd><dl>{{ loop(val.items()) }}</dl></dd>
+            {% elif val.__iter__ %}
+            <dd><dl>{{ loop(enumerate(val)) }}</dl></dd>
+            {% else %}
+            <dd>{{ val }}</dd>
+            {% endif %}
+            {% endfor %}
+        </dl>
+    </div> <!-- container -->
 
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="/static/lib/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/static/lib/bootstrap/js/bootstrap.min.js"></script>
+</body>
 </html>
