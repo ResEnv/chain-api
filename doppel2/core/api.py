@@ -7,10 +7,12 @@ from django.http import HttpResponse
 from django.core.urlresolvers import reverse
 from django.views.decorators.csrf import csrf_exempt
 from datetime import datetime
-from django.template import RequestContext, loader
+from jinja2 import Environment, PackageLoader
 
 HTTP_STATUS_SUCCESS = 200
 HTTP_STATUS_CREATED = 201
+
+jinja_env = Environment(loader=PackageLoader('doppel2.core', 'templates'))
 
 
 def full_reverse(view_name, request, *args, **kwargs):
@@ -230,9 +232,9 @@ class Resource:
                 return HttpResponse(json.dumps(data), status=status,
                                     content_type=accept)
             elif accept == 'text/html':
-                template = loader.get_template('resource.html')
-                context = RequestContext(request)
-                return HttpResponse(template.render(context),
+                context = {'resource': data, 'enumerate': enumerate}
+                template = jinja_env.get_template('resource.html')
+                return HttpResponse(template.render(**context),
                                     status=status,
                                     content_type=accept)
             else:

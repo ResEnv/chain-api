@@ -1,11 +1,28 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
     "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
-  <head>
-    <meta http-equiv="content-type" content="text/html; charset=utf-8"/>
-    <title>title</title>
-  </head>
-  <body>
 
-  </body>
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8"/>
+    <title>Resource</title>
+</head>
+
+<body>
+    <h1>{{ resource._type }}</h1>
+    <dl>
+        {% for key, val in resource.items() recursive %}
+        <dt>{{ key }}</dt>
+        {% if key == '_href' %}
+        <dd><a href="{{ val }}">{{ val }}</a></dd>
+        {% elif val.iteritems %}
+        <dd><dl>{{ loop(val.items()) }}</dl></dd>
+        {% elif val.__iter__ %}
+        <dd><dl>{{ loop(enumerate(val)) }}</dl></dd>
+        {% else %}
+        <dd>{{ val }}</dd>
+        {% endif %}
+        {% endfor %}
+    </dl>
+</body>
+
 </html>

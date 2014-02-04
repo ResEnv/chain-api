@@ -50,6 +50,12 @@ package { "south":
     ensure => present,
 }
 
+package { "jinja2":
+    provider => "pip",
+    require => Package["python-pip"],
+    ensure => present,
+}
+
 package { "mimeparse":
     provider => "pip",
     require => Package["python-pip"],
