@@ -144,6 +144,14 @@ class ApiTest(DoppelTestCase):
         self.assertIn(sites[0]['name'], [self.sites[0].name,
                                          self.sites[1].name])
 
+    def test_site_disp_field_should_be_name(self):
+        site = self.get_a_site()
+        self.assertEqual(site['name'], site['_disp'])
+
+    def test_collections_should_have_disp_field(self):
+        site = self.get_a_site()
+        self.assertIn('_disp', site['devices'])
+
     def test_sites_should_be_postable(self):
         new_site = {
             "_type": "site",
@@ -250,9 +258,10 @@ class ApiTest(DoppelTestCase):
 
     def test_site_should_link_to_device_coll(self):
         site = self.get_a_site()
-        # a link is a resource with only an _href field
+        # a link is a resource with only _href and _disp fields
         self.assertIn('_href', site['devices'])
-        self.assertEquals(1, len(site['devices']))
+        self.assertIn('_disp', site['devices'])
+        self.assertEquals(2, len(site['devices']))
 
     def test_sensor_should_have_data_url(self):
         sensor = self.get_a_sensor()
@@ -301,7 +310,7 @@ class HTMLTests(DoppelTestCase):
         res = self.get_resource(BASE_API_URL, mime_type='text/html')
         # check that it startswith a doctype
         self.assertTrue(res.startswith("<!DOCTYPE html"))
-        self.assertTrue(res.endswith("</html>\n"))
+        self.assertTrue(res.endswith("</html>"))
 
 
 #class ScalarDataFilteringApiTest(DoppelTestCase):

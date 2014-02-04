@@ -1,3 +1,40 @@
+{% macro show_list(val) -%}
+    <div class="list-group">
+        {% for subval in val %}
+            {{ show_value(subval) }}
+        {% endfor %}
+    </div> <!-- list-group -->
+{%- endmacro %}
+
+{% macro show_value(val) -%}
+    {% if val.items  %}
+        {{ show_dict(val) }}
+    {% elif val.__iter__ %}
+        {{ show_list(val) }}
+    {% else %}
+        <p class="list-group-item-text">{{ val }}</p>
+    {% endif %}
+{%- endmacro %}
+
+{% macro show_dict(val) -%}
+    {% if '_href' in val and not '_type' in val %}
+        <!-- just a link -->
+        <a class="list-group-item-text" href={{ val._href }}>{{ val._disp }}</a>
+    {% else %}
+        <!-- either an embedded resource or normal dict -->
+        <div class="list-group">
+            {% for key, subval in val.items() %}
+                {% if key[0] != '_' %}
+                <div class="list-group-item">
+                    <h4 class="list-group-item-heading">{{ key }}</h4>
+                    {{ show_value(subval) }}
+                </div>
+                {% endif %}
+            {% endfor %}
+        </div> <!-- list-group -->
+    {% endif %}
+{%- endmacro %}
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -19,21 +56,8 @@
 
 <body>
     <div class="container">
-        <h1>{{ resource._type }}</h1>
-        <dl>
-            {% for key, val in resource.items() recursive %}
-            <dt>{{ key }}</dt>
-            {% if key == '_href' %}
-            <dd><a href="{{ val }}">{{ val }}</a></dd>
-            {% elif val.iteritems %}
-            <dd><dl>{{ loop(val.items()) }}</dl></dd>
-            {% elif val.__iter__ %}
-            <dd><dl>{{ loop(enumerate(val)) }}</dl></dd>
-            {% else %}
-            <dd>{{ val }}</dd>
-            {% endif %}
-            {% endfor %}
-        </dl>
+        <h1>{{ resource._disp }}</h1>
+        {{ show_dict(resource) }}
     </div> <!-- container -->
 
     <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
@@ -42,3 +66,16 @@
     <script src="/static/lib/bootstrap/js/bootstrap.min.js"></script>
 </body>
 </html>
+
+
+<!--
+
+# Test Site 1
+
+name: Test Site 1
+devices: [devices]
+latitude: 234.293
+longitude: 234.293
+
+
+-->

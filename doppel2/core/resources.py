@@ -6,6 +6,7 @@ from django.conf.urls import include, patterns, url
 
 class SensorDataResource(Resource):
     model = ScalarData
+    display_field = 'timestamp'
     resource_name = 'data'
     resource_type = 'data'
     model_fields = ['timestamp', 'value']
@@ -18,6 +19,7 @@ class SensorDataResource(Resource):
 class SensorResource(Resource):
 
     model = Sensor
+    display_field = 'metric'
     resource_name = 'sensors'
     resource_type = 'sensor'
 
@@ -36,6 +38,7 @@ class SensorResource(Resource):
 class DeviceResource(Resource):
 
     model = Device
+    display_field = 'name'
     resource_name = 'devices'
     resource_type = 'device'
 
@@ -58,6 +61,7 @@ class SiteResource(Resource):
 
     resource_name = 'sites'
     resource_type = 'site'
+    display_field = 'name'
     model_fields = ['name', 'latitude', 'longitude']
     related_fields = {
         'devices': CollectionField(DeviceResource, reverse_name='site',
@@ -74,6 +78,7 @@ class ApiRootResource(Resource):
     def serialize(self):
         data = {'_href': full_reverse('api-root', self._request),
                 '_type': 'api-root',
+                '_disp': 'api-root',
                 'sites': SiteResource(queryset=Site.objects,
                 request=self._request).serialize()}
         return data

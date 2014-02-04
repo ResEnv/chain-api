@@ -117,8 +117,17 @@ class Resource:
         be serialized'''
         data = {
             '_href': full_reverse(self.resource_name + '-single',
-                                  self._request, args=(self._obj.id,))
+                                  self._request, args=(self._obj.id,)),
         }
+        disp = self.display_field
+        if disp in self.model_fields:
+            data['_disp'] = self.serialize_field(getattr(self._obj, disp))
+        elif disp in self.stub_fields.keys():
+            stub_data = getattr(self._obj, disp)
+            data['_disp'] = getattr(stub_data, self.stub_fields[disp])
+        else:
+            raise NotImplementedError(
+                'display_field must be a model field or stub field')
         if not embed:
             return data
         data['_type'] = self.resource_type
@@ -153,6 +162,7 @@ class Resource:
         serialized_data = {
             '_href': full_reverse(self.resource_name + '-list',
                                   self._request) + query_string,
+            '_disp': self.resource_name,
         }
         if embed:
             serialized_data.update(
@@ -228,7 +238,7 @@ class Resource:
     def render_response(cls, data, request, status=None):
         # TODO: there's got to be a more robust library to parse accept headers
         for accept in request.META['HTTP_ACCEPT'].split(','):
-            if accept == 'application/json':
+            if accept == 'application/json' or accept == '*/*':
                 return HttpResponse(json.dumps(data), status=status,
                                     content_type=accept)
             elif accept == 'text/html':
@@ -238,7 +248,8 @@ class Resource:
                                     status=status,
                                     content_type=accept)
             else:
-                raise NotImplementedError("Only supporting json and html")
+                raise NotImplementedError("MIME type %s not supported.\
+                        Try text/html or application/json" % accept)
 
     @classmethod
     @csrf_exempt
