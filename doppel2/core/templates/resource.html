@@ -1,9 +1,9 @@
 {% macro show_list(val) -%}
-    <div class="list-group">
+    <ul class="list-group">
         {% for subval in val %}
-            {{ show_value(subval) }}
+            <li class="list-group-item">{{ show_value(subval) }}</li>
         {% endfor %}
-    </div> <!-- list-group -->
+    </ul> <!-- list-group -->
 {%- endmacro %}
 
 {% macro show_value(val) -%}
@@ -12,7 +12,7 @@
     {% elif val.__iter__ %}
         {{ show_list(val) }}
     {% else %}
-        <p class="list-group-item-text">{{ val }}</p>
+        {{ val }}
     {% endif %}
 {%- endmacro %}
 
@@ -22,16 +22,18 @@
         <a class="list-group-item-text" href={{ val._href }}>{{ val._disp }}</a>
     {% else %}
         <!-- either an embedded resource or normal dict -->
-        <div class="list-group">
+        <ul class="list-group">
+            {% if '_disp' in val %}
+                <li class="list-group-item list-group-item-info">{{ val._disp }}</li>
+            {% endif %}
             {% for key, subval in val.items() %}
                 {% if key[0] != '_' %}
-                <div class="list-group-item">
-                    <h4 class="list-group-item-heading">{{ key }}</h4>
-                    {{ show_value(subval) }}
-                </div>
+                <li class="list-group-item">
+                    {{ key }}: {{ show_value(subval) }}
+                </li>
                 {% endif %}
             {% endfor %}
-        </div> <!-- list-group -->
+        </ul> <!-- list-group -->
     {% endif %}
 {%- endmacro %}
 
@@ -41,7 +43,7 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Bootstrap 101 Template</title>
+    <title>Doppel2 API Explorer</title>
 
     <!-- Bootstrap -->
     <link href="/static/lib/bootstrap/css/bootstrap.min.css" rel="stylesheet">
@@ -56,8 +58,19 @@
 
 <body>
     <div class="container">
-        <h1>{{ resource._disp }}</h1>
-        {{ show_dict(resource) }}
+        <div class="page-header">
+            <h1>Doppel2 API Explorer</h1>
+        </div>
+        <div class="row">
+            <div class="col-md-5">
+                <h3>Resource</h3>
+                {{ show_dict(resource) }}
+            </div>
+            <div class="col-md-7">
+                <h3 class="text-right">Raw Response</h3>
+                <pre>{{ json_str }}</pre>
+            </div>
+        </div>
     </div> <!-- container -->
 
     <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->

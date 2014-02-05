@@ -242,7 +242,8 @@ class Resource:
                 return HttpResponse(json.dumps(data), status=status,
                                     content_type=accept)
             elif accept == 'text/html':
-                context = {'resource': data, 'enumerate': enumerate}
+                context = {'resource': data,
+                           'json_str': json.dumps(data, indent=2)}
                 template = jinja_env.get_template('resource.html')
                 return HttpResponse(template.render(**context),
                                     status=status,
