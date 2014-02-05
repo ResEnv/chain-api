@@ -51,7 +51,6 @@
 
     <!-- Bootstrap -->
     <link href="/static/lib/bootstrap/css/bootstrap.min.css" rel="stylesheet">
-
     <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
     <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
     <!--[if lt IE 9]>
@@ -67,6 +66,12 @@
         </div>
         <div class="row">
             <div class="col-md-5">
+                <h3 id="chart-header" class="hidden">Data</h3>
+                <div id="data-chart"></div>
+                <div id="chart_container">
+                    <div id="y_axis"></div>
+                    <div id="data-chart"></div>
+                </div>
                 <h3>Resource</h3>
                 {{ show_dict(resource) }}
             </div>
@@ -81,6 +86,46 @@
     <script src="/static/lib/jquery.js"></script>
     <!-- Include all compiled plugins (below), or include individual files as needed -->
     <script src="/static/lib/bootstrap/js/bootstrap.min.js"></script>
+    <script src="/static/lib/d3.min.js"></script>
+    <script src="/static/lib/d3.layout.min.js"></script>
+    <script src="/static/lib/rickshaw.min.js"></script>
+    <link rel="stylesheet" href="/static/lib/rickshaw.min.css">
+    <script>
+        resource_data = {{ json_str }};
+        if((resource_data._type == "resource-list") &&
+                (resource_data.meta.totalCount > 0) &&
+                (resource_data.data[0]._type == "data")) {
+
+            $("#chart-header").removeClass("hidden")
+
+            data = []
+            for(i = 0; i < resource_data.meta.totalCount; i++) {
+                new_point = {
+                    x: Date.parse(resource_data.data[i].timestamp) / 1000,
+                    y: resource_data.data[i].value
+                }
+                data.push(new_point)
+            };
+
+            var graph = new Rickshaw.Graph( {
+                element: document.querySelector("#data-chart"),
+                // width: 580,
+                height: 250,
+                series: [ {
+                    name: resource_data.data[0].sensor._disp,
+                    color: 'steelblue',
+                    data: data
+                } ]
+            } );
+            var x_axis = new Rickshaw.Graph.Axis.Time({graph: graph});
+            var y_axis = new Rickshaw.Graph.Axis.Y({graph: graph});
+            var hoverDetail = new Rickshaw.Graph.HoverDetail({graph: graph});
+
+            graph.render();
+            //x_axis.render();
+            //y_axis.render();
+        }
+    </script>
 </body>
 </html>
 
