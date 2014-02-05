@@ -24,7 +24,11 @@
         <!-- either an embedded resource or normal dict -->
         <ul class="list-group">
             {% if '_disp' in val %}
-                <li class="list-group-item list-group-item-info">{{ val._disp }}</li>
+            <li class="list-group-item list-group-item-info">
+                <a class="list-group-item-header" href={{ val._href }}>
+                    {{ val._disp }}
+                </a>
+            </li>
             {% endif %}
             {% for key, subval in val.items() %}
                 {% if key[0] != '_' %}
