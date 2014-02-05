@@ -8,7 +8,7 @@
 
 {% macro show_value(val) -%}
     {% if val.items  %}
-        {{ show_dict(val) }}
+        {{ show_dict(val, gen_id()) }}
     {% elif val.__iter__ %}
         {{ show_list(val) }}
     {% else %}
@@ -16,30 +16,59 @@
     {% endif %}
 {%- endmacro %}
 
-{% macro show_dict(val) -%}
+{% macro show_dict(val, unique, collapsed=True) -%}
     {% if '_href' in val and not '_type' in val %}
         <!-- just a link -->
-        <a class="list-group-item-text" href={{ val._href }}>{{ val._disp }}</a>
+        <a href={{ val._href }}>{{ val._disp }}</a>
     {% else %}
         <!-- either an embedded resource or normal dict -->
-        <ul class="list-group">
-            {% if '_disp' in val %}
-            <li class="list-group-item list-group-item-info">
-                <a class="list-group-item-header" href={{ val._href }}>
-                    {{ val._disp }}
-                </a>
-            </li>
+        {% if '_disp' in val %}
+            <div class="panel panel-default">
+                <div class="panel-heading">
+                    <a class="list-group-item-header" href={{ val._href }}>{{ val._disp }}</a>
+                    <button type="button" class="btn btn-xs pull-right" data-toggle="collapse" data-target="#{{ unique }}">
+                        <span class="caret"></span>
+                    </button>
+                </div> <!-- panel-heading -->
+            {% if collapsed %}
+            <ul class="list-group collapse" id="{{ unique }}">
+            {% else %}
+            <ul class="list-group collapse in" id="{{ unique }}">
             {% endif %}
+        {% else %}
+            <ul class="list-group">
+        {% endif %}
             {% for key, subval in val.items() %}
                 {% if key[0] != '_' %}
-                <li class="list-group-item">
-                    {{ key }}: {{ show_value(subval) }}
-                </li>
+                    <li class="list-group-item">
+                        {{ key }}: {{ show_value(subval) }}
+                    </li>
                 {% endif %}
             {% endfor %}
-        </ul> <!-- list-group -->
+        </ul>
+        {% if '_disp' in val %}
+            </div> <!-- panel -->
+        {% endif %}
     {% endif %}
 {%- endmacro %}
+
+
+<!--
+    <div class="panel panel-default">
+      <div class="panel-heading">Resource Title
+          <button type="button" class="btn btn-xs pull-right" data-toggle="collapse" data-target="#fields">
+              <span class="caret"></span>
+          </button>
+      </div>
+      <ul class="list-group collapse" id="fields">
+        <li class="list-group-item">Cras justo odio</li>
+        <li class="list-group-item">Dapibus ac facilisis in</li>
+        <li class="list-group-item">Morbi leo risus</li>
+        <li class="list-group-item">Porta ac consectetur ac</li>
+        <li class="list-group-item">Vestibulum at eros</li>
+      </ul>
+    </div>
+-->
 
 <!DOCTYPE html>
 <html lang="en">
@@ -53,7 +82,8 @@
     <link href="/static/lib/bootstrap/css/bootstrap.min.css" rel="stylesheet">
     <style>
         .rickshaw_graph .detail .x_label {
-            top: -20px;  /* add this */
+            top: -30px;  /* workaround so hovers don't overlap when the point
+                            is near the top */
         }
     </style>
     <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
@@ -78,7 +108,7 @@
                     <div id="data-chart"></div>
                 </div>
                 <h3>Resource</h3>
-                {{ show_dict(resource) }}
+                {{ show_dict(resource, gen_id(), False) }}
             </div>
             <div class="col-md-7">
                 <h3 class="text-right">Raw Response</h3>
@@ -133,16 +163,3 @@
     </script>
 </body>
 </html>
-
-
-<!--
-
-# Test Site 1
-
-name: Test Site 1
-devices: [devices]
-latitude: 234.293
-longitude: 234.293
-
-
--->

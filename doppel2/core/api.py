@@ -8,6 +8,8 @@ from django.core.urlresolvers import reverse
 from django.views.decorators.csrf import csrf_exempt
 from datetime import datetime
 from jinja2 import Environment, PackageLoader
+import random
+import string
 
 HTTP_STATUS_SUCCESS = 200
 HTTP_STATUS_CREATED = 201
@@ -18,6 +20,11 @@ jinja_env = Environment(loader=PackageLoader('doppel2.core', 'templates'))
 def full_reverse(view_name, request, *args, **kwargs):
     partial_reverse = reverse(view_name, *args, **kwargs)
     return request.build_absolute_uri(partial_reverse)
+
+
+def gen_id(length=16):
+    '''Generates a random string usable as DOM element id'''
+    return ''.join(random.choice(string.lowercase) for i in range(length))
 
 
 # store the objects referenced lazily so we only need to use eval() the first
@@ -243,7 +250,8 @@ class Resource:
                                     content_type=accept)
             elif accept == 'text/html':
                 context = {'resource': data,
-                           'json_str': json.dumps(data, indent=2)}
+                           'json_str': json.dumps(data, indent=2),
+                           'gen_id': gen_id}
                 template = jinja_env.get_template('resource.html')
                 return HttpResponse(template.render(**context),
                                     status=status,
