@@ -107,6 +107,7 @@ class Resource:
     related_fields = {}
     stub_fields = {}
     callback_fields = []
+    order_by = []
 
     def __init__(self, obj=None, queryset=None, data=None, request=None,
                  filters=None):
@@ -161,6 +162,8 @@ class Resource:
         to be serialized as a collection'''
 
         queryset = self._queryset.filter(**self._filters)
+        if self.order_by:
+            queryset = queryset.order_by(*self.order_by)
         query_string = ''
 
         if self._filters:
