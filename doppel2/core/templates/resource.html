@@ -102,10 +102,10 @@
         <div class="row">
             <div class="col-md-5">
                 <h3 id="chart-header" class="hidden">Data</h3>
-                <div id="data-chart"></div>
                 <div id="chart_container">
                     <div id="y_axis"></div>
                     <div id="data-chart"></div>
+                    <div id="slider"></div>
                 </div>
                 <h3>Resource</h3>
                 {{ show_dict(resource, gen_id(), False) }}
@@ -119,12 +119,14 @@
 
     <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
     <script src="/static/lib/jquery.js"></script>
+    <script src="https://code.jquery.com/ui/1.10.4/jquery-ui.js"></script>
     <!-- Include all compiled plugins (below), or include individual files as needed -->
     <script src="/static/lib/bootstrap/js/bootstrap.min.js"></script>
     <script src="/static/lib/d3.min.js"></script>
     <script src="/static/lib/d3.layout.min.js"></script>
     <script src="/static/lib/rickshaw.min.js"></script>
     <link rel="stylesheet" href="/static/lib/rickshaw.min.css">
+    <link type="text/css" rel="stylesheet" href="http://code.jquery.com/ui/1.10.4/themes/smoothness/jquery-ui.css">
     <script>
         resource_data = {{ json_str }};
         if((resource_data._type == "resource-list") &&
@@ -152,13 +154,15 @@
                     data: data
                 } ]
             } );
-            var x_axis = new Rickshaw.Graph.Axis.Time({graph: graph});
-            var y_axis = new Rickshaw.Graph.Axis.Y({graph: graph});
+            var xAxis = new Rickshaw.Graph.Axis.Time({graph: graph});
+            var yAxis = new Rickshaw.Graph.Axis.Y({graph: graph});
             var hoverDetail = new Rickshaw.Graph.HoverDetail({graph: graph});
-
             graph.render();
-            //x_axis.render();
-            //y_axis.render();
+
+            var slider = new Rickshaw.Graph.RangeSlider({
+                graph: graph,
+                element: document.querySelector('#slider')
+            });
         }
     </script>
 </body>
