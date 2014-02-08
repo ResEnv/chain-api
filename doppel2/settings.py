@@ -20,6 +20,10 @@ DATABASES = {
     }
 }
 
+# when we resolve absolute URIs and we're behind a proxy, we need to check
+# the forwarded host so we generate the correct URIs
+USE_X_FORWARDED_HOST = True
+
 # Hosts/domain names that are valid for this site; required if DEBUG is False
 # See https://docs.djangoproject.com/en/1.5/ref/settings/#allowed-hosts
 ALLOWED_HOSTS = []
