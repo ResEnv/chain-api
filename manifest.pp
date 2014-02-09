@@ -44,6 +44,12 @@ package { "django":
     ensure => present,
 }
 
+package { "django-extensions":
+    provider => "pip",
+    require => Package["python-pip"],
+    ensure => present,
+}
+
 package { "south":
     provider => "pip",
     require => Package["python-pip"],

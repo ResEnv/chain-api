@@ -67,7 +67,7 @@ class CollectionField:
         self._child_resource_class = child_resource_class
         self._embed = embed
 
-    def serialize(self, parent, request):
+    def serialize(self, parent, request, cache):
         queryset = self._child_resource_class.queryset
 
         # generate a filter on the child collection so we get the actual
@@ -76,7 +76,7 @@ class CollectionField:
         parent_filter = {self._reverse_name + '_id': parent._obj.id}
         return self._child_resource_class(queryset=queryset, request=request,
                                           filters=parent_filter).serialize(
-                                              embed=self._embed)
+                                              embed=self._embed, cache=cache)
 
 
 class ResourceField:
@@ -87,13 +87,13 @@ class ResourceField:
         self._parent_field_name = parent_field_name
         self._embed = embed
 
-    def serialize(self, parent, request):
+    def serialize(self, parent, request, cache):
         self._related_resource_class = unlazy(self._related_resource_class)
         # TODO: shouldn't be reaching directly into parent._obj! refactor
         obj = getattr(parent._obj, self._parent_field_name)
         return self._related_resource_class(obj=obj,
                                             request=request).serialize(
-                                                embed=self._embed)
+                                                embed=self._embed, cache=cache)
 
 
 class Resource:
@@ -120,9 +120,11 @@ class Resource:
         self._filters = filters or {}
         self._request = request
 
-    def serialize_single(self, embed):
+    def serialize_single(self, embed, cache):
         '''Serializes this object, assuming that there is a single instance to
-        be serialized'''
+        be serialized. Note that this only gets called from the top-level
+        serialize() method, which handles checking whether we're in the
+        cache'''
         data = {
             '_href': full_reverse(self.resource_name + '-single',
                                   self._request, args=(self._obj.id,)),
@@ -143,8 +145,8 @@ class Resource:
             data[field_name] = self.serialize_field(
                 getattr(self._obj, field_name))
         for field_name, collection in self.related_fields.items():
-            # collection is an CollectionField here
-            data[field_name] = collection.serialize(self, self._request)
+            # collection is a CollectionField or ResourceField here
+            data[field_name] = collection.serialize(self, self._request, cache)
         for stub in self.stub_fields.keys():
             stub_data = getattr(self._obj, stub)
             data[stub] = getattr(stub_data, self.stub_fields[stub])
@@ -157,7 +159,7 @@ class Resource:
             return field_value.isoformat()
         return field_value
 
-    def serialize_list(self, embed):
+    def serialize_list(self, embed, cache):
         '''Serializes this object, assuming that there is a queryset that needs
         to be serialized as a collection'''
 
@@ -179,19 +181,34 @@ class Resource:
                 {
                     '_type': 'resource-list',
                     'meta': {'totalCount': len(queryset)},
-                    'data': [self.__class__(obj=obj,
-                                            request=self._request).serialize()
-                             for obj in queryset]
+                    'data':
+                    [self.__class__(obj=obj, request=self._request).
+                        serialize(cache=cache) for obj in queryset]
                 })
         return serialized_data
 
-    def serialize(self, embed=True):
+    def serialize(self, embed=True, cache=None):
         '''Serializes this instance into a dictionary that can be rendered'''
+        if cache is None:
+            cache = {}
+
+        # first check to see if we're already in the cache, in which case we
+        # can just return what was already calculated. Note that the key for
+        # the cache includes whether we're embedded. This means that the same
+        # object may be in the cache in both the embedded and non-embedded
+        # forms, but that is likely a small price to pay for simplicity
 
         if self._queryset:
-            self._data = self.serialize_list(embed)
+            # we don't currently handle cacheing whole collection lists.
+            self._data = self.serialize_list(embed, cache)
+
         elif self._obj:
-            self._data = self.serialize_single(embed)
+            if (self._obj.__class__, self._obj.id, embed) in cache:
+                return cache[(self._obj.__class__, self._obj.id, embed)]
+            else:
+                self._data = self.serialize_single(embed, cache)
+                cache[(self._obj.__class__, self._obj.id, embed)] = self._data
+
         return self._data
 
     def stub_object_finding(self, obj, field_name, field_value):

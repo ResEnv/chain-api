@@ -11,9 +11,6 @@ class SensorDataResource(Resource):
     resource_type = 'data'
     model_fields = ['timestamp', 'value']
     order_by = ['timestamp']
-    related_fields = {'sensor':
-                      ResourceField('doppel2.core.resources.SensorResource',
-                                    'sensor')}
     queryset = ScalarData.objects
 
 
