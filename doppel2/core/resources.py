@@ -10,9 +10,6 @@ class SensorDataResource(Resource):
     resource_name = 'data'
     resource_type = 'data'
     model_fields = ['timestamp', 'value']
-    related_fields = {'sensor':
-                      ResourceField('doppel2.core.resources.SensorResource',
-                                    'sensor')}
     queryset = ScalarData.objects
 
 
