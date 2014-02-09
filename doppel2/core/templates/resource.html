@@ -128,14 +128,15 @@
     <link rel="stylesheet" href="/static/lib/rickshaw.min.css">
     <link type="text/css" rel="stylesheet" href="http://code.jquery.com/ui/1.10.4/themes/smoothness/jquery-ui.css">
     <script>
-        resource_data = {{ json_str }};
+        var resource_data = {{ json_str }};
         if((resource_data._type == "resource-list") &&
                 (resource_data.meta.totalCount > 0) &&
                 (resource_data.data[0]._type == "data")) {
 
             $("#chart-header").removeClass("hidden")
 
-            data = []
+            var data = []
+            //var tzOffset = (new Date()).getTimezoneOffset() * 60000;
             for(i = 0; i < resource_data.meta.totalCount; i++) {
                 new_point = {
                     x: Date.parse(resource_data.data[i].timestamp) / 1000,
@@ -154,9 +155,16 @@
                     data: data
                 } ]
             } );
-            var xAxis = new Rickshaw.Graph.Axis.Time({graph: graph});
+            var xAxis = new Rickshaw.Graph.Axis.Time({
+                graph: graph,
+                timeFixture: new Rickshaw.Fixtures.Time.Local()
+            });
             var yAxis = new Rickshaw.Graph.Axis.Y({graph: graph});
-            var hoverDetail = new Rickshaw.Graph.HoverDetail({graph: graph});
+            var hoverDetail = new Rickshaw.Graph.HoverDetail({
+                graph: graph,
+                xFormatter: function(x) {
+                    return new Date(x * 1000).toString();
+            }});
             graph.render();
 
             var slider = new Rickshaw.Graph.RangeSlider({
