@@ -351,8 +351,12 @@ class Resource:
             return cls.render_response(response_data, request)
         elif request.method == 'POST':
             data = json.loads(request.body)
-            new_object = cls(data=data, request=request,
-                             filters=request.GET.dict())
+            obj_params = request.GET.dict()
+            if 'offset' in obj_params:
+                del obj_params['offset']
+            if 'limit' in obj_params:
+                del obj_params['limit']
+            new_object = cls(data=data, request=request, filters=obj_params)
             new_object.save()
             response_data = new_object.serialize()
             return cls.render_response(response_data, request,

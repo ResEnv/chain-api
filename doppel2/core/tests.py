@@ -247,8 +247,7 @@ class ApiTest(DoppelTestCase):
         site_id = self.sites[0].id
         coll = self.get_resource(
             BASE_API_URL + 'devices/?site=%d' % site_id)
-        self.assertRegexpMatches(coll['_href'],
-                                 'http://.*/api/devices/\?site=%d' % site_id)
+        self.assertTrue(('site=%d' % site_id) in coll['_href'])
 
     def test_device_resource_should_have_sensors(self):
         device = self.get_a_device()
@@ -307,7 +306,7 @@ class ApiTest(DoppelTestCase):
 
 class HTMLTests(DoppelTestCase):
     def test_root_request_accepting_html_gets_it(self):
-        res = self.get_resource(BASE_API_URL, mime_type='text/html')
+        res = self.get_resource(BASE_API_URL, mime_type='text/html').strip()
         # check that it startswith a doctype
         self.assertTrue(res.startswith("<!DOCTYPE html"))
         self.assertTrue(res.endswith("</html>"))
