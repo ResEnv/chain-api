@@ -10,6 +10,8 @@ from datetime import datetime
 from jinja2 import Environment, PackageLoader
 import random
 import string
+from urlparse import urlparse, urlunparse, parse_qs
+from urllib import urlencode
 
 HTTP_STATUS_SUCCESS = 200
 HTTP_STATUS_CREATED = 201
@@ -54,6 +56,21 @@ def unlazy(given):
             _lazy_refs[given] = eval(given, mods)
             return _lazy_refs[given]
     return given
+
+
+def paginate_href(href, offset, limit):
+    '''Takes a link href as a string, and updates the query string with the
+    given offset and limit'''
+    scheme, netloc, path, params, query, fragment = urlparse(href)
+    # Note that values from parse_qs are actually lists in order to accomodate
+    # possible duplicate keys. make sure you encode with doseq=True
+    query_params = parse_qs(query)
+    # if the limit and offset query params aren't already there they'll be
+    # created
+    query_params['offset'] = offset
+    query_params['limit'] = limit
+    query = urlencode(query_params, doseq=True)
+    return urlunparse((scheme, netloc, path, params, query, fragment))
 
 
 class CollectionField:
@@ -108,6 +125,7 @@ class Resource:
     stub_fields = {}
     callback_fields = []
     order_by = []
+    page_size = 30
 
     def __init__(self, obj=None, queryset=None, data=None, request=None,
                  filters=None):
@@ -163,28 +181,53 @@ class Resource:
         '''Serializes this object, assuming that there is a queryset that needs
         to be serialized as a collection'''
 
+        offset = 0
+        limit = self.page_size
+        #import pdb; pdb.set_trace()
+
+        if 'offset' in self._filters:
+            offset = int(self._filters.pop('offset'))
+        if 'limit' in self._filters:
+            limit = int(self._filters.pop('limit'))
+
+        total_count = self._queryset.filter(**self._filters).count()
         queryset = self._queryset.filter(**self._filters)
         if self.order_by:
             queryset = queryset.order_by(*self.order_by)
-        query_string = ''
+        queryset = queryset[offset:offset + limit]
 
+        href = full_reverse(self.resource_name + '-list', self._request)
         if self._filters:
-            query_string = "?" + '&'.join(
-                ['%s=%s' % (k, v) for (k, v) in self._filters.items()])
+            href += '?' + urlencode(self._filters.items())
+
         serialized_data = {
-            '_href': full_reverse(self.resource_name + '-list',
-                                  self._request) + query_string,
+            '_href': paginate_href(href, offset, limit),
             '_disp': self.resource_name,
         }
         if embed:
             serialized_data.update(
                 {
                     '_type': 'resource-list',
-                    'meta': {'totalCount': len(queryset)},
+                    'meta': {'totalCount': total_count},
                     'data':
                     [self.__class__(obj=obj, request=self._request).
                         serialize(cache=cache) for obj in queryset]
                 })
+            if offset > 0:
+                # make previous link
+                prev_offset = offset - limit if offset - limit > 0 else 0
+                serialized_data['meta']['previous'] = {
+                    '_href': paginate_href(href, prev_offset, limit),
+                    '_disp': '%d through %d' % (
+                        prev_offset, prev_offset + limit),
+                }
+            if offset + limit < total_count:
+                # make next link
+                serialized_data['meta']['next'] = {
+                    '_href': paginate_href(href, offset + limit, limit),
+                    '_disp': '%d through %d' % (
+                        offset + limit, offset + 2 * limit),
+                }
         return serialized_data
 
     def serialize(self, embed=True, cache=None):
