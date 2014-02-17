@@ -213,20 +213,37 @@ class Resource:
                     [self.__class__(obj=obj, request=self._request).
                         serialize(cache=cache) for obj in queryset]
                 })
+
             if offset > 0:
                 # make previous link
                 prev_offset = offset - limit if offset - limit > 0 else 0
                 serialized_data['meta']['previous'] = {
                     '_href': paginate_href(href, prev_offset, limit),
                     '_disp': '%d through %d' % (
-                        prev_offset, prev_offset + limit),
+                        prev_offset, prev_offset + limit - 1),
                 }
+                # make first link
+                serialized_data['meta']['first'] = {
+                    '_href': paginate_href(href, 0, limit),
+                    '_disp': '0 through %d' % (limit - 1),
+                }
+
             if offset + limit < total_count:
                 # make next link
+                if offset + 2 * limit < total_count:
+                    next_page_end = offset + 2 * limit
+                else:
+                    next_page_end = total_count
                 serialized_data['meta']['next'] = {
                     '_href': paginate_href(href, offset + limit, limit),
                     '_disp': '%d through %d' % (
-                        offset + limit, offset + 2 * limit),
+                        offset + limit, next_page_end - 1),
+                }
+                last_page_start = int(total_count / limit) * limit
+                serialized_data['meta']['last'] = {
+                    '_href': paginate_href(href, last_page_start, limit),
+                    '_disp': '%d through %d' % (
+                        last_page_start, total_count - 1),
                 }
         return serialized_data
 
