@@ -130,14 +130,13 @@
     <script>
         var resource_data = {{ json_str }};
         if((resource_data._type == "resource-list") &&
-                (resource_data.meta.totalCount > 0) &&
+                (resource_data.data.length > 0) &&
                 (resource_data.data[0]._type == "data")) {
 
             $("#chart-header").removeClass("hidden")
 
-            var data = []
-            //var tzOffset = (new Date()).getTimezoneOffset() * 60000;
-            for(i = 0; i < resource_data.meta.totalCount; i++) {
+            data = []
+            for(i = 0; i < resource_data.data.length; i++) {
                 new_point = {
                     x: Date.parse(resource_data.data[i].timestamp) / 1000,
                     y: resource_data.data[i].value

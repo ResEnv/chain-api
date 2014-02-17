@@ -12,6 +12,7 @@ class SensorDataResource(Resource):
     model_fields = ['timestamp', 'value']
     order_by = ['timestamp']
     queryset = ScalarData.objects
+    page_size = 2000
 
 
 class SensorResource(Resource):
