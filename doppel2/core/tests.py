@@ -1,5 +1,6 @@
 from django.test import TestCase
 from doppel2.core.models import ScalarData, Unit, Metric, Device, Sensor, Site
+from doppel2.core.api import Resource
 from datetime import datetime
 from django.db.models import Avg
 import json
@@ -26,11 +27,10 @@ class DoppelTestCase(TestCase):
         self.sites = [Site(name='Test Site 1'), Site(name='Test Site 2')]
         for site in self.sites:
             site.save()
-        self.devices = [Device(name='Thermostat 1', site=self.sites[0]),
-                        Device(name='Thermostat 2', site=self.sites[0]),
-                        Device(name='Thermostat 3', site=self.sites[0]),
-                        Device(name='Thermostat 4', site=self.sites[1]),
-                        Device(name='Thermostat 5', site=self.sites[1])]
+        num_devices = 5
+        self.devices = [Device(name='Thermostat %d' % i,
+                               site=self.sites[i % len(self.sites)])
+                        for i in range(0, num_devices)]
         self.sensors = []
         for device in self.devices:
             device.save()
@@ -286,6 +286,31 @@ class ApiTest(DoppelTestCase):
         }
         self.post_resource(data_url, data)
         # TODO: actually make sure the posted data is correct
+
+    def test_device_collections_should_limit_to_default_page_size(self):
+        site = self.get_a_site()
+        devs_url = site['devices']['_href']
+        # make sure we create more devices than will fit on a page
+        for i in range(0, Resource.page_size + 1):
+            dev = {'name': 'test dev %d' % i}
+            self.post_resource(devs_url, dev)
+        devs = self.get_resource(devs_url)
+        self.assertEqual(len(devs['data']), Resource.page_size)
+
+    def test_pages_should_have_next_and_prev_links(self):
+        site = self.get_a_site()
+        devs_url = site['devices']['_href']
+        # make sure we create more devices than will fit on a page
+        for i in range(0, Resource.page_size + 1):
+            dev = {'name': 'test dev %d' % i}
+            self.post_resource(devs_url, dev)
+        devs = self.get_resource(devs_url)
+        self.assertIn('next', devs['meta'])
+        self.assertNotIn('previous', devs['meta'])
+        next_devs = self.get_resource(devs['meta']['next']['_href'])
+        self.assertIn('previous', next_devs['meta'])
+        self.assertNotIn('next', next_devs['meta'])
+
 
 #    def test_scalar_data_should_be_gettable_from_api(self):
 #        data = ScalarData(sensor=self.sensors[0], value=25)
