@@ -24,6 +24,7 @@ class SensorResource(Resource):
     resource_name = 'sensors'
     resource_type = 'sensor'
 
+    # TODO: add value and updated_timestamp attributes
     # for now, name is hardcoded as the only attribute of metric and unit
     callback_fields = ['timestamp', 'value']
     stub_fields = {'metric': 'name', 'unit': 'name'}
@@ -42,8 +43,6 @@ class DeviceResource(Resource):
     display_field = 'name'
     resource_name = 'devices'
     resource_type = 'device'
-
-    # TODO: add site linked field
 
     model_fields = ['name', 'description', 'building', 'floor', 'room']
     related_fields = {
@@ -79,7 +78,7 @@ class ApiRootResource(Resource):
     def serialize(self):
         data = {'_href': full_reverse('api-root', self._request),
                 '_type': 'api-root',
-                '_disp': 'api-root',
+                '_disp': 'Tidmarsh API',
                 'sites': SiteResource(queryset=Site.objects,
                 request=self._request).serialize()}
         return data
