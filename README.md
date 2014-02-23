@@ -88,7 +88,17 @@ Or if the 'books' resource is expanded:
         '_disp': 'Charlotte Bronte',
         'books': {
             '_href': 'http://example.com/api/authors/910/books/',
-            'meta': { 'total_count': 3 },
+            'meta': {
+              'totalCount': 24,
+              'last': {
+                '_disp': '21 through 23',
+                '_href': 'http://localhost:8000/api/devices/?limit=3&site_id=2&offset=21'
+              },
+              'next': {
+                '_disp': '3 through 5',
+                '_href': 'http://localhost:8000/api/devices/?limit=3&site_id=2&offset=3'
+              }
+            },
             '_type': 'resource-list',
             'data': [
                 {
