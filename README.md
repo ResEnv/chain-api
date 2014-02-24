@@ -424,6 +424,11 @@ and comment those stanzas out.  I also had to set the ownership of
 
 END OF ARCH-SPECIFIC NOTE
 
+edit manifest.pp and change the database username and password.
+
+Edit settings.py and set the username and password, as well as the
+`SECRET_KEY` setting.
+
 Then set up the server with
 
     sudo puppet apply manifest.pp
