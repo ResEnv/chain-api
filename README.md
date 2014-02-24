@@ -26,19 +26,19 @@ will signify whether the related resource is embedded or linked.
     GET http://example.com/api/books/483
 
     {
-        '_href': 'http://example.com/api/books/483',
-        '_type': 'book',
-        '_disp': 'Jane Eyre',
-        'title': 'Jane Eyre',
-        'author': {
-            '_href': 'http://example.com/api/authors/910',
-            '_type': 'author',
-            '_disp': 'Charlotte Bronte',
-            'firstName': 'Charlotte',
-            'lastName': 'Bronte',
-            'books': {
-                '_href': '/api/authors/910/books/'
-                '_disp': 'Books by Charlotte Bronte'
+        "_href": "http://example.com/api/books/483",
+        "_type": "book",
+        "_disp": "Jane Eyre",
+        "title": "Jane Eyre",
+        "author": {
+            "_href": "http://example.com/api/authors/910",
+            "_type": "author",
+            "_disp": "Charlotte Bronte",
+            "firstName": "Charlotte",
+            "lastName": "Bronte",
+            "books": {
+                "_href": "/api/authors/910/books/"
+                "_disp": "Books by Charlotte Bronte"
             }
         }
     }
@@ -48,87 +48,87 @@ will signify whether the related resource is embedded or linked.
     GET http://example.com/api/book/483
 
     {
-        '_href': 'http://example.com/api/books/483',
-        '_type': 'book',
-        '_disp': 'Jane Eyre',
-        'title': 'Jane Eyre',
-        'author': {
-            '_href': 'http://example.com/api/authors/910',
-            '_disp': 'Charlotte Bronte'
+        "_href": "http://example.com/api/books/483",
+        "_type": "book",
+        "_disp": "Jane Eyre",
+        "title": "Jane Eyre",
+        "author": {
+            "_href": "http://example.com/api/authors/910",
+            "_disp": "Charlotte Bronte"
         }
     }
 
 A Parent resource might also contain a list of related resources, such as the
-list of books by an author. In this case the 'books' field would be itself
+list of books by an author. In this case the "books" field would be itself
 a Collection Resource, so the Author resource would look like:
 
     GET http://example.com/api/authors/910
 
     {
-        '_href': 'http://example.com/api/authors/910',
-        '_type': 'author',
-        '_disp': 'Charlotte Bronte',
-        'firstName': 'Charlotte',
-        'lastName': 'Bronte'
-        'books': {
-            '_href': 'http://example.com/api/authors/910/books/,
-            '_disp': 'Books by Charlotte Bronte'
+        "_href": "http://example.com/api/authors/910",
+        "_type": "author",
+        "_disp": "Charlotte Bronte",
+        "firstName": "Charlotte",
+        "lastName": "Bronte"
+        "books": {
+            "_href": "http://example.com/api/authors/910/books/",
+            "_disp": "Books by Charlotte Bronte"
         }
     }
 
-Or if the 'books' resource is expanded:
+Or if the "books" resource is expanded:
 
     GET http://example.com/api/authors/910
 
     {
-        '_href': 'http://example.com/api/authors/910',
-        '_type': 'author',
-        'firstName': 'Charlotte',
-        'lastName': 'Bronte'
-        '_disp': 'Charlotte Bronte',
-        'books': {
-            '_href': 'http://example.com/api/authors/910/books/',
-            'meta': {
-              'totalCount': 24,
-              'last': {
-                '_disp': '21 through 23',
-                '_href': 'http://localhost:8000/api/devices/?limit=3&site_id=2&offset=21'
+        "_href": "http://example.com/api/authors/910",
+        "_type": "author",
+        "firstName": "Charlotte",
+        "lastName": "Bronte"
+        "_disp": "Charlotte Bronte",
+        "books": {
+            "_href": "http://example.com/api/authors/910/books/",
+            "meta": {
+              "totalCount": 24,
+              "last": {
+                "_disp": "21 through 23",
+                "_href": "http://localhost:8000/api/devices/?limit=3&site_id=2&offset=21"
               },
-              'next': {
-                '_disp': '3 through 5',
-                '_href': 'http://localhost:8000/api/devices/?limit=3&site_id=2&offset=3'
+              "next": {
+                "_disp": "3 through 5",
+                "_href": "http://localhost:8000/api/devices/?limit=3&site_id=2&offset=3"
               }
             },
-            '_type': 'resource-list',
-            'data': [
+            "_type": "resource-list",
+            "data": [
                 {
-                    '_href': 'http://example.com/api/books/483',
-                    '_type': 'book',
-                    '_disp': 'Jane Eyre',
-                    'title': 'Jane Eyre',
-                    'author': {
-                        '_href': 'http://example.com/api/authors/910',
-                        '_disp': 'Charlotte Bronte'
+                    "_href": "http://example.com/api/books/483",
+                    "_type": "book",
+                    "_disp": "Jane Eyre",
+                    "title": "Jane Eyre",
+                    "author": {
+                        "_href": "http://example.com/api/authors/910",
+                        "_disp": "Charlotte Bronte"
                     }
                 },
                 {
-                    '_href': 'http://example.com/api/books/918',
-                    '_type': 'book',
-                    '_disp': 'Shirley',
-                    'title': 'Shirley',
-                    'author': {
-                        '_href': 'http://example.com/api/authors/910',
-                        '_disp': 'Charlotte Bronte'
+                    "_href": "http://example.com/api/books/918",
+                    "_type": "book",
+                    "_disp": "Shirley",
+                    "title": "Shirley",
+                    "author": {
+                        "_href": "http://example.com/api/authors/910",
+                        "_disp": "Charlotte Bronte"
                     }
                 },
                 {
-                    '_href': 'http://example.com/api/books/710',
-                    '_type': 'book',
-                    '_disp': 'The Professor',
-                    'title': 'The Professor',
-                    'author': {
-                        '_href': 'http://example.com/api/authors/910',
-                        '_disp': 'Charlotte Bronte'
+                    "_href": "http://example.com/api/books/710",
+                    "_type": "book",
+                    "_disp": "The Professor",
+                    "title": "The Professor",
+                    "author": {
+                        "_href": "http://example.com/api/authors/910",
+                        "_disp": "Charlotte Bronte"
                     }
                 },
             ]
@@ -159,24 +159,24 @@ contain links to the first, last, previous, and next pages.
     GET http://example.com/api/some_resources/
 
     {
-        '_href': 'http://example.com/api/some_resources/',
-        '_type': 'resource-list',
-        '_disp': 'Some Resources',
-        'meta': { "total_count": 2 },
-        'data': [
+        "_href": "http://example.com/api/some_resources/",
+        "_type": "resource-list",
+        "_disp": "Some Resources",
+        "meta": { "total_count": 2 },
+        "data": [
             {
-                '_href': 'http://example.com/api/some_resources/192',
-                '_type': 'some_resource',
-                '_disp': 'Idaho',
-                'name': 'A great resource',
-                'state': 'Idaho'
+                "_href": "http://example.com/api/some_resources/192",
+                "_type": "some_resource",
+                "_disp": "Idaho",
+                "name": "A great resource",
+                "state": "Idaho"
             },
             {
-                '_href': 'http://example.com/api/some_resources/193',
-                '_type': 'some_resource',
-                '_disp': 'New York',
-                'name': 'Another Resource',
-                'state': 'New York'
+                "_href": "http://example.com/api/some_resources/193",
+                "_type": "some_resource",
+                "_disp": "New York",
+                "name": "Another Resource",
+                "state": "New York"
             }
         ]
     }
@@ -187,11 +187,11 @@ resource, e.g.
     GET http://example.com/api/some_resources/193
 
     {
-        '_href': 'http://example.com/api/some_resources/193',
-        '_type': 'some_resource',
-        '_disp': 'New York',
-        'name': 'Another Resource',
-        'state': 'New York'
+        "_href": "http://example.com/api/some_resources/193",
+        "_type": "some_resource",
+        "_disp": "New York",
+        "name": "Another Resource",
+        "state": "New York"
     }
 
 
@@ -205,30 +205,30 @@ The API entry point is at `http://tidmarsh.media.mit.edu/api/`. A `GET` request
 will give you links to the available sites in the following format:
 
     {
-        '_href': 'http://tidmarsh.media.mit.edu/api/',
-        '_type': 'api-root',
-        '_disp': 'Tidmarsh API',
-        'sites': {
-            '_href': 'http://tidmarsh.media.mit.edu/api/sites/',
-            '_type': 'resource-list',
-            '_disp': 'site',
-            'meta': { 'total_count': 2 },
-            'data': [
+        "_href": "http://tidmarsh.media.mit.edu/api/",
+        "_type": "api-root",
+        "_disp": "Tidmarsh API",
+        "sites": {
+            "_href": "http://tidmarsh.media.mit.edu/api/sites/",
+            "_type": "resource-list",
+            "_disp": "site",
+            "meta": { "total_count": 2 },
+            "data": [
                 {
-                    '_href': 'http://tidmarsh.media.mit.edu/api/sites/92',
-                    '_type': 'site',
-                    '_disp': 'DoppelLab',
-                    'name': 'DoppelLab',
-                    'latitude': 42.360461,
-                    'longitude': -71.087347,
+                    "_href": "http://tidmarsh.media.mit.edu/api/sites/92",
+                    "_type": "site",
+                    "_disp": "DoppelLab",
+                    "name": "DoppelLab",
+                    "latitude": 42.360461,
+                    "longitude": -71.087347,
                 },
                 {
-                    '_href': 'http://tidmarsh.media.mit.edu/api/sites/12',
-                    '_type': 'site',
-                    '_disp': 'TidMarsh',
-                    'name': 'TidMarsh',
-                    'latitude': 39.948171,
-                    'longitude': -70.827105,
+                    "_href": "http://tidmarsh.media.mit.edu/api/sites/12",
+                    "_type": "site",
+                    "_disp": "TidMarsh",
+                    "name": "TidMarsh",
+                    "latitude": 39.948171,
+                    "longitude": -70.827105,
                 }
             }
         }
@@ -265,15 +265,15 @@ An installation of Doppel2, usually on the scale of several or many buildings.
 ### Example
 
     {
-        '_href': 'http://tidmarsh.media.mit.edu/api/sites/758',
-        '_type': 'site',
-        '_disp': 'TidMarsh',
-        'name': 'TidMarsh',
-        'latitude': 39.948171,
-        'longitude': -70.827105,
-        'devices': {
-            '_disp': 'devices',
-            '_href': 'http://tidmarsh.media.mit.edu/api/sites/758/devices'
+        "_href": "http://tidmarsh.media.mit.edu/api/sites/758",
+        "_type": "site",
+        "_disp": "TidMarsh",
+        "name": "TidMarsh",
+        "latitude": 39.948171,
+        "longitude": -70.827105,
+        "devices": {
+            "_disp": "devices",
+            "_href": "http://tidmarsh.media.mit.edu/api/sites/758/devices"
         }
     }
 
@@ -301,21 +301,21 @@ A device that may contain several sensor channels.
 ### Example
 
     {
-        '_href': 'http://tidmarsh.media.mit.edu/api/devices/129',
-        '_type': 'device',
-        '_disp': 'Bathroom Thermostat',
-        'name': 'Bathroom Thermostat',
-        'site': {
-            '_href': 'http://tidmarsh.media.mit.edu/api/sites/928',
-            '_disp': 'Summer Cabin'
+        "_href": "http://tidmarsh.media.mit.edu/api/devices/129",
+        "_type": "device",
+        "_disp": "Bathroom Thermostat",
+        "name": "Bathroom Thermostat",
+        "site": {
+            "_href": "http://tidmarsh.media.mit.edu/api/sites/928",
+            "_disp": "Summer Cabin"
         },
-        'description': 'Thermostat in the pool house bathroom',
-        'building': 'Pool House',
-        'floor': '2',
-        'room': 'Bathroom',
-        'sensors': {
-            '_href': 'http://tidmarsh.media.mit.edu/api/devices/129/sensors',
-            '_disp': 'sensors'
+        "description": "Thermostat in the pool house bathroom",
+        "building": "Pool House",
+        "floor": "2",
+        "room": "Bathroom",
+        "sensors": {
+            "_href": "http://tidmarsh.media.mit.edu/api/devices/129/sensors",
+            "_disp": "sensors"
         }
     }
 
@@ -334,25 +334,25 @@ TBD data types.
 * `_disp` (string) - Short display string for this resource
 * `device` (related resource) - The device this sensor is part of
 * `history` (related resource) - Collection of data from this sensor
-* `metric` (string) - What the sensor is measuring (e.g. 'temperature')
-* `unit` (string) - The unit the data is in (e.g. 'kWh')
+* `metric` (string) - What the sensor is measuring (e.g. "temperature")
+* `unit` (string) - The unit the data is in (e.g. "kWh")
 
 ### Example
 
     {
-        '_href': 'http://tidmarsh.media.mit.edu/api/sensors/758',
-        '_disp': 'temperature',
-        '_type': 'sensor',
-        'device': {
-            '_href': 'http://tidmarsh.media.mit.edu/api/devices/358',
-            '_disp': 'Bathroom Thermostat'
+        "_href": "http://tidmarsh.media.mit.edu/api/sensors/758",
+        "_disp": "temperature",
+        "_type": "sensor",
+        "device": {
+            "_href": "http://tidmarsh.media.mit.edu/api/devices/358",
+            "_disp": "Bathroom Thermostat"
         },
-        'history': {
-            '_href': 'http://tidmarsh.media.mit.edu/api/sensordata?sensor=758',
-            '_disp': 'data'
+        "history": {
+            "_href": "http://tidmarsh.media.mit.edu/api/sensordata?sensor=758",
+            "_disp": "data"
         },
-        'metric': 'temperature',
-        'unit': 'C'
+        "metric": "temperature",
+        "unit": "C"
     }
 
 Sensor Data
@@ -374,11 +374,11 @@ aggregations of this data.
 ### Example
 
     {
-        '_href': 'http://tidmarsh.media.mit.edu/api/scalar_data/193',
-        '_type': 'scalar_data',
-        '_disp': '2013-04-12T03:30:00Z',
-        'value': 25.2,
-        'timestamp': '2013-04-12T03:30:00Z',
+        "_href": "http://tidmarsh.media.mit.edu/api/scalar_data/193",
+        "_type": "scalar_data",
+        "_disp": "2013-04-12T03:30:00Z",
+        "value": 25.2,
+        "timestamp": "2013-04-12T03:30:00Z",
     }
 
 Dev Server Initial Setup
@@ -398,10 +398,10 @@ Then clone the code from the repository with:
 Mercurial (hg) will create a folder called doppel2 and check out the code into
 it.
 
-from within that folder run 'vagrant up' and it should instantiate the virtual
+from within that folder run "vagrant up" and it should instantiate the virtual
 machine.
 
-after the machine is up you can run 'vagrant ssh' to ssh into the new VM. From
+after the machine is up you can run "vagrant ssh" to ssh into the new VM. From
 there you can follow the below instructions on setting up a Doppel2 server.
 
 Doppel2 Server Setup Instructions
