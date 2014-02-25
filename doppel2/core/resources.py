@@ -45,7 +45,7 @@ class DeviceResource(Resource):
     model_fields = ['name', 'description', 'building', 'floor', 'room']
     related_fields = {
         'sensors': CollectionField(SensorResource,
-                                   reverse_name='device', embed=True),
+                                   reverse_name='device'),
         'site': ResourceField('doppel2.core.resources.SiteResource', 'site')
     }
     queryset = Device.objects
