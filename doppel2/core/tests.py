@@ -251,9 +251,8 @@ class ApiTest(DoppelTestCase):
 
     def test_device_resource_should_have_sensors(self):
         device = self.get_a_device()
-        db_device = Device.objects.get(name=device['name'])
-        self.assertEqual(len(device['sensors']['data']),
-                         db_device.sensors.count())
+        self.assertIn('sensors', device)
+        self.assertIn('_href', device['sensors'])
 
     def test_site_should_link_to_device_coll(self):
         site = self.get_a_site()
