@@ -15,6 +15,8 @@ from urllib import urlencode
 
 HTTP_STATUS_SUCCESS = 200
 HTTP_STATUS_CREATED = 201
+HTTP_STATUS_NOT_FOUND = 404
+HTTP_STATUS_NOT_ACCEPTABLE = 406
 
 jinja_env = Environment(loader=PackageLoader('doppel2.core', 'templates'))
 
@@ -326,9 +328,12 @@ class Resource:
         # TODO: there's got to be a more robust library to parse accept headers
         for accept in request.META['HTTP_ACCEPT'].split(','):
             accept = accept.strip()
-            if accept == 'application/json' or accept == '*/*':
+            # first handle possible wildcards
+            if accept in ['*/*', 'application/*', '*/json', '*/hal+json']:
+                accept = 'application/hal+json'
+            if accept in ['application/hal+json', 'application/json']:
                 return HttpResponse(json.dumps(data), status=status,
-                                    content_type='application/json')
+                                    content_type=accept)
             elif accept == 'text/html':
                 context = {'resource': data,
                            'json_str': json.dumps(data, indent=2),
@@ -341,8 +346,9 @@ class Resource:
             'message': "MIME type not supported.\ Try text/html, \
             application/json, or application/hal+json",
         }
-        return HttpResponse(json.dumps(err_data), status=406,
-                            content_type="application/json")
+        return HttpResponse(json.dumps(err_data),
+                            status=HTTP_STATUS_NOT_ACCEPTABLE,
+                            content_type="application/hal+json")
 
     @classmethod
     @csrf_exempt
@@ -380,3 +386,11 @@ class Resource:
                             cls.list_view, name=base_name + '-list'),
                         url(r'^(\d+)$',
                             cls.single_view, name=base_name + '-single'))
+
+
+def handle404(request):
+    err_data = {
+        'message': "Resource not found",
+    }
+    return HttpResponse(json.dumps(err_data), status=HTTP_STATUS_NOT_FOUND,
+                        content_type="application/hal+json")

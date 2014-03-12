@@ -8,6 +8,7 @@ from doppel2.core.api import HTTP_STATUS_SUCCESS, HTTP_STATUS_CREATED
 from django.utils.timezone import make_aware, utc
 
 HTTP_STATUS_NOT_ACCEPTABLE = 406
+HTTP_STATUS_NOT_FOUND = 404
 
 BASE_API_URL = '/api/'
 SCALAR_DATA_URL = BASE_API_URL + 'scalar_data/'
@@ -321,21 +322,38 @@ class HTMLTests(DoppelTestCase):
         self.assertTrue(res.endswith("</html>"))
 
 
-class ErrorTests(DoppelTestCase):
+class ErrorTests(TestCase):
     def test_unsupported_mime_types_should_return_406_status(self):
         response = self.client.get(BASE_API_URL, HTTP_ACCEPT='foobar')
         self.assertEqual(response.status_code, HTTP_STATUS_NOT_ACCEPTABLE)
-        self.assertEqual(response['Content-Type'], 'application/json')
+        self.assertEqual(response['Content-Type'], 'application/hal+json')
         self.assertIn('message', json.loads(response.content))
 
-    def test_if_client_accepts_wildcard_send_json(self):
+    def test_if_client_accepts_wildcard_send_hal_json(self):
         response = self.client.get(BASE_API_URL, HTTP_ACCEPT='foobar, */*')
         self.assertEqual(response.status_code, HTTP_STATUS_SUCCESS)
-        self.assertEqual(response['Content-Type'], 'application/json')
+        self.assertEqual(response['Content-Type'], 'application/hal+json')
+
+    def test_bad_url_returns_404(self):
+        response = self.client.get('/foobar/',
+                                   HTTP_ACCEPT='application/hal+json')
+        self.assertEqual(response.status_code, HTTP_STATUS_NOT_FOUND)
+        self.assertEqual(response['Content-Type'], 'application/hal+json')
+        self.assertIn('message', json.loads(response.content))
 
 
-#class BasicJSONHalTests(DoppelTestCase):
-#    def test_response_with_accept_json_hal_should_return_json_hal(self):
-#        # just getting the site should verify that the returned MIME type is
-#        # correct
-#        self.get_a_site(mime_type='application/json+hal')
+class BasicHALJSONTests(DoppelTestCase):
+    def test_response_with_accept_hal_json_should_return_hal_json(self):
+        response = self.client.get(BASE_API_URL,
+                                   HTTP_ACCEPT='application/hal+json')
+        self.assertEqual(response.status_code, HTTP_STATUS_SUCCESS)
+        self.assertEqual(response['Content-Type'], 'application/hal+json')
+
+
+class HALJSONRootTests(DoppelTestCase):
+    def test_root_should_have_self_rel(self):
+        site = self.get_resource(BASE_API_URL,
+                                 mime_type='application/hal+json')
+        self.assertIn('_links', site)
+        self.assertIn('self', site['_links'])
+        self.assertIn('href', site['_links']['self'])
