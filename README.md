@@ -1,197 +1,132 @@
 General API Concept Overview
 ============================
 
-Resource Representation
------------------------
+The Chain API is built on top of the [Hypertext Application Language][hal],
+or HAL. Currently it only implements the application/hal+json MIME type.
+hal+json is relatively simple, and clients are free to ignore HAL and treat the
+responses as regular JSON data. There are also various libraries that can
+take advantage of the hal+json conventions to abstract some of the details
+away. For a more thorough spec of hal+json see [this IETF draft][hal-spec].
 
-All resources are specified with a URI. When presented to the client, the
-resource is represented as a JSON object with at minimum an `_href` property
-that contains its URI, a `_disp` property that gives a short string
-representation of that resource suitable for use as link text, and a `_type`
-property that uniquely identifies that resource type. Note that in the future
-the `_type` property will be a URL string that provides a link to that type's
-documentation.
 
-When a parent resource (such as a Collection Resource or some other related
-resource) contains embedded child resources, those resources may be fully
-embedded or may only contain the `_href` and `_disp` properties, in which case
-the client should follow the given link to access the child resource. Clients
-should be written to handle both cases transparently, to support future
-server-side changes and optimizations. That is, when accessing related
-resources the client should check for the presence of a `_type` field, which
-will signify whether the related resource is embedded or linked.
+Link Relations
+--------------
 
-### Example of an embedded resource
+Given a link from one resource to another, clients generally need to know what
+sort of relationship that link is modeling. Is it a link from a child to a
+parent? From a device to a list of contained sensors? These relations (often
+shortened to "rels") are central to the architecture of the Chain API, and
+hypermedia in general.
 
-    GET http://example.com/api/books/483
+Following along with standard hal+json, most rels are self-documenting, and the
+rel itself actually serve as a link(URI) to the human-readable documentation
+that describes what that relationship actually means. This rel URI should also
+be used by clients as a unique, persistant identifier. This gives flexibility
+to server implementers as they can add new relation types, or even new versions
+of existing relation types, to existing resources without breaking older
+clients. As long as the new rels have unique URIs, old clients will simply
+ignore them.
 
-    {
-        "_href": "http://example.com/api/books/483",
-        "_type": "book",
-        "_disp": "Jane Eyre",
-        "title": "Jane Eyre",
-        "author": {
-            "_href": "http://example.com/api/authors/910",
-            "_type": "author",
-            "_disp": "Charlotte Bronte",
-            "firstName": "Charlotte",
-            "lastName": "Bronte",
-            "books": {
-                "_href": "/api/authors/910/books/"
-                "_disp": "Books by Charlotte Bronte"
-            }
-        }
-    }
+Some relations are specific to the Chain API, in which case they are documented
+on the Chain API site (currently chain-api.media.mit.edu). Where possible, the
+API uses [standard link rel names][rels-iana] in which case the rel names are
+not qualified with a URI. See [RFC5988][rfc5988] for more info on link
+relations.
 
-### Example of a linked resource
+In the Chain API attributes can also be considered relations, except the
+related object is simple data, instead of a linked or embedded resource. As
+such, attributes use the same self-documenting mechanism as resource relations.
 
-    GET http://example.com/api/book/483
+CURIES
+------
 
-    {
-        "_href": "http://example.com/api/books/483",
-        "_type": "book",
-        "_disp": "Jane Eyre",
-        "title": "Jane Eyre",
-        "author": {
-            "_href": "http://example.com/api/authors/910",
-            "_disp": "Charlotte Bronte"
-        }
-    }
-
-A Parent resource might also contain a list of related resources, such as the
-list of books by an author. In this case the "books" field would be itself
-a Collection Resource, so the Author resource would look like:
-
-    GET http://example.com/api/authors/910
-
-    {
-        "_href": "http://example.com/api/authors/910",
-        "_type": "author",
-        "_disp": "Charlotte Bronte",
-        "firstName": "Charlotte",
-        "lastName": "Bronte"
-        "books": {
-            "_href": "http://example.com/api/authors/910/books/",
-            "_disp": "Books by Charlotte Bronte"
-        }
-    }
-
-Or if the "books" resource is expanded:
-
-    GET http://example.com/api/authors/910
-
-    {
-        "_href": "http://example.com/api/authors/910",
-        "_type": "author",
-        "firstName": "Charlotte",
-        "lastName": "Bronte"
-        "_disp": "Charlotte Bronte",
-        "books": {
-            "_href": "http://example.com/api/authors/910/books/",
-            "meta": {
-              "totalCount": 24,
-              "last": {
-                "_disp": "21 through 23",
-                "_href": "http://localhost:8000/api/devices/?limit=3&site_id=2&offset=21"
-              },
-              "next": {
-                "_disp": "3 through 5",
-                "_href": "http://localhost:8000/api/devices/?limit=3&site_id=2&offset=3"
-              }
-            },
-            "_type": "resource-list",
-            "data": [
-                {
-                    "_href": "http://example.com/api/books/483",
-                    "_type": "book",
-                    "_disp": "Jane Eyre",
-                    "title": "Jane Eyre",
-                    "author": {
-                        "_href": "http://example.com/api/authors/910",
-                        "_disp": "Charlotte Bronte"
-                    }
-                },
-                {
-                    "_href": "http://example.com/api/books/918",
-                    "_type": "book",
-                    "_disp": "Shirley",
-                    "title": "Shirley",
-                    "author": {
-                        "_href": "http://example.com/api/authors/910",
-                        "_disp": "Charlotte Bronte"
-                    }
-                },
-                {
-                    "_href": "http://example.com/api/books/710",
-                    "_type": "book",
-                    "_disp": "The Professor",
-                    "title": "The Professor",
-                    "author": {
-                        "_href": "http://example.com/api/authors/910",
-                        "_disp": "Charlotte Bronte"
-                    }
-                },
-            ]
-        }
-    }
-
-Collection Resources
---------------------
-
-Collection resources are fully-formed resources so all the formatting
-specifications above apply. Currently collection resources are homogenous, that
-is all the resources contained in the collection are the same type. Brand new
-resources can be created by posting them to a collection resource. In the case
-that the resource to be posted has some sort of parent relation that indicates
-which resource is its parent, that field can be omitted and will be ignored
-because it is defined by the collection.
+Using URIs as relation names has the benefit of providing a stable and unique
+identifier for relation names, but using a full URI as a json dictionary key is
+cumbersome and duplicates lots of data in a typicaly payload. To alleviate this
+issue hal+json supports Compact URIs or "CURIEs". CURIEs. The
+[wikipedia page][curie-wiki] shows an example of a CURIE used as an XML
+namespace, and the [w3c spec][curie-w3c] has a much more detailed description.
+In the context of hal+json CURIEs are simply a URI template that can be used
+for each rel that references it.
 
 Getting Resources
 -----------------
 
 The URIs given at the API entry point point to Collection Resources. Sending an
-HTTP GET request to a Resource List will return a response with the requested
-resources as well as metadata about the response. This metadata includes the
-total number of resources represented by this collection. If there are more
-resources than will fit into a single response, the meta field may also
-contain links to the first, last, previous, and next pages.
+HTTP GET request to a Collection Resource will return a response with the
+requested resources as well as metadata about the response. This metadata
+includes the total number of resources represented by this collection. If there
+are more resources than will fit into a single response, the meta field may
+also contain links to the first, last, previous, and next pages.
 
-    GET http://example.com/api/some_resources/
+### hal+json Example
+
+   GET /orders HTTP/1.1
+   Host: example.org
+   Accept: application/hal+json
+
+   HTTP/1.1 200 OK
+   Content-Type: application/hal+json
 
     {
-        "_href": "http://example.com/api/some_resources/",
-        "_type": "resource-list",
-        "_disp": "Some Resources",
-        "meta": { "total_count": 2 },
-        "data": [
-            {
-                "_href": "http://example.com/api/some_resources/192",
-                "_type": "some_resource",
-                "_disp": "Idaho",
-                "name": "A great resource",
-                "state": "Idaho"
-            },
-            {
-                "_href": "http://example.com/api/some_resources/193",
-                "_type": "some_resource",
-                "_disp": "New York",
-                "name": "Another Resource",
-                "state": "New York"
-            }
-        ]
+      "_links": {
+        "self": { "href": "/orders" },
+        "next": { "href": "/orders?page=2", "title": "Page 2" },
+        "last": { "href": "/orders?page=5", "title": "Page 5" },
+        "curies": [{
+            "name": "rel",
+            "href": "http://docs.example.org/rels/{rel}",
+            "templated": true
+        }]
+      },
+      "_embedded": {
+        "rel:orders": [{
+          "_links": {
+            "self": { "href": "/orders/123" },
+            "rel:basket": { "href": "/baskets/98712" },
+            "rel:customer": { "href": "/customers/7809" }
+          },
+          "total": 30.00,
+          "currency": "USD",
+          "status": "shipped",
+        },{
+          "_links": {
+            "self": { "href": "/orders/124" },
+            "rel:basket": { "href": "/baskets/97213" },
+            "rel:customer": { "href": "/customers/12369" }
+          },
+          "total": 20.00,
+          "currency": "USD",
+          "status": "processing"
+        }]
+      },
+      "currentlyProcessing": 14,
+      "shippedToday": 20
     }
 
 Sending a GET to the URI for a specific resource will return only that
 resource, e.g.
 
-    GET http://example.com/api/some_resources/193
+    GET /orders/123 HTTP/1.1
+    Host: example.org
+    Accept: application/hal+json
 
+    HTTP/1.1 200 OK
+    Content-Type: application/hal+json
     {
-        "_href": "http://example.com/api/some_resources/193",
-        "_type": "some_resource",
-        "_disp": "New York",
-        "name": "Another Resource",
-        "state": "New York"
+      "_links": {
+        "self": { "href": "/orders/123" },
+        "rel:basket": { "href": "/baskets/98712" },
+        "rel:customer": { "href": "/customers/7809" }
+        "curies": [{
+            "name": "rel",
+            "href": "http://docs.example.org/rels/{rel}",
+            "templated": true
+        }]
+      },
+      "rel:total": 30.00,
+      "rel:currency": "USD",
+      "rel:status": "shipped",
     }
 
 
@@ -205,39 +140,40 @@ The API entry point is at `http://tidmarsh.media.mit.edu/api/`. A `GET` request
 will give you links to the available sites in the following format:
 
     {
-        "_href": "http://tidmarsh.media.mit.edu/api/",
-        "_type": "api-root",
-        "_disp": "Tidmarsh API",
-        "sites": {
-            "_href": "http://tidmarsh.media.mit.edu/api/sites/",
-            "_type": "resource-list",
-            "_disp": "site",
-            "meta": { "total_count": 2 },
-            "data": [
-                {
-                    "_href": "http://tidmarsh.media.mit.edu/api/sites/92",
-                    "_type": "site",
-                    "_disp": "DoppelLab",
-                    "name": "DoppelLab",
-                    "latitude": 42.360461,
-                    "longitude": -71.087347,
-                },
-                {
-                    "_href": "http://tidmarsh.media.mit.edu/api/sites/12",
-                    "_type": "site",
-                    "_disp": "TidMarsh",
-                    "name": "TidMarsh",
-                    "latitude": 39.948171,
-                    "longitude": -70.827105,
-                }
-            }
-        }
+      "_links": {
+        "self": { "href": "http://tidmarsh.media.mit.edu/api/" },
+        "curies": [{
+            "name": "ch",
+            "href": "http://chain-api.media.mit.edu/rels/{rel}",
+            "templated": true
+        }]
+      },
+      "_embedded": {
+        "ch:sites": [
+          {
+            "_links": {
+              "self": { "href": "http://tidmarsh.media.mit.edu/api/sites/92" }
+            },
+            "name": "DoppelLab",
+            "latitude": 42.360461,
+            "longitude": -71.087347
+          },
+          {
+            "_links": {
+              "self": { "href": "http://tidmarsh.media.mit.edu/api/sites/12" }
+            },
+            "name": "TidMarsh",
+            "latitude": 39.948171,
+            "longitude": -70.827105
+          }
+        ]
+      }
     }
 
 Currently the only top-level resource available is the collection of Sites.
 The client first selects which site they are interested in and can navigate
-from there to explore that site.  Clients should not assume hard-coded URIs,
-but should instead get the proper URI from the API entry point.
+from there to explore that site. Clients should not assume hard-coded URIs, but
+should instead get the proper URI from the API entry point.
 
 Base Resource Types
 ===================
@@ -253,9 +189,6 @@ An installation of Doppel2, usually on the scale of several or many buildings.
 
 ### Resource Fields
 
-* `_href` (string) - URI of this resource
-* `_type` (string) - Type of this resource
-* `_disp` (string) - Short display string for this resource
 * `name` (string) - Name of this site
 * `latitude` (float) - The latitude of the site
 * `longitude` (float) - The longitude of the site
@@ -265,16 +198,21 @@ An installation of Doppel2, usually on the scale of several or many buildings.
 ### Example
 
     {
-        "_href": "http://tidmarsh.media.mit.edu/api/sites/758",
-        "_type": "site",
-        "_disp": "TidMarsh",
-        "name": "TidMarsh",
-        "latitude": 39.948171,
-        "longitude": -70.827105,
-        "devices": {
-            "_disp": "devices",
-            "_href": "http://tidmarsh.media.mit.edu/api/sites/758/devices"
-        }
+      "_links": {
+          "curies": [{
+              "name": "ch",
+              "href": "http://chain-api.media.mit.edu/rels/{rel}",
+              "templated": true
+          }],
+          "self": { "href": "http://tidmarsh.media.mit.edu/api/sites/92" },
+          "ch:devices": {
+              "title": "Devices",
+              "href": "http://tidmarsh.media.mit.edu/api/sites/758/devices"
+          }
+      },
+      "name": "DoppelLab",
+      "latitude": 42.360461,
+      "longitude": -71.087347
     }
 
 Device
@@ -284,9 +222,6 @@ A device that may contain several sensor channels.
 
 ### Resource Fields
 
-* `_href` (string) - URI of this resource
-* `_type` (string) - Type of this resource
-* `_disp` (string) - Short display string for this resource
 * `name` (string) - Name of this device
 * `site` (related resource) - The site this device is a part of
 * `description` (string) - A longer description of this device
@@ -296,27 +231,33 @@ A device that may contain several sensor channels.
 * `sensors` (related resource) - A collection of all the sensors in this
   device. New sensors can be POSTed to this collection to add them to this
   device.
+* `site` (related resource) - The site that this sensor is located at
 
 
 ### Example
 
     {
-        "_href": "http://tidmarsh.media.mit.edu/api/devices/129",
-        "_type": "device",
-        "_disp": "Bathroom Thermostat",
-        "name": "Bathroom Thermostat",
-        "site": {
-            "_href": "http://tidmarsh.media.mit.edu/api/sites/928",
-            "_disp": "Summer Cabin"
-        },
-        "description": "Thermostat in the pool house bathroom",
-        "building": "Pool House",
-        "floor": "2",
-        "room": "Bathroom",
-        "sensors": {
-            "_href": "http://tidmarsh.media.mit.edu/api/devices/129/sensors",
-            "_disp": "sensors"
-        }
+      "_links": {
+          "curies": [{
+              "name": "ch",
+              "href": "http://chain-api.media.mit.edu/rels/{rel}",
+              "templated": true
+          }],
+          "self": { "href": "http://tidmarsh.media.mit.edu/api/devices/929" },
+          "ch:sensors": {
+              "title": "Sensors",
+              "href": "http://tidmarsh.media.mit.edu/api/devices/929/sensors"
+          },
+          "ch:site": {
+              "title": "Summer Cabin"
+              "href": "http://tidmarsh.media.mit.edu/api/sites/928",
+          },
+      },
+      "name": "Bathroom Thermostat",
+      "description": "Thermostat in the pool house bathroom",
+      "building": "Pool House",
+      "floor": "2",
+      "room": "Bathroom",
     }
 
 Sensor
@@ -329,30 +270,40 @@ TBD data types.
 
 ### Resource Fields
 
-* `_href` (string) - URI of this resource
-* `_type` (string) - Type of this resource
-* `_disp` (string) - Short display string for this resource
 * `device` (related resource) - The device this sensor is part of
 * `history` (related resource) - Collection of data from this sensor
 * `metric` (string) - What the sensor is measuring (e.g. "temperature")
 * `unit` (string) - The unit the data is in (e.g. "kWh")
+* `updated` (ISO8601 timestamp) - Timestamp of the most recent update
+* `value` (various) - The most recent reading from this sensor. Currently only
+  floating point sensors are supported, but in the future this could be an xyz
+  position, GPS coordinate, image, etc.
+
+_TODO: We need to figure out a way to communicate the datatype_
 
 ### Example
 
     {
-        "_href": "http://tidmarsh.media.mit.edu/api/sensors/758",
-        "_disp": "temperature",
-        "_type": "sensor",
-        "device": {
-            "_href": "http://tidmarsh.media.mit.edu/api/devices/358",
-            "_disp": "Bathroom Thermostat"
-        },
-        "history": {
-            "_href": "http://tidmarsh.media.mit.edu/api/sensordata?sensor=758",
-            "_disp": "data"
-        },
-        "metric": "temperature",
-        "unit": "C"
+      "_links": {
+          "curies": [{
+            "name": "ch",
+            "href": "http://chain-api.media.mit.edu/rels/{rel}",
+            "templated": true
+          }],
+          "self": { "href": "http://tidmarsh.media.mit.edu/api/sensors/929" },
+          "ch:history": {
+            "title": "History",
+            "href": "http://tidmarsh.media.mit.edu/api/sensors/929/history"
+          },
+          "ch:device": {
+            "title": "Bathroom Thermostat",
+            "href": "http://tidmarsh.media.mit.edu/api/devices/928",
+          },
+      },
+      "value": 23.5,
+      "updated": "2014-03-12T13:37:27+00:00"
+      "metric": "temperature",
+      "unit": "C"
     }
 
 Sensor Data
@@ -364,9 +315,6 @@ aggregations of this data.
 
 ### Resource Fields
 
-* `_href` (string) - URI of this resource
-* `_type` (string) - Type of this resource
-* `_disp` (string) - Short display string for this resource
 * `value` (float) - The value of the sensor data
 * `timestamp` (ISO 8601 timestamp) - Timestamp marking when the data was
   captured
@@ -374,11 +322,11 @@ aggregations of this data.
 ### Example
 
     {
-        "_href": "http://tidmarsh.media.mit.edu/api/scalar_data/193",
-        "_type": "scalar_data",
-        "_disp": "2013-04-12T03:30:00Z",
-        "value": 25.2,
-        "timestamp": "2013-04-12T03:30:00Z",
+      "_links": {
+          "self": { "href": "http://tidmarsh.media.mit.edu/api/scalar_data/91830" }
+      },
+      "value": 23.5,
+      "timestamp": "2014-03-12T13:37:27+00:00"
     }
 
 Dev Server Initial Setup
@@ -446,3 +394,13 @@ Now you should be able to run the server with:
 and access it from your host machine's browser at
 
     http://localhost:8000/admin
+
+References
+==========
+
+[hal]: [http://stateless.co/hal_specification.html]
+[hal-spec]: [http://tools.ietf.org/html/draft-kelly-json-hal-06]
+[rfc5988]: [http://tools.ietf.org/html/rfc5988]
+[curie-w3c]: [http://www.w3.org/TR/curie/]
+[curie-wiki]: [http://en.wikipedia.org/wiki/CURIE]
+[rels-iana]: [http://www.iana.org/assignments/link-relations/link-relations.xhtml]

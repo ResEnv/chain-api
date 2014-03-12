@@ -57,7 +57,7 @@ class DoppelTestCase(TestCase):
         for data in self.scalar_data:
             data.save()
 
-    def get_resource(self, url, mime_type='application/json'):
+    def get_resource(self, url, mime_type='application/hal+json'):
         accept_header = mime_type + ',' + ACCEPT_TAIL
         response = self.client.get(url,
                                    HTTP_ACCEPT=accept_header)
@@ -67,7 +67,7 @@ class DoppelTestCase(TestCase):
             return json.loads(response.content)
         return response.content
 
-    def post_resource(self, url, resource, mime_type='application/json'):
+    def post_resource(self, url, resource, mime_type='application/hal+json'):
         accept_header = mime_type + ',' + ACCEPT_TAIL
         response = self.client.post(url, json.dumps(resource),
                                     content_type=mime_type,
@@ -77,7 +77,7 @@ class DoppelTestCase(TestCase):
         data = json.loads(response.content)
         return data
 
-    def get_a_site(self, mime_type='application/json'):
+    def get_a_site(self, mime_type='application/hal+json'):
         '''GETs a site through the API for testing'''
         base_response = self.get_resource(BASE_API_URL, mime_type=mime_type)
         sites = base_response['sites']['data']
@@ -85,7 +85,7 @@ class DoppelTestCase(TestCase):
         # following the link like a good RESTful client
         return self.get_resource(site_url, mime_type=mime_type)
 
-    def get_a_device(self, mime_type='application/json'):
+    def get_a_device(self, mime_type='application/hal+json'):
         '''GETs a device through the API for testing'''
         site = self.get_a_site(mime_type=mime_type)
         devices_url = site['devices']['_href']
@@ -93,7 +93,7 @@ class DoppelTestCase(TestCase):
         device_url = devices['data'][0]['_href']
         return self.get_resource(device_url, mime_type=mime_type)
 
-    def get_a_sensor(self, mime_type='application/json'):
+    def get_a_sensor(self, mime_type='application/hal+json'):
         device = self.get_a_device(mime_type=mime_type)
         sensors_url = device['sensors']['_href']
         sensors = self.get_resource(sensors_url, mime_type=mime_type)
