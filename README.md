@@ -154,17 +154,23 @@ will give you links to the available sites in the following format:
             "_links": {
               "self": { "href": "http://tidmarsh.media.mit.edu/api/sites/92" }
             },
-            "name": "DoppelLab",
-            "latitude": 42.360461,
-            "longitude": -71.087347
+            "name": "MIT Media Lab",
+            "geoLocation": {
+              elevation: 5.8,
+              latitude: 42.360461,
+              longitude: -71.087347
+            },
           },
           {
             "_links": {
               "self": { "href": "http://tidmarsh.media.mit.edu/api/sites/12" }
             },
             "name": "TidMarsh",
-            "latitude": 39.948171,
-            "longitude": -70.827105
+            "geoLocation": {
+              elevation: -10.0,
+              latitude: 40.837391,
+              longitude: -70.817947
+            },
           }
         ]
       }
@@ -190,8 +196,8 @@ An installation of Doppel2, usually on the scale of several or many buildings.
 ### Resource Fields
 
 * `name` (string) - Name of this site
-* `latitude` (float) - The latitude of the site
-* `longitude` (float) - The longitude of the site
+* `geoLocation` (elevation, latitude, longitude) - The geographic location of
+  the site. All measurements are in meters.
 * `devices` (related resource) - A collection of all the devices in this site.
   New devices can be POSTed to this collection to add them to this site.
 
@@ -210,9 +216,12 @@ An installation of Doppel2, usually on the scale of several or many buildings.
               "href": "http://tidmarsh.media.mit.edu/api/sites/758/devices"
           }
       },
-      "name": "DoppelLab",
-      "latitude": 42.360461,
-      "longitude": -71.087347
+      "name": "MIT Media Lab",
+      "geoLocation": {
+        elevation: 5.8,
+        latitude: 42.360461,
+        longitude: -71.087347
+      }
     }
 
 Device
@@ -273,7 +282,8 @@ TBD data types.
 * `device` (related resource) - The device this sensor is part of
 * `history` (related resource) - Collection of data from this sensor
 * `metric` (string) - What the sensor is measuring (e.g. "temperature")
-* `unit` (string) - The unit the data is in (e.g. "kWh")
+* `unit` (string) - The unit the data is in, e.g. "kW-hr". This should be an
+  abbreviation from the [QUDT unit list][qudt].
 * `updated` (ISO8601 timestamp) - Timestamp of the most recent update
 * `value` (various) - The most recent reading from this sensor. Currently only
   floating point sensors are supported, but in the future this could be an xyz
@@ -395,9 +405,13 @@ and access it from your host machine's browser at
 
     http://localhost:8000/admin
 
+
+
+
 [hal]: http://stateless.co/hal_specification.html
 [hal-spec]: http://tools.ietf.org/html/draft-kelly-json-hal-06
 [rfc5988]: http://tools.ietf.org/html/rfc5988
 [curie-w3c]: http://www.w3.org/TR/curie/
 [curie-wiki]: http://en.wikipedia.org/wiki/CURIE
 [rels-iana]: http://www.iana.org/assignments/link-relations/link-relations.xhtml
+[qudt]: http://www.qudt.org/qudt/owl/1.0.0/unit/Instances.html
