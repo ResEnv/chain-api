@@ -1,12 +1,12 @@
 General API Concept Overview
 ============================
 
-The Chain API is built on top of the [Hypertext Application Language][1],
+The Chain API is built on top of the [Hypertext Application Language][hal],
 or HAL. Currently it only implements the application/hal+json MIME type.
 hal+json is relatively simple, and clients are free to ignore HAL and treat the
 responses as regular JSON data. There are also various libraries that can
 take advantage of the hal+json conventions to abstract some of the details
-away. For a more thorough spec of hal+json see [this IETF draft][2].
+away. For a more thorough spec of hal+json see [this IETF draft][hal-spec].
 
 
 Link Relations
@@ -395,9 +395,9 @@ and access it from your host machine's browser at
 
     http://localhost:8000/admin
 
-[1]: [http://stateless.co/hal_specification.html]
-[2]: [http://tools.ietf.org/html/draft-kelly-json-hal-06]
-[rfc5988]: [http://tools.ietf.org/html/rfc5988]
-[curie-w3c]: [http://www.w3.org/TR/curie/]
-[curie-wiki]: [http://en.wikipedia.org/wiki/CURIE]
-[rels-iana]: [http://www.iana.org/assignments/link-relations/link-relations.xhtml]
+[hal]: http://stateless.co/hal_specification.html
+[hal-spec]: http://tools.ietf.org/html/draft-kelly-json-hal-06
+[rfc5988]: http://tools.ietf.org/html/rfc5988
+[curie-w3c]: http://www.w3.org/TR/curie/
+[curie-wiki]: http://en.wikipedia.org/wiki/CURIE
+[rels-iana]: http://www.iana.org/assignments/link-relations/link-relations.xhtml
