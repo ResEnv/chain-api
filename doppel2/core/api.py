@@ -325,9 +325,10 @@ class Resource:
     def render_response(cls, data, request, status=None):
         # TODO: there's got to be a more robust library to parse accept headers
         for accept in request.META['HTTP_ACCEPT'].split(','):
+            accept = accept.strip()
             if accept == 'application/json' or accept == '*/*':
                 return HttpResponse(json.dumps(data), status=status,
-                                    content_type=accept)
+                                    content_type='application/json')
             elif accept == 'text/html':
                 context = {'resource': data,
                            'json_str': json.dumps(data, indent=2),
@@ -336,9 +337,12 @@ class Resource:
                 return HttpResponse(template.render(**context),
                                     status=status,
                                     content_type=accept)
-            else:
-                raise NotImplementedError("MIME type %s not supported.\
-                        Try text/html or application/json" % accept)
+        err_data = {
+            'message': "MIME type not supported.\ Try text/html, \
+            application/json, or application/hal+json",
+        }
+        return HttpResponse(json.dumps(err_data), status=406,
+                            content_type="application/json")
 
     @classmethod
     @csrf_exempt

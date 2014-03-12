@@ -7,6 +7,8 @@ import json
 from doppel2.core.api import HTTP_STATUS_SUCCESS, HTTP_STATUS_CREATED
 from django.utils.timezone import make_aware, utc
 
+HTTP_STATUS_NOT_ACCEPTABLE = 406
+
 BASE_API_URL = '/api/'
 SCALAR_DATA_URL = BASE_API_URL + 'scalar_data/'
 SITES_URL = BASE_API_URL + 'sites/'
@@ -60,7 +62,7 @@ class DoppelTestCase(TestCase):
                                    HTTP_ACCEPT=accept_header)
         self.assertEqual(response.status_code, HTTP_STATUS_SUCCESS)
         self.assertEqual(response['Content-Type'], mime_type)
-        if mime_type == 'application/json':
+        if mime_type in ['application/json', 'application/hal+json']:
             return json.loads(response.content)
         return response.content
 
@@ -311,23 +313,6 @@ class ApiTest(DoppelTestCase):
         self.assertNotIn('next', next_devs['meta'])
 
 
-#    def test_scalar_data_should_be_gettable_from_api(self):
-#        data = ScalarData(sensor=self.sensors[0], value=25)
-#        data.save()
-#        data = self.get_resource(SCALAR_DATA_URL)['data']
-#        self.assertEqual(len(data), 1)
-#        self.assertEqual(data[0]['value'], 25)
-#
-#    def test_scalar_data_should_return_total_in_meta(self):
-#        data = ScalarData(sensor=self.sensor, value=25)
-#        data.save()
-#        # clear the id so we re-insert instead of updating
-#        data.id = None
-#        data.save()
-#        metadata = self.get_resource(SCALAR_DATA_URL)['meta']
-#        self.assertEqual(metadata['total_count'], 2)
-
-
 class HTMLTests(DoppelTestCase):
     def test_root_request_accepting_html_gets_it(self):
         res = self.get_resource(BASE_API_URL, mime_type='text/html').strip()
@@ -336,41 +321,21 @@ class HTMLTests(DoppelTestCase):
         self.assertTrue(res.endswith("</html>"))
 
 
-#class ScalarDataFilteringApiTest(DoppelTestCase):
-#    def setUp(self):
-#        DoppelTestCase.setUp(self)
-#        device = Device(site=self.site, name="Thermostat")
-#        device.save()
-#        sensor1 = Sensor(unit=self.unit, device=device,
-#                         metric=self.metric)
-#        sensor1.save()
-#        sensor2 = Sensor(unit=self.unit, device=device,
-#                         metric=self.metric)
-#        sensor2.save()
-#        data = []
-#        for value, hour in zip([20, 21, 23, 27], [2, 4, 6, 8]):
-#            data.append(
-#                ScalarData(sensor=sensor1, value=value,
-#                           timestamp=make_aware(
-#                               datetime(2013, 4, 12, hour, 0, 0), utc)))
-#            data.append(
-#                ScalarData(sensor=sensor2, value=value,
-#                           timestamp=make_aware(
-#                               datetime(2013, 4, 12, hour, 0, 0), utc)))
-#        ScalarData.objects.bulk_create(data)
-#
-#    def test_scalar_data_should_accept_a_date_range(self):
-#        # create a date range that should only grab the middle 2 data points
-#        query_string = ('?timestamp__gt=2013-04-12T03:30:00Z&' +
-#                        'timestamp__lt=2013-04-12T06:30:00Z')
-#        url = SCALAR_DATA_URL + query_string
-#        data = self.get_resource(url)['data']
-#        self.assertEqual(len(data), 4)
-#
-#    def test_scalar_data_should_accept_average(self):
-#        query_string = ('?timestamp__gt=2013-04-12T03:30:00Z&' +
-#                        'timestamp__lt=2013-04-12T06:30:00Z&' +
-#                        'average_by=value')
-#        url = SCALAR_DATA_URL + query_string
-#        data = self.get_resource(url)
-#        self.assertEqual(data['average_value'], 22)
+class ErrorTests(DoppelTestCase):
+    def test_unsupported_mime_types_should_return_406_status(self):
+        response = self.client.get(BASE_API_URL, HTTP_ACCEPT='foobar')
+        self.assertEqual(response.status_code, HTTP_STATUS_NOT_ACCEPTABLE)
+        self.assertEqual(response['Content-Type'], 'application/json')
+        self.assertIn('message', json.loads(response.content))
+
+    def test_if_client_accepts_wildcard_send_json(self):
+        response = self.client.get(BASE_API_URL, HTTP_ACCEPT='foobar, */*')
+        self.assertEqual(response.status_code, HTTP_STATUS_SUCCESS)
+        self.assertEqual(response['Content-Type'], 'application/json')
+
+
+#class BasicJSONHalTests(DoppelTestCase):
+#    def test_response_with_accept_json_hal_should_return_json_hal(self):
+#        # just getting the site should verify that the returned MIME type is
+#        # correct
+#        self.get_a_site(mime_type='application/json+hal')
