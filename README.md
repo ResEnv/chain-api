@@ -130,8 +130,8 @@ resource, e.g.
     }
 
 
-The Tidmarsh API
-================
+The Chain API
+=============
 
 Entry Point
 -----------
