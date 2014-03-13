@@ -186,12 +186,13 @@ Base Resource Types
 
 NOTE: At some point this information should be moved into the docstrings of
 the resources themselves, so we can generate the documentation as well as the
-information at the `_type` URLs from the same info.
+information at the rel URLs from the same info.
 
 Site
 ----
 
-An installation of Doppel2, usually on the scale of several or many buildings.
+An installation of Chain API, usually on the scale of several or many
+buildings.
 
 ### Resource Fields
 
@@ -342,28 +343,28 @@ aggregations of this data.
 Dev Server Initial Setup
 ========================
 
-To develop for doppel2 the best way is with a virtual machine. The following
+To develop for Chain API the best way is with a virtual machine. The following
 instructions should guide you through setting up a development environment that
 should match the production machine.
 
 First you'll want to make sure that both Virtualbox and Vagrant are installed,
-as well as mercurial.
+as well as git.
 
 Then clone the code from the repository with:
 
-    hg clone http://simonetti.media.mit.edu/hg/doppel2
+    git clone https://github.com/ssfrr/chain-api.git
 
-Mercurial (hg) will create a folder called doppel2 and check out the code into
+Git will create a folder called chain-api and check out the code into
 it.
 
 from within that folder run "vagrant up" and it should instantiate the virtual
 machine.
 
 after the machine is up you can run "vagrant ssh" to ssh into the new VM. From
-there you can follow the below instructions on setting up a Doppel2 server.
+there you can follow the below instructions on setting up a Chain API server.
 
-Doppel2 Server Setup Instructions
-=================================
+Chain API Server Setup Instructions
+===================================
 
 Install puppet and the proper puppet modules with
 
