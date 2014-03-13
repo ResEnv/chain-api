@@ -37,6 +37,17 @@ In the Chain API attributes can also be considered relations, except the
 related object is simple data, instead of a linked or embedded resource. As
 such, attributes use the same self-documenting mechanism as resource relations.
 
+Embedded Relations
+------------------
+
+While links are the primary way to describe relationships between resources, it
+is sometimes cumbersome and inefficient to always request them separately. As
+an optimization, Chain API will sometimes embed the full related resource in
+addition to the link. In this case you will find the embedded resource in the
+`_embedded` section of the response, which is a hal+json standard. Note that in
+this case the resource will still be linked in the `_links` section with the
+same rel name, so clients can ignore the `_embedded` objects if they choose.
+
 CURIES
 ------
 
@@ -49,15 +60,14 @@ namespace, and the [w3c spec][curie-w3c] has a much more detailed description.
 In the context of hal+json CURIEs are simply a URI template that can be used
 for each rel that references it.
 
-Getting Resources
------------------
+Collection Resources
+--------------------
 
-The URIs given at the API entry point point to Collection Resources. Sending an
-HTTP GET request to a Collection Resource will return a response with the
-requested resources as well as metadata about the response. This metadata
-includes the total number of resources represented by this collection. If there
-are more resources than will fit into a single response, the meta field may
-also contain links to the first, last, previous, and next pages.
+Sending an HTTP GET request to a Collection Resource will return a response
+with the requested resources as well as metadata about the response, such as
+the total number of resources represented by this collection.  If there are
+more resources than will fit into a single response, there may also be links to
+the first, last, previous, and next pages.
 
 ### hal+json Example
 
@@ -70,31 +80,40 @@ also contain links to the first, last, previous, and next pages.
 
     {
       "_links": {
-        "self": { "href": "/orders" },
-        "next": { "href": "/orders?page=2", "title": "Page 2" },
-        "last": { "href": "/orders?page=5", "title": "Page 5" },
+        "self": { "href": "http://example.com/orders/" },
+        "next": { "href": "http://example.com/orders?page=2", "title": "Page 2" },
+        "last": { "href": "http://example.com/orders?page=5", "title": "Page 5" },
+        "createForm": { "href": "http://example.com/orders/", "title": "Create Order"},
         "curies": [{
             "name": "rel",
-            "href": "http://docs.example.org/rels/{rel}",
+            "href": "http://docs.example.com/rels/{rel}",
             "templated": true
-        }]
+        }],
+        "items": [
+            {"href": "http://example.com/orders/123", title="Christmas Order"},
+            {"href": "http://example.com/orders/124", title="Birthday Order"},
+        ]
       },
       "_embedded": {
-        "rel:orders": [{
+        "items": [
+        {
           "_links": {
-            "self": { "href": "/orders/123" },
-            "rel:basket": { "href": "/baskets/98712" },
-            "rel:customer": { "href": "/customers/7809" }
+            "self": { "href": "http://example.com/orders/123" },
+            "rel:basket": { "href": "http://example.com/baskets/98712" },
+            "rel:customer": { "href": "http://example.com/customers/7809" }
           },
+          "name": "Christmas Order",
           "total": 30.00,
           "currency": "USD",
           "status": "shipped",
-        },{
+        },
+        {
           "_links": {
-            "self": { "href": "/orders/124" },
-            "rel:basket": { "href": "/baskets/97213" },
-            "rel:customer": { "href": "/customers/12369" }
+            "self": { "href": "http://example.com/orders/124" },
+            "rel:basket": { "href": "http://example.com/baskets/97213" },
+            "rel:customer": { "href": "http://example.com/customers/12369" }
           },
+          "name": "Birthday Order",
           "total": 20.00,
           "currency": "USD",
           "status": "processing"
@@ -129,6 +148,18 @@ resource, e.g.
       "rel:status": "shipped",
     }
 
+Posting Data
+------------
+
+You'll see in the above collection payload a "createForm" rel, which is a link
+that you can use to add new elements to the collection. Issuing a GET request
+to the createForm link will return a document in [JSON-schema][json-schema]
+format that tells the client what format the resource should take. POSTing to
+the link in the proper format will create a new resource and will return it
+with an HTTP 201 Created status.
+
+_Note that this form behavior is not yet implemented_
+
 
 The Chain API
 =============
@@ -137,42 +168,20 @@ Entry Point
 -----------
 
 The API entry point is at `http://tidmarsh.media.mit.edu/api/`. A `GET` request
-will give you links to the available sites in the following format:
+will give you a link to the available sites.
 
     {
       "_links": {
-        "self": { "href": "http://tidmarsh.media.mit.edu/api/" },
+        "self": { "href": "http://tidmarsh.media.mit.edu/api" },
         "curies": [{
-            "name": "ch",
-            "href": "http://chain-api.media.mit.edu/rels/{rel}",
-            "templated": true
+          "name": "ch",
+          "href": "http://chain-api.media.mit.edu/rels/{rel}",
+          "templated": true
         }]
-      },
-      "_embedded": {
-        "ch:sites": [
-          {
-            "_links": {
-              "self": { "href": "http://tidmarsh.media.mit.edu/api/sites/92" }
-            },
-            "name": "MIT Media Lab",
-            "geoLocation": {
-              elevation: 5.8,
-              latitude: 42.360461,
-              longitude: -71.087347
-            },
-          },
-          {
-            "_links": {
-              "self": { "href": "http://tidmarsh.media.mit.edu/api/sites/12" }
-            },
-            "name": "TidMarsh",
-            "geoLocation": {
-              elevation: -10.0,
-              latitude: 40.837391,
-              longitude: -70.817947
-            },
-          }
-        ]
+        "ch:sites": {
+          "title": "Sites",
+          "href": "http://chain-api.media.mit.edu/sites/"
+        }
       }
     }
 
@@ -416,3 +425,4 @@ and access it from your host machine's browser at
 [curie-wiki]: http://en.wikipedia.org/wiki/CURIE
 [rels-iana]: http://www.iana.org/assignments/link-relations/link-relations.xhtml
 [qudt]: http://www.qudt.org/qudt/owl/1.0.0/unit/Instances.html
+[json-schema]: http://json-schema.org/examples.html

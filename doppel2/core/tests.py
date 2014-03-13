@@ -126,192 +126,240 @@ class SensorDataTest(DoppelTestCase):
         self.assertLess(elapsed_time.total_seconds(), 0.1)
 
 
-class ApiTest(DoppelTestCase):
-    def test_base_url_should_have_href(self):
+class BasicHALJSONTests(DoppelTestCase):
+    def test_response_with_accept_hal_json_should_return_hal_json(self):
+        response = self.client.get(BASE_API_URL,
+                                   HTTP_ACCEPT='application/hal+json')
+        self.assertEqual(response.status_code, HTTP_STATUS_SUCCESS)
+        self.assertEqual(response['Content-Type'], 'application/hal+json')
+
+
+class ApiRootTests(DoppelTestCase):
+    def test_root_should_have_self_rel(self):
+        root = self.get_resource(BASE_API_URL,
+                                 mime_type='application/hal+json')
+        self.assertIn('_links', root)
+        self.assertIn('self', root['_links'])
+        self.assertIn('href', root['_links']['self'])
+
+    def test_root_should_have_curries_link(self):
         data = self.get_resource(BASE_API_URL)
-        self.assertRegexpMatches(data['_href'], 'http://.*' + BASE_API_URL)
+        curies = data['_links']['curies']
+        self.assertEqual(curies[0]['name'], 'ch')
+        self.assertRegexpMatches(curies[0]['href'], 'http://.*')
 
-    def test_base_url_should_have_sites_collection(self):
+    def test_root_should_have_sites_link(self):
         data = self.get_resource(BASE_API_URL)
-        sites_coll = data['sites']
-        self.assertRegexpMatches(sites_coll['_href'], 'http://.*' + SITES_URL)
+        sites_coll = data['_links']['ch:sites']
+        self.assertRegexpMatches(sites_coll['href'], 'http://.*' + SITES_URL)
 
-    def test_base_sites_collection_should_have_metadata(self):
-        data = self.get_resource(BASE_API_URL)
-        sites_coll = data['sites']
-        self.assertEqual(sites_coll['meta']['totalCount'], len(self.sites))
 
-    def test_sites_should_be_expanded_in_base_url(self):
-        response = self.get_resource(BASE_API_URL)
-        sites = response['sites']['data']
-        self.assertIn(sites[0]['name'], [self.sites[0].name,
-                                         self.sites[1].name])
+class ApiSitesTests(DoppelTestCase):
+    def get_sites(self):
+        root = self.get_resource(BASE_API_URL,
+                                 mime_type='application/hal+json')
+        sites_url = root['_links']['ch:sites']['href']
+        return self.get_resource(sites_url)
 
-    def test_site_disp_field_should_be_name(self):
-        site = self.get_a_site()
-        self.assertEqual(site['name'], site['_disp'])
+    def test_sites_should_have_self_rel(self):
+        sites = self.get_sites()
+        self.assertIn('_links', sites)
+        self.assertIn('self', sites['_links'])
+        self.assertIn('href', sites['_links']['self'])
 
-    def test_collections_should_have_disp_field(self):
-        site = self.get_a_site()
-        self.assertIn('_disp', site['devices'])
+    def test_sites_should_have_curries_link(self):
+        sites = self.get_sites()
+        curies = sites['_links']['curies']
+        self.assertEqual(curies[0]['name'], 'ch')
+        self.assertRegexpMatches(curies[0]['href'], 'http://.*')
 
-    def test_sites_should_be_postable(self):
-        new_site = {
-            "_type": "site",
-            "latitude": 42.360461,
-            "longitude": -71.087347,
-            "name": "MIT Media Lab"
-        }
-        response = self.post_resource(SITES_URL, new_site)
-        db_obj = Site.objects.get(name='MIT Media Lab')
-        for field in ['latitude', 'longitude', 'name']:
-            self.assertEqual(new_site[field], response[field])
-            self.assertEqual(new_site[field], getattr(db_obj, field))
+    def test_sites_should_have_createform_link(self):
+        sites = self.get_sites()
+        self.assertIn('createForm', sites['_links'])
+        self.assertIn('href', sites['_links']['createForm'])
+        self.assertEqual(sites['_links']['createForm']['title'], 'Create Site')
 
-    def test_devices_should_be_postable_to_a_site(self):
-        sites_coll = self.get_resource(SITES_URL)['data']
-        dev_url = sites_coll[0]['devices']['_href']
-        new_device = {
-            "_type": "device",
-            "building": "E14",
-            "description": "A great device",
-            "floor": "5",
-            "name": "Thermostat 42",
-            "room": "E14-548R"
-        }
-        self.post_resource(dev_url, new_device)
-        db_device = Device.objects.get(name=new_device['name'])
-        db_site = Site.objects.get(name=sites_coll[0]['name'])
-        self.assertEqual(db_device.site, db_site)
+    def test_sites_should_have_items_link(self):
+        sites = self.get_sites()
+        self.assertIn('items', sites['_links'])
 
-    def test_sensors_should_be_postable_to_existing_device(self):
-        sites_coll = self.get_resource(SITES_URL)['data']
-        dev_url = sites_coll[0]['devices']['_href']
-        device = self.get_resource(dev_url)['data'][0]
-
-        pressure_metric = Metric(name='Pressure')
-        pressure_metric.save()
-
-        dev_href = device['sensors']['_href']
-        new_sensor = {
-            "_type": "sensor",
-            'metric': 'Pressure',
-            'unit': 'C',
-            'value': 0,
-            'timestamp': 0,
-        }
-        self.post_resource(dev_href, new_sensor)
-        db_sensor = Sensor.objects.get(metric=pressure_metric)
-        self.assertEqual(pressure_metric, db_sensor.metric)
-
-    def test_sensors_should_be_postable_to_newly_posted_device(self):
-        sites_coll = self.get_resource(SITES_URL)['data']
-        dev_url = sites_coll[0]['devices']['_href']
-
-        new_device = {
-            "_type": "device",
-            "building": "E14",
-            "description": "A great device",
-            "floor": "5",
-            "name": "Thermostat 42",
-            "room": "E14-548R"
-        }
-        device = self.post_resource(dev_url, new_device)
-
-        pressure_metric = Metric(name='Pressure')
-        pressure_metric.save()
-        dev_href = device['sensors']['_href']
-        new_sensor = {
-            "_type": "sensor",
-            'metric': 'Pressure',
-            'unit': 'C',
-            'value': 0,
-            'timestamp': 0,
-        }
-        self.post_resource(dev_href, new_sensor)
-        db_sensor = Sensor.objects.get(metric=pressure_metric)
-        self.assertEqual(pressure_metric, db_sensor.metric)
-
-    def test_site_resource_should_have_devices(self):
-        site = self.get_a_site()
-        device_coll = self.get_resource(site['devices']['_href'])
-        db_site = Site.objects.get(name=site['name'])
-        self.assertEqual(len(device_coll['data']),
-                         db_site.devices.count())
-
-    def test_devices_can_be_filtered_by_site(self):
-        full_devices_coll = self.get_resource(BASE_API_URL + 'devices/')
-        filtered_devices_coll = self.get_resource(
-            BASE_API_URL + 'devices/?site=%d' % self.sites[0].id)
-        self.assertEqual(len(full_devices_coll['data']), 5)
-        self.assertEqual(len(filtered_devices_coll['data']), 3)
-
-    def test_filtered_collection_has_filtered_url(self):
-        site_id = self.sites[0].id
-        coll = self.get_resource(
-            BASE_API_URL + 'devices/?site=%d' % site_id)
-        self.assertTrue(('site=%d' % site_id) in coll['_href'])
-
-    def test_device_resource_should_have_sensors(self):
-        device = self.get_a_device()
-        self.assertIn('sensors', device)
-        self.assertIn('_href', device['sensors'])
-
-    def test_site_should_link_to_device_coll(self):
-        site = self.get_a_site()
-        # a link is a resource with only _href and _disp fields
-        self.assertIn('_href', site['devices'])
-        self.assertIn('_disp', site['devices'])
-        self.assertEquals(2, len(site['devices']))
-
-    def test_sensor_should_have_data_url(self):
-        sensor = self.get_a_sensor()
-        self.assertIn('_href', sensor['history'])
-
-    def test_sensor_data_should_have_timestamp_and_value(self):
-        sensor = self.get_a_sensor()
-        sensor_data = self.get_resource(sensor['history']['_href'])
-        self.assertIn('timestamp', sensor_data['data'][0])
-        self.assertIn('value', sensor_data['data'][0])
-
-    def test_sensor_should_have_parent_link(self):
-        sensor = self.get_a_sensor()
-        self.assertIn('device', sensor)
-
-    def test_sensor_data_should_be_postable(self):
-        sensor = self.get_a_sensor()
-        data_url = sensor['history']['_href']
-        timestamp = make_aware(datetime(2013, 1, 1, 0, 0, 0), utc)
-        data = {
-            'value': 23,
-            'timestamp': timestamp.isoformat()
-        }
-        self.post_resource(data_url, data)
-        # TODO: actually make sure the posted data is correct
-
-    def test_device_collections_should_limit_to_default_page_size(self):
-        site = self.get_a_site()
-        devs_url = site['devices']['_href']
-        # make sure we create more devices than will fit on a page
-        for i in range(0, Resource.page_size + 1):
-            dev = {'name': 'test dev %d' % i}
-            self.post_resource(devs_url, dev)
-        devs = self.get_resource(devs_url)
-        self.assertEqual(len(devs['data']), Resource.page_size)
-
-    def test_pages_should_have_next_and_prev_links(self):
-        site = self.get_a_site()
-        devs_url = site['devices']['_href']
-        # make sure we create more devices than will fit on a page
-        for i in range(0, Resource.page_size + 1):
-            dev = {'name': 'test dev %d' % i}
-            self.post_resource(devs_url, dev)
-        devs = self.get_resource(devs_url)
-        self.assertIn('next', devs['meta'])
-        self.assertNotIn('previous', devs['meta'])
-        next_devs = self.get_resource(devs['meta']['next']['_href'])
-        self.assertIn('previous', next_devs['meta'])
-        self.assertNotIn('next', next_devs['meta'])
+#class ApiTest(DoppelTestCase):
+#    def test_base_sites_collection_should_have_metadata(self):
+#        data = self.get_resource(BASE_API_URL)
+#        sites_coll = data['sites']
+#        self.assertEqual(sites_coll['meta']['totalCount'], len(self.sites))
+#
+#    def test_sites_should_be_expanded_in_base_url(self):
+#        response = self.get_resource(BASE_API_URL)
+#        sites = response['sites']['data']
+#        self.assertIn(sites[0]['name'], [self.sites[0].name,
+#                                         self.sites[1].name])
+#
+#    def test_site_disp_field_should_be_name(self):
+#        site = self.get_a_site()
+#        self.assertEqual(site['name'], site['_disp'])
+#
+#    def test_collections_should_have_disp_field(self):
+#        site = self.get_a_site()
+#        self.assertIn('_disp', site['devices'])
+#
+#    def test_sites_should_be_postable(self):
+#        new_site = {
+#            "_type": "site",
+#            "latitude": 42.360461,
+#            "longitude": -71.087347,
+#            "name": "MIT Media Lab"
+#        }
+#        response = self.post_resource(SITES_URL, new_site)
+#        db_obj = Site.objects.get(name='MIT Media Lab')
+#        for field in ['latitude', 'longitude', 'name']:
+#            self.assertEqual(new_site[field], response[field])
+#            self.assertEqual(new_site[field], getattr(db_obj, field))
+#
+#    def test_devices_should_be_postable_to_a_site(self):
+#        sites_coll = self.get_resource(SITES_URL)['data']
+#        dev_url = sites_coll[0]['devices']['_href']
+#        new_device = {
+#            "_type": "device",
+#            "building": "E14",
+#            "description": "A great device",
+#            "floor": "5",
+#            "name": "Thermostat 42",
+#            "room": "E14-548R"
+#        }
+#        self.post_resource(dev_url, new_device)
+#        db_device = Device.objects.get(name=new_device['name'])
+#        db_site = Site.objects.get(name=sites_coll[0]['name'])
+#        self.assertEqual(db_device.site, db_site)
+#
+#    def test_sensors_should_be_postable_to_existing_device(self):
+#        sites_coll = self.get_resource(SITES_URL)['data']
+#        dev_url = sites_coll[0]['devices']['_href']
+#        device = self.get_resource(dev_url)['data'][0]
+#
+#        pressure_metric = Metric(name='Pressure')
+#        pressure_metric.save()
+#
+#        dev_href = device['sensors']['_href']
+#        new_sensor = {
+#            "_type": "sensor",
+#            'metric': 'Pressure',
+#            'unit': 'C',
+#            'value': 0,
+#            'timestamp': 0,
+#        }
+#        self.post_resource(dev_href, new_sensor)
+#        db_sensor = Sensor.objects.get(metric=pressure_metric)
+#        self.assertEqual(pressure_metric, db_sensor.metric)
+#
+#    def test_sensors_should_be_postable_to_newly_posted_device(self):
+#        sites_coll = self.get_resource(SITES_URL)['data']
+#        dev_url = sites_coll[0]['devices']['_href']
+#
+#        new_device = {
+#            "_type": "device",
+#            "building": "E14",
+#            "description": "A great device",
+#            "floor": "5",
+#            "name": "Thermostat 42",
+#            "room": "E14-548R"
+#        }
+#        device = self.post_resource(dev_url, new_device)
+#
+#        pressure_metric = Metric(name='Pressure')
+#        pressure_metric.save()
+#        dev_href = device['sensors']['_href']
+#        new_sensor = {
+#            "_type": "sensor",
+#            'metric': 'Pressure',
+#            'unit': 'C',
+#            'value': 0,
+#            'timestamp': 0,
+#        }
+#        self.post_resource(dev_href, new_sensor)
+#        db_sensor = Sensor.objects.get(metric=pressure_metric)
+#        self.assertEqual(pressure_metric, db_sensor.metric)
+#
+#    def test_site_resource_should_have_devices(self):
+#        site = self.get_a_site()
+#        device_coll = self.get_resource(site['devices']['_href'])
+#        db_site = Site.objects.get(name=site['name'])
+#        self.assertEqual(len(device_coll['data']),
+#                         db_site.devices.count())
+#
+#    def test_devices_can_be_filtered_by_site(self):
+#        full_devices_coll = self.get_resource(BASE_API_URL + 'devices/')
+#        filtered_devices_coll = self.get_resource(
+#            BASE_API_URL + 'devices/?site=%d' % self.sites[0].id)
+#        self.assertEqual(len(full_devices_coll['data']), 5)
+#        self.assertEqual(len(filtered_devices_coll['data']), 3)
+#
+#    def test_filtered_collection_has_filtered_url(self):
+#        site_id = self.sites[0].id
+#        coll = self.get_resource(
+#            BASE_API_URL + 'devices/?site=%d' % site_id)
+#        self.assertTrue(('site=%d' % site_id) in coll['_href'])
+#
+#    def test_device_resource_should_have_sensors(self):
+#        device = self.get_a_device()
+#        self.assertIn('sensors', device)
+#        self.assertIn('_href', device['sensors'])
+#
+#    def test_site_should_link_to_device_coll(self):
+#        site = self.get_a_site()
+#        # a link is a resource with only _href and _disp fields
+#        self.assertIn('_href', site['devices'])
+#        self.assertIn('_disp', site['devices'])
+#        self.assertEquals(2, len(site['devices']))
+#
+#    def test_sensor_should_have_data_url(self):
+#        sensor = self.get_a_sensor()
+#        self.assertIn('_href', sensor['history'])
+#
+#    def test_sensor_data_should_have_timestamp_and_value(self):
+#        sensor = self.get_a_sensor()
+#        sensor_data = self.get_resource(sensor['history']['_href'])
+#        self.assertIn('timestamp', sensor_data['data'][0])
+#        self.assertIn('value', sensor_data['data'][0])
+#
+#    def test_sensor_should_have_parent_link(self):
+#        sensor = self.get_a_sensor()
+#        self.assertIn('device', sensor)
+#
+#    def test_sensor_data_should_be_postable(self):
+#        sensor = self.get_a_sensor()
+#        data_url = sensor['history']['_href']
+#        timestamp = make_aware(datetime(2013, 1, 1, 0, 0, 0), utc)
+#        data = {
+#            'value': 23,
+#            'timestamp': timestamp.isoformat()
+#        }
+#        self.post_resource(data_url, data)
+#        # TODO: actually make sure the posted data is correct
+#
+#    def test_device_collections_should_limit_to_default_page_size(self):
+#        site = self.get_a_site()
+#        devs_url = site['devices']['_href']
+#        # make sure we create more devices than will fit on a page
+#        for i in range(0, Resource.page_size + 1):
+#            dev = {'name': 'test dev %d' % i}
+#            self.post_resource(devs_url, dev)
+#        devs = self.get_resource(devs_url)
+#        self.assertEqual(len(devs['data']), Resource.page_size)
+#
+#    def test_pages_should_have_next_and_prev_links(self):
+#        site = self.get_a_site()
+#        devs_url = site['devices']['_href']
+#        # make sure we create more devices than will fit on a page
+#        for i in range(0, Resource.page_size + 1):
+#            dev = {'name': 'test dev %d' % i}
+#            self.post_resource(devs_url, dev)
+#        devs = self.get_resource(devs_url)
+#        self.assertIn('next', devs['meta'])
+#        self.assertNotIn('previous', devs['meta'])
+#        next_devs = self.get_resource(devs['meta']['next']['_href'])
+#        self.assertIn('previous', next_devs['meta'])
+#        self.assertNotIn('next', next_devs['meta'])
 
 
 class HTMLTests(DoppelTestCase):
@@ -340,20 +388,3 @@ class ErrorTests(TestCase):
         self.assertEqual(response.status_code, HTTP_STATUS_NOT_FOUND)
         self.assertEqual(response['Content-Type'], 'application/hal+json')
         self.assertIn('message', json.loads(response.content))
-
-
-class BasicHALJSONTests(DoppelTestCase):
-    def test_response_with_accept_hal_json_should_return_hal_json(self):
-        response = self.client.get(BASE_API_URL,
-                                   HTTP_ACCEPT='application/hal+json')
-        self.assertEqual(response.status_code, HTTP_STATUS_SUCCESS)
-        self.assertEqual(response['Content-Type'], 'application/hal+json')
-
-
-class HALJSONRootTests(DoppelTestCase):
-    def test_root_should_have_self_rel(self):
-        site = self.get_resource(BASE_API_URL,
-                                 mime_type='application/hal+json')
-        self.assertIn('_links', site)
-        self.assertIn('self', site['_links'])
-        self.assertIn('href', site['_links']['self'])

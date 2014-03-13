@@ -13,6 +13,18 @@ import string
 from urlparse import urlparse, urlunparse, parse_qs
 from urllib import urlencode
 
+
+def capitalize(word):
+    return word[0].upper() + word[1:]
+
+
+# TODO: this should get the URL dynamically
+CHAIN_CURIES = [{
+    'name': 'ch',
+    'href': 'http://chain-api.media.mit.edu/rels/{rel}',
+    'templated': True
+}]
+
 HTTP_STATUS_SUCCESS = 200
 HTTP_STATUS_CREATED = 201
 HTTP_STATUS_NOT_FOUND = 404
@@ -203,7 +215,14 @@ class Resource:
             href += '?' + urlencode(self._filters.items())
 
         serialized_data = {
-            '_href': paginate_href(href, offset, limit),
+            '_links': {
+                'self': {'href': paginate_href(href, offset, limit)},
+                'curies': CHAIN_CURIES,
+                'createForm': {
+                    'href': href,
+                    'title': 'Create %s' % capitalize(self.resource_type)
+                }
+            },
             '_disp': self.resource_name,
         }
         if embed:

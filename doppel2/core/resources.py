@@ -1,5 +1,6 @@
 from doppel2.core.api import Resource, ResourceField, CollectionField
 from doppel2.core.api import full_reverse
+from doppel2.core.api import CHAIN_CURIES
 from doppel2.core.models import Site, Device, Sensor, ScalarData
 from django.conf.urls import include, patterns, url
 
@@ -74,11 +75,16 @@ class ApiRootResource(Resource):
         self._request = request
 
     def serialize(self):
-        data = {'_href': full_reverse('api-root', self._request),
-                '_type': 'api-root',
-                '_disp': 'Tidmarsh API',
-                'sites': SiteResource(queryset=Site.objects,
-                request=self._request).serialize()}
+        data = {
+            '_links': {
+                'self': {'href': full_reverse('api-root', self._request)},
+                'curies': CHAIN_CURIES,
+                'ch:sites': {
+                    'title': 'Sites',
+                    'href': full_reverse('sites-list', self._request)
+                }
+            }
+        }
         return data
 
     @classmethod
