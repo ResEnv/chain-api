@@ -589,6 +589,7 @@ and access it from your host machine's browser at
 [hal]: http://stateless.co/hal_specification.html
 [hal-spec]: http://tools.ietf.org/html/draft-kelly-json-hal-06
 [rfc5988]: http://tools.ietf.org/html/rfc5988
+[rfc1808]: http://tools.ietf.org/html/rfc1808
 [curie-w3c]: http://www.w3.org/TR/curie/
 [curie-wiki]: http://en.wikipedia.org/wiki/CURIE
 [rels-iana]: http://www.iana.org/assignments/link-relations/link-relations.xhtml
