@@ -222,8 +222,7 @@ class Resource:
                     'href': href,
                     'title': 'Create %s' % capitalize(self.resource_type)
                 }
-            },
-            '_disp': self.resource_name,
+            }
         }
         if embed:
             serialized_data.update(

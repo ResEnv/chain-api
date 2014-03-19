@@ -18,6 +18,12 @@ parent? From a device to a list of contained sensors? These relations (often
 shortened to "rels") are central to the architecture of the Chain API, and
 hypermedia in general.
 
+Note that the `href` field in links will be a URL, which should be parsed
+as per [RFC1808][rfc1808]. Basically this means that URLs might be absolute
+(`http://example.com/things/392`) or relative to the domain (`/things/392`).
+RFC1808 also allows URLs to be expressed relative to the current resource
+(`../things/392`), but the Chain API does not use these.
+
 Following along with standard hal+json, most rels are self-documenting, and the
 rel itself actually serve as a link(URI) to the human-readable documentation
 that describes what that relationship actually means. This rel URI should also
@@ -37,6 +43,18 @@ In the Chain API attributes can also be considered relations, except the
 related object is simple data, instead of a linked or embedded resource. As
 such, attributes use the same self-documenting mechanism as resource relations.
 
+CURIES
+------
+
+Using URIs as relation names has the benefit of providing a stable and unique
+identifier for relation names, but using a full URI as a json dictionary key is
+cumbersome and duplicates lots of data in a typicaly payload. To alleviate this
+issue hal+json supports Compact URIs or "CURIEs". The
+[wikipedia page][curie-wiki] shows an example of a CURIE used as an XML
+namespace, and the [w3c spec][curie-w3c] has a much more detailed description.
+In the context of hal+json CURIEs are simply a URI template that can be used
+for each rel that references it.
+
 Embedded Relations
 ------------------
 
@@ -48,18 +66,6 @@ addition to the link. In this case you will find the embedded resource in the
 this case the resource will still be linked in the `_links` section with the
 same rel name, so clients can ignore the `_embedded` objects if they choose.
 
-CURIES
-------
-
-Using URIs as relation names has the benefit of providing a stable and unique
-identifier for relation names, but using a full URI as a json dictionary key is
-cumbersome and duplicates lots of data in a typicaly payload. To alleviate this
-issue hal+json supports Compact URIs or "CURIEs". CURIEs. The
-[wikipedia page][curie-wiki] shows an example of a CURIE used as an XML
-namespace, and the [w3c spec][curie-w3c] has a much more detailed description.
-In the context of hal+json CURIEs are simply a URI template that can be used
-for each rel that references it.
-
 Collection Resources
 --------------------
 
@@ -69,7 +75,169 @@ the total number of resources represented by this collection.  If there are
 more resources than will fit into a single response, there may also be links to
 the first, last, previous, and next pages.
 
-### hal+json Example
+Related Collections
+-------------------
+
+When a resource has a related collection (e.g. a parent resource has a
+"children" relation), there are several possible ways to represent it.
+
+_Note - this section is pretty speculative, and we probably won't allow the
+full flexibility of all these different related collection formats_
+
+### A single link to the collection as a separate resource
+
+    {
+      "_links": [
+        "self": {"href": "/parents/392"},
+        "children": {"href": "/parents/392/children/"}
+      ]
+    }
+
+which when followed gives you a full collection resource:
+
+    {
+      "_links": [
+        "self": {"href": "/parents/392/children/"},
+        "next": { "href": "/parents/392/children?page=2", "title": "Page 2" },
+        "last": { "href": "/parents/392/children?page=5", "title": "Page 5" },
+        "createForm": { "href": "/parents/392/children/", "title": "Create Order"},
+        "items": [
+          {"href": "/children/382", "title": "Child 1"},
+          {"href": "/children/8371", "title": "Child 2"},
+          {"href": "/children/716", "title": "Child 3"}
+        ]
+      ],
+    }
+
+or a collection resource with embedded children
+
+    {
+      "_links": [
+        "self": {"href": "/parents/392/children/"},
+        "next": { "href": "/parents/392/children?page=2", "title": "Page 2" },
+        "last": { "href": "/parents/392/children?page=5", "title": "Page 5" },
+        "createForm": { "href": "/parents/392/children/", "title": "Create Order"},
+        "items": [
+          {"href": "/children/382", "title": "Child 1"},
+          {"href": "/children/8371", "title": "Child 2"},
+          {"href": "/children/716", "title": "Child 3"}
+        ]
+      ],
+      "_embedded": [
+        {
+          "_links" [
+            "self": {"href": "/children/382"}
+          ],
+          "name": "Child 1",
+          "age": 13
+        },
+        {
+          "_links" [
+            "self": {"href": "/children/8371"}
+          ],
+          "name": "Child 2",
+          "age": 16
+        },
+        {
+          "_links" [
+            "self": {"href": "/children/716"}
+          ],
+          "name": "Child 3",
+          "age": 31
+        }
+      ]
+    }
+
+### Direct links to each child
+
+This seems fine for small related lists, but doesn't allow pagination links or
+metadata about the collection
+
+    {
+      "_links": [
+        "self": {"href": "/parents/392"},
+        "children": [
+          {"href": "/children/382", "title": "Child 1"},
+          {"href": "/children/8371", "title": "Child 2"},
+          {"href": "/children/716", "title": "Child 3"}
+        ]
+      ]
+    }
+
+### An embedded collection resource with links
+
+    {
+      "_links": [
+        "self": {"href": "/parents/392"},
+        "children": {"href": "/parents/392/children/"}
+      ],
+      "_embedded": [
+        "children": {
+          "_links": [
+            "self": {"href": "/parents/392/children/"},
+            "next": { "href": "/parents/392/children?page=2", "title": "Page 2" },
+            "last": { "href": "/parents/392/children?page=5", "title": "Page 5" },
+            "createForm": { "href": "/parents/392/children/", "title": "Create Order"},
+            "items": [
+              {"href": "/children/382", "title": "Child 1"},
+              {"href": "/children/8371", "title": "Child 2"},
+              {"href": "/children/716", "title": "Child 3"}
+            ]
+          ]
+        }
+      ]
+    }
+
+### An embedded collection with embedded items
+
+    {
+      "_links": [
+        "self": {"href": "/parents/392"},
+        "children": {"href": "/parents/392/children/"}
+      ],
+      "_embedded": [
+        "children": {
+          "_links": [
+            "self": {"href": "/parents/392/children/"},
+            "next": { "href": "/parents/392/children?page=2", "title": "Page 2" },
+            "last": { "href": "/parents/392/children?page=5", "title": "Page 5" },
+            "createForm": { "href": "/parents/392/children/", "title": "Create Order"},
+            "items": [
+              {"href": "/children/382", "title": "Child 1"},
+              {"href": "/children/8371", "title": "Child 2"},
+              {"href": "/children/716", "title": "Child 3"}
+            ],
+            "_embedded": [
+              {
+              "_links" [
+                "self": {"href": "/children/382"}
+              ],
+              "name": "Child 1",
+              "age": 13
+              },
+              {
+              "_links" [
+                "self": {"href": "/children/8371"}
+              ],
+              "name": "Child 2",
+              "age": 16
+              },
+              {
+              "_links" [
+                "self": {"href": "/children/716"}
+              ],
+              "name": "Child 3",
+              "age": 31
+              }
+            ]
+          ]
+        }
+      ]
+    }
+
+
+hal+json Example
+----------------
 
     GET /orders HTTP/1.1
     Host: example.org
@@ -80,27 +248,27 @@ the first, last, previous, and next pages.
 
     {
       "_links": {
-        "self": { "href": "http://example.com/orders/" },
-        "next": { "href": "http://example.com/orders?page=2", "title": "Page 2" },
-        "last": { "href": "http://example.com/orders?page=5", "title": "Page 5" },
-        "createForm": { "href": "http://example.com/orders/", "title": "Create Order"},
+        "self": { "href": "/orders/" },
+        "next": { "href": "/orders?page=2", "title": "Page 2" },
+        "last": { "href": "/orders?page=5", "title": "Page 5" },
+        "createForm": { "href": "/orders/", "title": "Create Order"},
         "curies": [{
             "name": "rel",
             "href": "http://docs.example.com/rels/{rel}",
             "templated": true
         }],
         "items": [
-            {"href": "http://example.com/orders/123", title="Christmas Order"},
-            {"href": "http://example.com/orders/124", title="Birthday Order"},
+            {"href": "/orders/123", title="Christmas Order"},
+            {"href": "/orders/124", title="Birthday Order"},
         ]
       },
       "_embedded": {
         "items": [
         {
           "_links": {
-            "self": { "href": "http://example.com/orders/123" },
-            "rel:basket": { "href": "http://example.com/baskets/98712" },
-            "rel:customer": { "href": "http://example.com/customers/7809" }
+            "self": { "href": "/orders/123" },
+            "rel:basket": { "href": "/baskets/98712" },
+            "rel:customer": { "href": "/customers/7809" }
           },
           "name": "Christmas Order",
           "total": 30.00,
@@ -109,9 +277,9 @@ the first, last, previous, and next pages.
         },
         {
           "_links": {
-            "self": { "href": "http://example.com/orders/124" },
-            "rel:basket": { "href": "http://example.com/baskets/97213" },
-            "rel:customer": { "href": "http://example.com/customers/12369" }
+            "self": { "href": "/orders/124" },
+            "rel:basket": { "href": "/baskets/97213" },
+            "rel:customer": { "href": "/customers/12369" }
           },
           "name": "Birthday Order",
           "total": 20.00,
@@ -172,15 +340,15 @@ will give you a link to the available sites.
 
     {
       "_links": {
-        "self": { "href": "http://tidmarsh.media.mit.edu/api" },
+        "self": { "href": "/api" },
         "curies": [{
           "name": "ch",
-          "href": "http://chain-api.media.mit.edu/rels/{rel}",
+          "href": "/rels/{rel}",
           "templated": true
         }]
         "ch:sites": {
           "title": "Sites",
-          "href": "http://chain-api.media.mit.edu/sites/"
+          "href": "/sites/"
         }
       }
     }
@@ -217,13 +385,13 @@ buildings.
       "_links": {
           "curies": [{
               "name": "ch",
-              "href": "http://chain-api.media.mit.edu/rels/{rel}",
+              "href": "/rels/{rel}",
               "templated": true
           }],
-          "self": { "href": "http://tidmarsh.media.mit.edu/api/sites/92" },
+          "self": { "href": "/api/sites/92" },
           "ch:devices": {
               "title": "Devices",
-              "href": "http://tidmarsh.media.mit.edu/api/sites/758/devices"
+              "href": "/api/sites/758/devices"
           }
       },
       "name": "MIT Media Lab",
@@ -259,17 +427,17 @@ A device that may contain several sensor channels.
       "_links": {
           "curies": [{
               "name": "ch",
-              "href": "http://chain-api.media.mit.edu/rels/{rel}",
+              "href": "/rels/{rel}",
               "templated": true
           }],
-          "self": { "href": "http://tidmarsh.media.mit.edu/api/devices/929" },
+          "self": { "href": "/api/devices/929" },
           "ch:sensors": {
               "title": "Sensors",
-              "href": "http://tidmarsh.media.mit.edu/api/devices/929/sensors"
+              "href": "/api/devices/929/sensors"
           },
           "ch:site": {
               "title": "Summer Cabin"
-              "href": "http://tidmarsh.media.mit.edu/api/sites/928",
+              "href": "/api/sites/928",
           },
       },
       "name": "Bathroom Thermostat",
@@ -307,17 +475,17 @@ _TODO: We need to figure out a way to communicate the datatype_
       "_links": {
           "curies": [{
             "name": "ch",
-            "href": "http://chain-api.media.mit.edu/rels/{rel}",
+            "href": "/rels/{rel}",
             "templated": true
           }],
-          "self": { "href": "http://tidmarsh.media.mit.edu/api/sensors/929" },
+          "self": { "href": "/api/sensors/929" },
           "ch:history": {
             "title": "History",
-            "href": "http://tidmarsh.media.mit.edu/api/sensors/929/history"
+            "href": "/api/sensors/929/history"
           },
           "ch:device": {
             "title": "Bathroom Thermostat",
-            "href": "http://tidmarsh.media.mit.edu/api/devices/928",
+            "href": "/api/devices/928",
           },
       },
       "value": 23.5,
@@ -343,7 +511,7 @@ aggregations of this data.
 
     {
       "_links": {
-          "self": { "href": "http://tidmarsh.media.mit.edu/api/scalar_data/91830" }
+          "self": { "href": "/api/scalar_data/91830" }
       },
       "value": 23.5,
       "timestamp": "2014-03-12T13:37:27+00:00"
