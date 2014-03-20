@@ -198,6 +198,18 @@ class ApiSitesTests(DoppelTestCase):
     def test_site_should_have_self_link(self):
         site = self.get_a_site()
         self.assertIn('_links', site)
+        self.assertIn('self', site['_links'])
+        self.assertIn('href', site['_links']['self'])
+
+    def test_site_should_have_name(self):
+        site = self.get_a_site()
+        self.assertIn(site['name'],
+                      [s.name for s in self.sites])
+
+    def test_site_should_have_devices_link(self):
+        site = self.get_a_site()
+        self.assertIn('ch:devices', site['_links'])
+        self.assertIn('href', site['_links']['ch:devices'])
 
 #class ApiTest(DoppelTestCase):
 #

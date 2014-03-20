@@ -181,7 +181,8 @@ class Resource:
                 getattr(self._obj, field_name))
         for field_name, collection in self.related_fields.items():
             # collection is a CollectionField or ResourceField here
-            data[field_name] = collection.serialize(self, self._request, cache)
+            data['_links'][field_name] = collection.serialize(
+                self, self._request, cache)
         for stub in self.stub_fields.keys():
             stub_data = getattr(self._obj, stub)
             data[stub] = getattr(stub_data, self.stub_fields[stub])
@@ -197,6 +198,14 @@ class Resource:
     def serialize_list(self, embed, cache):
         '''Serializes this object, assuming that there is a queryset that needs
         to be serialized as a collection'''
+
+        if not embed:
+            data = {
+                'href': full_reverse(
+                    self.resource_name + '-list', self._request),
+                'title': capitalize(self.resource_name)
+            }
+            return data
 
         offset = 0
         limit = self.page_size
@@ -227,42 +236,41 @@ class Resource:
             },
             'totalCount': total_count
         }
-        if embed:
-            serialized_data['_links']['items'] = [
-                self.__class__(obj=obj, request=self._request).
-                serialize(cache=cache, embed=False) for obj in queryset]
+        serialized_data['_links']['items'] = [
+            self.__class__(obj=obj, request=self._request).
+            serialize(cache=cache, embed=False) for obj in queryset]
 
-            if offset > 0:
-                # make previous link
-                prev_offset = offset - limit if offset - limit > 0 else 0
-                serialized_data['_links']['previous'] = {
-                    '_href': paginate_href(href, prev_offset, limit),
-                    '_disp': '%d through %d' % (
-                        prev_offset, prev_offset + limit - 1),
-                }
-                # make first link
-                serialized_data['_links']['first'] = {
-                    '_href': paginate_href(href, 0, limit),
-                    '_disp': '0 through %d' % (limit - 1),
-                }
+        if offset > 0:
+            # make previous link
+            prev_offset = offset - limit if offset - limit > 0 else 0
+            serialized_data['_links']['previous'] = {
+                '_href': paginate_href(href, prev_offset, limit),
+                '_disp': '%d through %d' % (
+                    prev_offset, prev_offset + limit - 1),
+            }
+            # make first link
+            serialized_data['_links']['first'] = {
+                '_href': paginate_href(href, 0, limit),
+                '_disp': '0 through %d' % (limit - 1),
+            }
 
-            if offset + limit < total_count:
-                # make next link
-                if offset + 2 * limit < total_count:
-                    next_page_end = offset + 2 * limit
-                else:
-                    next_page_end = total_count
-                serialized_data['meta']['next'] = {
-                    '_href': paginate_href(href, offset + limit, limit),
-                    '_disp': '%d through %d' % (
-                        offset + limit, next_page_end - 1),
-                }
-                last_page_start = int(total_count / limit) * limit
-                serialized_data['meta']['last'] = {
-                    '_href': paginate_href(href, last_page_start, limit),
-                    '_disp': '%d through %d' % (
-                        last_page_start, total_count - 1),
-                }
+        if offset + limit < total_count:
+            # make next link
+            if offset + 2 * limit < total_count:
+                next_page_end = offset + 2 * limit
+            else:
+                next_page_end = total_count
+            serialized_data['meta']['next'] = {
+                '_href': paginate_href(href, offset + limit, limit),
+                '_disp': '%d through %d' % (
+                    offset + limit, next_page_end - 1),
+            }
+            last_page_start = int(total_count / limit) * limit
+            serialized_data['meta']['last'] = {
+                '_href': paginate_href(href, last_page_start, limit),
+                '_disp': '%d through %d' % (
+                    last_page_start, total_count - 1),
+            }
         return serialized_data
 
     def serialize(self, embed=True, cache=None):

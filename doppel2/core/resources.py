@@ -63,8 +63,8 @@ class SiteResource(Resource):
     display_field = 'name'
     model_fields = ['name', 'latitude', 'longitude']
     related_fields = {
-        'devices': CollectionField(DeviceResource, reverse_name='site',
-                                   embed=False)
+        'ch:devices': CollectionField(DeviceResource, reverse_name='site',
+                                      embed=False)
     }
     queryset = Site.objects
 
