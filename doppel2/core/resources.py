@@ -61,7 +61,7 @@ class SiteResource(Resource):
     resource_name = 'sites'
     resource_type = 'site'
     display_field = 'name'
-    model_fields = ['name', 'latitude', 'longitude']
+    model_fields = ['name']
     related_fields = {
         'ch:devices': CollectionField(DeviceResource, reverse_name='site',
                                       embed=False)

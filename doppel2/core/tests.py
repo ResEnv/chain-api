@@ -1,5 +1,6 @@
 from django.test import TestCase
 from doppel2.core.models import ScalarData, Unit, Metric, Device, Sensor, Site
+from doppel2.core.models import GeoLocation
 #from doppel2.core.api import Resource
 from datetime import datetime
 from django.db.models import Avg
@@ -27,9 +28,16 @@ class DoppelTestCase(TestCase):
         self.temp_metric.save()
         self.setpoint_metric = Metric(name='Setpoint')
         self.setpoint_metric.save()
+        self.geo_locations = [
+            GeoLocation(elevation=50, latitude=42.847, longitude=72.917),
+            GeoLocation(elevation=-23.8, latitude=40.847, longitude=42.917)
+        ]
         self.sites = [Site(name='Test Site 1'), Site(name='Test Site 2')]
         for site in self.sites:
             site.save()
+        for site, loc in zip(self.sites, self.geo_locations):
+            loc.content_object = site
+            loc.save()
         num_devices = 5
         self.devices = [Device(name='Thermostat %d' % i,
                                site=self.sites[i % len(self.sites)])
@@ -109,25 +117,6 @@ class SensorDataTest(DoppelTestCase):
         data = ScalarData(sensor=self.sensors[0], value=25)
         data.save()
         self.assertEqual(data.value, 25)
-
-    def test_largeish_datasets_can_be_queried_quickly(self):
-        sensor = Sensor(device=self.devices[0], metric=self.temp_metric,
-                        unit=self.unit)
-        sensor.save()
-        data = [ScalarData(sensor=sensor, value=val)
-                for val in range(10000)]
-        ScalarData.objects.bulk_create(data)
-        avg = 0
-        start_time = datetime.now()
-        #for data in ScalarData.objects.all():
-        #    avg += data.value
-        #avg = avg / ScalarData.objects.all().count()
-        avg = sensor.scalar_data.all().aggregate(Avg('value'))['value__avg']
-        end_time = datetime.now()
-        elapsed_time = end_time - start_time
-        self.assertEqual(avg, 4999.5)
-        self.assertLess(elapsed_time.total_seconds(), 0.1)
-
 
 class BasicHALJSONTests(DoppelTestCase):
     def test_response_with_accept_hal_json_should_return_hal_json(self):
@@ -210,6 +199,19 @@ class ApiSitesTests(DoppelTestCase):
         site = self.get_a_site()
         self.assertIn('ch:devices', site['_links'])
         self.assertIn('href', site['_links']['ch:devices'])
+
+    def test_site_should_have_geolocation(self):
+        site = self.get_a_site()
+        self.assertIn('geoLocation', site)
+        self.assertIn('elevation', site['geoLocation'])
+        self.assertIn(site['geoLocation']['elevation'],
+                      [l.elevation for l in self.geo_locations])
+        self.assertIn('latitude', site['geoLocation'])
+        self.assertIn(site['geoLocation']['latitude'],
+                      [l.latitude for l in self.geo_locations])
+        self.assertIn('longitude', site['geoLocation'])
+        self.assertIn(site['geoLocation']['longitude'],
+                      [l.longitude for l in self.geo_locations])
 
 #class ApiTest(DoppelTestCase):
 #

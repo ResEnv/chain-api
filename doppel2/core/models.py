@@ -1,8 +1,38 @@
 from django.db import models
 from django.utils import timezone
+from django.contrib.contenttypes.models import ContentType
+from django.contrib.contenttypes import generic
 
 
-class Site(models.Model):
+class GeoLocation(models.Model):
+    '''A lat/long/elevation triple. This has a generic foreign key so that
+    it can be applied to any model to specify its location'''
+    latitude = models.FloatField()
+    longitude = models.FloatField()
+    elevation = models.FloatField()
+    # the fields to handle the generic relationship
+    content_type = models.ForeignKey(ContentType)
+    object_id = models.PositiveIntegerField()
+    content_object = generic.GenericForeignKey()
+
+
+class GeoLocationMixin(object):
+    '''A model mixin that allows access to the GeoLocation of a model by using
+    obj.geo_location. The property will be None if there is no location stored
+    for that model. Thanks to @timmyomahony for the idea.'''
+
+    @property
+    def geo_location(self):
+        ctype = ContentType.objects.get_for_model(self.__class__)
+        try:
+            return GeoLocation.objects.get(
+                content_type__pk=ctype.id,
+                object_id=self.id)
+        except GeoLocation.DoesNotExist:
+            return None
+
+
+class Site(models.Model, GeoLocationMixin):
     '''An installation of Doppel2, usually on the scale of several or many
     buildings. Sites might be hosted on a remote server, in which case the URL
     field will point to that resource on that server. If the site is hosted
@@ -11,6 +41,7 @@ class Site(models.Model):
     latitude = models.FloatField(null=True, blank=True)
     longitude = models.FloatField(null=True, blank=True)
     url = models.CharField(max_length=255, default='', blank=True)
+
     def __repr__(self):
         return 'Site(name=%r, latitude=%r, longitude=%r, url=%r)' % (
             self.name, self.latitude, self.longitude, self.url)
@@ -19,7 +50,7 @@ class Site(models.Model):
         return self.name
 
 
-class Person(models.Model):
+class Person(models.Model, GeoLocationMixin):
     '''A Person involved with the site. Some sensors might detect presence of a
     person, so they can reference this model with person-specific
     information'''
@@ -43,7 +74,7 @@ class Person(models.Model):
         return " ".join([self.first_name, self.last_name])
 
 
-class Device(models.Model):
+class Device(models.Model, GeoLocationMixin):
     '''A set of co-located sensors, often sharing a PCB'''
     name = models.CharField(max_length=255)
     site = models.ForeignKey(Site, related_name='devices')
@@ -89,7 +120,7 @@ class Metric(models.Model):
         return self.name
 
 
-class Sensor(models.Model):
+class Sensor(models.Model, GeoLocationMixin):
     '''An individual sensor. There may be multiple sensors on a single device.
     The metadata field is used to store information that might be necessary to
     tie the Sensor data to the physical Sensor in the real world, such as a MAC

@@ -127,6 +127,14 @@ class ResourceField:
                                                 embed=self._embed, cache=cache)
 
 
+def serialize_geo_location(loc):
+    return {
+        'elevation': loc.elevation,
+        'latitude': loc.latitude,
+        'longitude': loc.longitude
+    }
+
+
 class Resource:
     #TODO: errors (4xx, 5xx, etc.) should be returned JSON-encoded
 
@@ -186,6 +194,10 @@ class Resource:
         for stub in self.stub_fields.keys():
             stub_data = getattr(self._obj, stub)
             data[stub] = getattr(stub_data, self.stub_fields[stub])
+        # check to see whether this object has a geolocation
+        loc = self._obj.geo_location
+        if loc is not None:
+            data['geoLocation'] = serialize_geo_location(loc)
         return data
 
     def serialize_field(self, field_value):
