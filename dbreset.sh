@@ -6,7 +6,7 @@
 # migration and the DB tables
 
 ./manage.py sqlclear core tastypie south | ./manage.py dbshell
-rm -f doppel2/core/migrations/0001_initial.py*
+rm -f chain/core/migrations/0001_initial.py*
 ./manage.py syncdb
 ./manage.py schemamigration --init core
 ./manage.py migrate

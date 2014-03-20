@@ -1,5 +1,5 @@
 from django.contrib import admin
-from doppel2.core.models import (Site, Device, Unit, Metric, Sensor,
+from chain.core.models import (Site, Device, Unit, Metric, Sensor,
                                  ScalarData, Person, GeoLocation)
 
 

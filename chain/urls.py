@@ -1,6 +1,6 @@
 from django.conf.urls import patterns, include, url
 from django.contrib import admin
-from doppel2.core import resources
+from chain.core import resources
 
 admin.autodiscover()
 
@@ -8,8 +8,8 @@ urlpatterns = patterns(
     '',
     url(r'^api/', include(resources.urls)),
     # Examples:
-    # url(r'^$', 'doppel2.views.home', name='home'),
-    # url(r'^doppel2/', include('doppel2.foo.urls')),
+    # url(r'^$', 'chain.views.home', name='home'),
+    # url(r'^chain/', include('chain.foo.urls')),
 
     # Uncomment the admin/doc line below to enable admin documentation:
     # url(r'^admin/doc/', include('django.contrib.admindocs.urls')),
@@ -18,4 +18,4 @@ urlpatterns = patterns(
     url(r'^admin/', include(admin.site.urls)),
 )
 
-handler404 = 'doppel2.core.api.handle404'
+handler404 = 'chain.core.api.handle404'

@@ -30,7 +30,7 @@ HTTP_STATUS_CREATED = 201
 HTTP_STATUS_NOT_FOUND = 404
 HTTP_STATUS_NOT_ACCEPTABLE = 406
 
-jinja_env = Environment(loader=PackageLoader('doppel2.core', 'templates'))
+jinja_env = Environment(loader=PackageLoader('chain.core', 'templates'))
 
 
 def full_reverse(view_name, request, *args, **kwargs):

@@ -1,10 +1,10 @@
 from django.test import TestCase
-from doppel2.core.models import ScalarData, Unit, Metric, Device, Sensor, Site
-from doppel2.core.models import GeoLocation
-#from doppel2.core.api import Resource
+from chain.core.models import ScalarData, Unit, Metric, Device, Sensor, Site
+from chain.core.models import GeoLocation
+#from chain.core.api import Resource
 from datetime import datetime
 import json
-from doppel2.core.api import HTTP_STATUS_SUCCESS, HTTP_STATUS_CREATED
+from chain.core.api import HTTP_STATUS_SUCCESS, HTTP_STATUS_CREATED
 from django.utils.timezone import make_aware, utc
 
 HTTP_STATUS_NOT_ACCEPTABLE = 406
@@ -19,7 +19,7 @@ ACCEPT_TAIL = 'application/xhtml+xml,application/xml;q=0.9,\
         image/webp,*/*;q=0.8'
 
 
-class DoppelTestCase(TestCase):
+class ChainTestCase(TestCase):
     def setUp(self):
         self.unit = Unit(name='C')
         self.unit.save()
@@ -123,14 +123,14 @@ class DoppelTestCase(TestCase):
         return self.get_resource(sensor_url, mime_type=mime_type)
 
 
-class SensorDataTest(DoppelTestCase):
+class SensorDataTest(ChainTestCase):
     def test_data_can_be_added(self):
         data = ScalarData(sensor=self.sensors[0], value=25)
         data.save()
         self.assertEqual(data.value, 25)
 
 
-class BasicHALJSONTests(DoppelTestCase):
+class BasicHALJSONTests(ChainTestCase):
     def test_response_with_accept_hal_json_should_return_hal_json(self):
         response = self.client.get(BASE_API_URL,
                                    HTTP_ACCEPT='application/hal+json')
@@ -138,7 +138,7 @@ class BasicHALJSONTests(DoppelTestCase):
         self.assertEqual(response['Content-Type'], 'application/hal+json')
 
 
-class ApiRootTests(DoppelTestCase):
+class ApiRootTests(ChainTestCase):
     def test_root_should_have_self_rel(self):
         root = self.get_resource(BASE_API_URL,
                                  mime_type='application/hal+json')
@@ -158,7 +158,7 @@ class ApiRootTests(DoppelTestCase):
         self.assertRegexpMatches(sites_coll['href'], 'http://.*' + SITES_URL)
 
 
-class ApiSitesTests(DoppelTestCase):
+class ApiSitesTests(ChainTestCase):
     def get_sites(self):
         root = self.get_resource(BASE_API_URL,
                                  mime_type='application/hal+json')
@@ -230,7 +230,7 @@ class ApiSitesTests(DoppelTestCase):
         self.assertIn('rawZMQStream', site['_links'])
         self.assertIn('href', site['_links']['rawZMQStream'])
 
-#class ApiTest(DoppelTestCase):
+#class ApiTest(ChainTestCase):
 #
 #    def test_sites_should_be_postable(self):
 #        new_site = {
@@ -391,7 +391,7 @@ class ApiSitesTests(DoppelTestCase):
 #        self.assertNotIn('next', next_devs['meta'])
 
 
-class HTMLTests(DoppelTestCase):
+class HTMLTests(ChainTestCase):
     def test_root_request_accepting_html_gets_it(self):
         res = self.get_resource(BASE_API_URL, mime_type='text/html').strip()
         # check that it startswith a doctype

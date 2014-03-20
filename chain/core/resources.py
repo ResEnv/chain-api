@@ -1,7 +1,7 @@
-from doppel2.core.api import Resource, ResourceField, CollectionField
-from doppel2.core.api import full_reverse
-from doppel2.core.api import CHAIN_CURIES
-from doppel2.core.models import Site, Device, Sensor, ScalarData
+from chain.core.api import Resource, ResourceField, CollectionField
+from chain.core.api import full_reverse
+from chain.core.api import CHAIN_CURIES
+from chain.core.models import Site, Device, Sensor, ScalarData
 from django.conf.urls import include, patterns, url
 
 
@@ -31,7 +31,7 @@ class SensorResource(Resource):
     related_fields = {
         'history': CollectionField(SensorDataResource,
                                    reverse_name='sensor'),
-        'device': ResourceField('doppel2.core.resources.DeviceResource',
+        'device': ResourceField('chain.core.resources.DeviceResource',
                                 'device')
     }
 
@@ -47,7 +47,7 @@ class DeviceResource(Resource):
     related_fields = {
         'sensors': CollectionField(SensorResource,
                                    reverse_name='device'),
-        'site': ResourceField('doppel2.core.resources.SiteResource', 'site')
+        'site': ResourceField('chain.core.resources.SiteResource', 'site')
     }
     queryset = Device.objects
 

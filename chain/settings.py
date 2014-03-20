@@ -1,4 +1,4 @@
-# Django settings for doppel2 project.
+# Django settings for chain-api project.
 
 DEBUG = True
 TEMPLATE_DEBUG = DEBUG
@@ -105,10 +105,10 @@ MIDDLEWARE_CLASSES = (
     # 'django.middleware.clickjacking.XFrameOptionsMiddleware',
 )
 
-ROOT_URLCONF = 'doppel2.urls'
+ROOT_URLCONF = 'chain.urls'
 
 # Python dotted path to the WSGI application used by Django's runserver.
-WSGI_APPLICATION = 'doppel2.wsgi.application'
+WSGI_APPLICATION = 'chain.wsgi.application'
 
 TEMPLATE_DIRS = (
     # Put strings here, like "/home/html/django_templates"
@@ -123,7 +123,7 @@ INSTALLED_APPS = (
     'django.contrib.sites',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'doppel2.core',
+    'chain.core',
     'south',
     'django_extensions',
     # Uncomment the next line to enable the admin:

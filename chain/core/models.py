@@ -9,7 +9,7 @@ class GeoLocation(models.Model):
 
 
 class Site(models.Model):
-    '''An installation of Doppel2, usually on the scale of several or many
+    '''An installation of Chain API, usually on the scale of several or many
     buildings. Sites might be hosted on a remote server, in which case the URL
     field will point to that resource on that server. If the site is hosted
     locally the URL can be blank'''
