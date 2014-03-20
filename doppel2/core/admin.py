@@ -1,7 +1,9 @@
 from django.contrib import admin
 from doppel2.core.models import (Site, Device, Unit, Metric, Sensor,
-                                 ScalarData, Person)
+                                 ScalarData, Person, GeoLocation)
 
+
+admin.site.register(GeoLocation)
 admin.site.register(Site)
 admin.site.register(Device)
 admin.site.register(ScalarData)
