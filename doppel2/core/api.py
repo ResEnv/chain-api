@@ -195,9 +195,13 @@ class Resource:
             stub_data = getattr(self._obj, stub)
             data[stub] = getattr(stub_data, self.stub_fields[stub])
         # check to see whether this object has a geolocation
-        loc = self._obj.geo_location
-        if loc is not None:
-            data['geoLocation'] = serialize_geo_location(loc)
+        try:
+            loc = self._obj.geo_location
+            if loc is not None:
+                data['geoLocation'] = serialize_geo_location(loc)
+        except AttributeError:
+            # guess this model doesn't support geo_location
+            pass
         return data
 
     def serialize_field(self, field_value):

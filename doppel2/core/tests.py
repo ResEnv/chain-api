@@ -3,7 +3,6 @@ from doppel2.core.models import ScalarData, Unit, Metric, Device, Sensor, Site
 from doppel2.core.models import GeoLocation
 #from doppel2.core.api import Resource
 from datetime import datetime
-from django.db.models import Avg
 import json
 from doppel2.core.api import HTTP_STATUS_SUCCESS, HTTP_STATUS_CREATED
 from django.utils.timezone import make_aware, utc
@@ -32,12 +31,13 @@ class DoppelTestCase(TestCase):
             GeoLocation(elevation=50, latitude=42.847, longitude=72.917),
             GeoLocation(elevation=-23.8, latitude=40.847, longitude=42.917)
         ]
-        self.sites = [Site(name='Test Site 1'), Site(name='Test Site 2')]
+        for loc in self.geo_locations:
+            loc.save()
+        self.sites = [
+            Site(name='Test Site 1', geo_location=self.geo_locations[0]),
+            Site(name='Test Site 2', geo_location=self.geo_locations[1])]
         for site in self.sites:
             site.save()
-        for site, loc in zip(self.sites, self.geo_locations):
-            loc.content_object = site
-            loc.save()
         num_devices = 5
         self.devices = [Device(name='Thermostat %d' % i,
                                site=self.sites[i % len(self.sites)])
@@ -117,6 +117,7 @@ class SensorDataTest(DoppelTestCase):
         data = ScalarData(sensor=self.sensors[0], value=25)
         data.save()
         self.assertEqual(data.value, 25)
+
 
 class BasicHALJSONTests(DoppelTestCase):
     def test_response_with_accept_hal_json_should_return_hal_json(self):
