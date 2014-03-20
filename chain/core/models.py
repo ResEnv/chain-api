@@ -5,7 +5,7 @@ from django.utils import timezone
 class GeoLocation(models.Model):
     latitude = models.FloatField()
     longitude = models.FloatField()
-    elevation = models.FloatField()
+    elevation = models.FloatField(null=True, blank=True)
 
 
 class Site(models.Model):

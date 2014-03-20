@@ -12,6 +12,7 @@ import random
 import string
 from urlparse import urlparse, urlunparse, parse_qs
 from urllib import urlencode
+from chain.core.models import GeoLocation
 
 
 def capitalize(word):
@@ -215,14 +216,6 @@ class Resource(object):
         '''Serializes this object, assuming that there is a queryset that needs
         to be serialized as a collection'''
 
-        if not embed:
-            data = {
-                'href': full_reverse(
-                    self.resource_name + '-list', self._request),
-                'title': capitalize(self.resource_name)
-            }
-            return data
-
         offset = 0
         limit = self.page_size
 
@@ -240,6 +233,15 @@ class Resource(object):
         href = full_reverse(self.resource_name + '-list', self._request)
         if self._filters:
             href += '?' + urlencode(self._filters.items())
+
+        if not embed:
+            # the actual items aren't embedded, we're just providing a link
+            # to this collection
+            data = {
+                'href': href,
+                'title': capitalize(self.resource_name)
+            }
+            return data
 
         serialized_data = {
             '_links': {
@@ -347,6 +349,14 @@ class Resource(object):
             for stub_field_name in self.stub_fields.keys():
                 new_obj_data[stub_field_name] = self.stub_object_finding(
                     new_obj_data, stub_field_name, self._data[stub_field_name])
+            # TODO: What if the obj doesn't support geolocation?
+            if 'geoLocation' in self._data:
+                dataloc = self._data['geoLocation']
+                loc = GeoLocation(elevation=dataloc.get('elevation', None),
+                                  latitude=dataloc['latitude'],
+                                  longitude=dataloc['longitude'])
+                loc.save()
+                new_obj_data['geo_location'] = loc
             # the query string may contain more object data, for instance if
             # we're posting to a child collection resource
 

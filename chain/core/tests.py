@@ -211,6 +211,9 @@ class ApiSitesTests(ChainTestCase):
         site = self.get_a_site()
         self.assertIn('ch:devices', site['_links'])
         self.assertIn('href', site['_links']['ch:devices'])
+        devices = self.get_resource(site['_links']['ch:devices']['href'])
+        db_site = Site.objects.get(name=site['name'])
+        self.assertEqual(devices['totalCount'], db_site.devices.count())
 
     def test_site_should_have_geolocation(self):
         site = self.get_a_site()
@@ -230,20 +233,33 @@ class ApiSitesTests(ChainTestCase):
         self.assertIn('rawZMQStream', site['_links'])
         self.assertIn('href', site['_links']['rawZMQStream'])
 
+    def test_sites_should_be_postable(self):
+        new_site = {
+            'geoLocation': {
+                'latitude': 42.360461,
+                'longitude': -71.087347,
+                'elevation': 12
+            },
+            'name': 'MIT Media Lab',
+            '_links': {
+                'rawZMQStream': {'href': 'tcp://example.com:8372'}
+            }
+        }
+        response = self.post_resource(SITES_URL, new_site)
+        db_obj = Site.objects.get(name='MIT Media Lab')
+        self.assertEqual(new_site['name'], response['name'])
+        self.assertEqual(new_site['name'], db_obj.name)
+        self.assertEqual(new_site['_links']['rawZMQStream']['href'],
+                         response['_links']['rawZMQStream']['href'])
+        self.assertEqual(new_site['_links']['rawZMQStream']['href'],
+                         db_obj.raw_zmq_stream)
+        for field in ['latitude', 'longitude', 'elevation']:
+            self.assertEqual(new_site['geoLocation'][field],
+                             response['geoLocation'][field])
+            self.assertEqual(new_site['geoLocation'][field],
+                             getattr(db_obj.geo_location, field))
+
 #class ApiTest(ChainTestCase):
-#
-#    def test_sites_should_be_postable(self):
-#        new_site = {
-#            "_type": "site",
-#            "latitude": 42.360461,
-#            "longitude": -71.087347,
-#            "name": "MIT Media Lab"
-#        }
-#        response = self.post_resource(SITES_URL, new_site)
-#        db_obj = Site.objects.get(name='MIT Media Lab')
-#        for field in ['latitude', 'longitude', 'name']:
-#            self.assertEqual(new_site[field], response[field])
-#            self.assertEqual(new_site[field], getattr(db_obj, field))
 #
 #    def test_devices_should_be_postable_to_a_site(self):
 #        sites_coll = self.get_resource(SITES_URL)['data']

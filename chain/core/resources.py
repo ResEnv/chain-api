@@ -78,6 +78,13 @@ class SiteResource(Resource):
                     'title': 'Raw ZMQ Stream'}
         return data
 
+    def deserialize(self):
+        super(SiteResource, self).deserialize()
+        if '_links' in self._data and 'rawZMQStream' in self._data['_links']:
+            self._obj.raw_zmq_stream = \
+                self._data['_links']['rawZMQStream']['href']
+        return self._obj
+
 
 class ApiRootResource(Resource):
 
