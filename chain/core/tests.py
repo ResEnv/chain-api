@@ -6,6 +6,7 @@ from datetime import datetime
 import json
 from chain.core.api import HTTP_STATUS_SUCCESS, HTTP_STATUS_CREATED
 from django.utils.timezone import make_aware, utc
+from chain.core.hal import HALDoc
 
 HTTP_STATUS_NOT_ACCEPTABLE = 406
 HTTP_STATUS_NOT_FOUND = 404
@@ -17,6 +18,50 @@ SITES_URL = BASE_API_URL + 'sites/'
 
 ACCEPT_TAIL = 'application/xhtml+xml,application/xml;q=0.9,\
         image/webp,*/*;q=0.8'
+
+
+class HalTests(TestCase):
+    def setUp(self):
+        self.test_doc = {
+            '_links': {'self': {'href': 'http://example.com'}},
+            'attr1': 1,
+            'attr2': 2
+        }
+
+    def test_basic_attrs_are_available(self):
+        haldoc = HALDoc(self.test_doc)
+        self.assertEqual(haldoc.attr1, self.test_doc['attr1'])
+        self.assertEqual(haldoc.attr2, self.test_doc['attr2'])
+
+    def test_links_is_an_attr_without_underscore(self):
+        haldoc = HALDoc(self.test_doc)
+        self.assertIn('self', haldoc.links)
+
+    def test_link_href_is_available_as_attr(self):
+        haldoc = HALDoc(self.test_doc)
+        self.assertEqual(haldoc.links.self.href,
+                         self.test_doc['_links']['self']['href'])
+
+    def test_exception_raised_if_no_href_in_link(self):
+        no_href = {'_links': {'nohref': {'title': 'A Title'}}}
+        with self.assertRaises(ValueError):
+            HALDoc(no_href)
+
+    def test_links_should_allow_lists(self):
+        doc = {
+            '_links': {
+                'self': {'href': 'http://example.com'},
+                'children': [
+                    {'href': 'http://example.com/children/1'},
+                    {'href': 'http://example.com/children/2'}
+                ]
+            }
+        }
+        haldoc = HALDoc(doc)
+        self.assertEquals(haldoc.links.children[0].href,
+                          doc['_links']['children'][0]['href'])
+        self.assertEquals(haldoc.links.children[1].href,
+                          doc['_links']['children'][1]['href'])
 
 
 class ChainTestCase(TestCase):
@@ -76,9 +121,12 @@ class ChainTestCase(TestCase):
                                    HTTP_ACCEPT=accept_header)
         self.assertEqual(response.status_code, HTTP_STATUS_SUCCESS)
         self.assertEqual(response['Content-Type'], mime_type)
-        if mime_type in ['application/json', 'application/hal+json']:
+        if mime_type == 'application/hal+json':
+            return HALDoc(json.loads(response.content))
+        elif mime_type == 'application/json':
             return json.loads(response.content)
-        return response.content
+        else:
+            return response.content
 
     def post_resource(self, url, resource, mime_type='application/hal+json'):
         accept_header = mime_type + ',' + ACCEPT_TAIL
@@ -87,23 +135,25 @@ class ChainTestCase(TestCase):
                                     HTTP_ACCEPT=accept_header)
         self.assertEqual(response.status_code, HTTP_STATUS_CREATED)
         self.assertEqual(response['Content-Type'], mime_type)
-        data = json.loads(response.content)
-        return data
+        if mime_type == 'application/hal+json':
+            return HALDoc(json.loads(response.content))
+        elif mime_type == 'application/json':
+            return json.loads(response.content)
+        else:
+            return response.content
 
     def get_a_site(self, mime_type='application/hal+json'):
         '''GETs a site through the API for testing'''
         if mime_type != 'application/hal+json':
             raise NotImplementedError('Only application/hal+json supported')
         base_response = self.get_resource(BASE_API_URL)
-        self.assertIn('_links', base_response)
-        self.assertIn('ch:sites', base_response['_links'])
-        self.assertIn('href', base_response['_links']['ch:sites'])
-        sites_url = base_response['_links']['ch:sites']['href']
+        self.assertIn('ch:sites', base_response.links)
+        self.assertIn('href', base_response.links['ch:sites'])
+        sites_url = base_response.links['ch:sites'].href
         sites = self.get_resource(sites_url)
-        self.assertIn('_links', sites)
-        self.assertIn('items', sites['_links'])
-        self.assertIn('href', sites['_links']['items'][0])
-        site_url = sites['_links']['items'][0]['href']
+        self.assertIn('items', sites.links)
+        self.assertIn('href', sites.links.items[0])
+        site_url = sites.links.items[0].href
         # following the link like a good RESTful client
         return self.get_resource(site_url)
 
@@ -142,20 +192,19 @@ class ApiRootTests(ChainTestCase):
     def test_root_should_have_self_rel(self):
         root = self.get_resource(BASE_API_URL,
                                  mime_type='application/hal+json')
-        self.assertIn('_links', root)
-        self.assertIn('self', root['_links'])
-        self.assertIn('href', root['_links']['self'])
+        self.assertIn('self', root.links)
+        self.assertIn('href', root.links.self)
 
-    def test_root_should_have_curries_link(self):
+    def test_root_should_have_curies_link(self):
         data = self.get_resource(BASE_API_URL)
-        curies = data['_links']['curies']
-        self.assertEqual(curies[0]['name'], 'ch')
-        self.assertRegexpMatches(curies[0]['href'], 'http://.*')
+        curies = data.links.curies
+        self.assertEqual(curies[0].name, 'ch')
+        self.assertRegexpMatches(curies[0].href, 'http://.*')
 
     def test_root_should_have_sites_link(self):
         data = self.get_resource(BASE_API_URL)
-        sites_coll = data['_links']['ch:sites']
-        self.assertRegexpMatches(sites_coll['href'], 'http://.*' + SITES_URL)
+        sites_coll = data.links['ch:sites']
+        self.assertRegexpMatches(sites_coll.href, 'http://.*' + SITES_URL)
 
 
 class ApiSitesTests(ChainTestCase):
@@ -167,71 +216,66 @@ class ApiSitesTests(ChainTestCase):
 
     def test_sites_should_have_self_rel(self):
         sites = self.get_sites()
-        self.assertIn('_links', sites)
-        self.assertIn('self', sites['_links'])
-        self.assertIn('href', sites['_links']['self'])
+        self.assertIn('href', sites.links.self)
 
     def test_sites_should_have_curries_link(self):
         sites = self.get_sites()
-        curies = sites['_links']['curies']
-        self.assertEqual(curies[0]['name'], 'ch')
-        self.assertRegexpMatches(curies[0]['href'], 'http://.*')
+        curies = sites.links.curies
+        self.assertEqual(curies[0].name, 'ch')
+        self.assertRegexpMatches(curies[0].href, 'http://.*')
 
     def test_sites_should_have_createform_link(self):
         sites = self.get_sites()
-        self.assertIn('createForm', sites['_links'])
-        self.assertIn('href', sites['_links']['createForm'])
-        self.assertEqual(sites['_links']['createForm']['title'], 'Create Site')
+        self.assertIn('createForm', sites.links)
+        self.assertIn('href', sites.links.createForm)
+        self.assertEqual(sites.links.createForm.title, 'Create Site')
 
     def test_sites_should_have_items_link(self):
         sites = self.get_sites()
-        self.assertIn('items', sites['_links'])
+        self.assertIn('items', sites.links)
 
     def test_sites_links_should_have_title(self):
         sites = self.get_sites()
-        self.assertIn(sites['_links']['items'][0]['title'],
+        self.assertIn(sites.links.items[0].title,
                       [s.name for s in self.sites])
 
     def test_sites_collection_should_have_total_count(self):
         sites = self.get_sites()
-        self.assertEqual(sites['totalCount'], len(self.sites))
+        self.assertEqual(sites.totalCount, len(self.sites))
 
     def test_site_should_have_self_link(self):
         site = self.get_a_site()
-        self.assertIn('_links', site)
-        self.assertIn('self', site['_links'])
-        self.assertIn('href', site['_links']['self'])
+        self.assertIn('href', site.links.self)
 
     def test_site_should_have_name(self):
         site = self.get_a_site()
-        self.assertIn(site['name'],
-                      [s.name for s in self.sites])
+        self.assertIn(site.name, [s.name for s in self.sites])
 
     def test_site_should_have_devices_link(self):
         site = self.get_a_site()
-        self.assertIn('ch:devices', site['_links'])
-        self.assertIn('href', site['_links']['ch:devices'])
-        devices = self.get_resource(site['_links']['ch:devices']['href'])
-        db_site = Site.objects.get(name=site['name'])
-        self.assertEqual(devices['totalCount'], db_site.devices.count())
+        self.assertIn('ch:devices', site.links)
+        self.assertIn('href', site.links['ch:devices'])
+        devices = self.get_resource(site.links['ch:devices'].href)
+        db_site = Site.objects.get(name=site.name)
+        self.assertEqual(devices.totalCount, db_site.devices.count())
 
     def test_site_should_have_geolocation(self):
         site = self.get_a_site()
         self.assertIn('geoLocation', site)
-        self.assertIn('elevation', site['geoLocation'])
-        self.assertIn(site['geoLocation']['elevation'],
+        self.assertIn('elevation', site.geoLocation)
+        self.assertIn(site.geoLocation['elevation'],
                       [l.elevation for l in self.geo_locations])
-        self.assertIn('latitude', site['geoLocation'])
-        self.assertIn(site['geoLocation']['latitude'],
+        self.assertIn('latitude', site.geoLocation)
+        self.assertIn(site.geoLocation['latitude'],
                       [l.latitude for l in self.geo_locations])
-        self.assertIn('longitude', site['geoLocation'])
-        self.assertIn(site['geoLocation']['longitude'],
+        self.assertIn('longitude', site.geoLocation)
+        self.assertIn(site.geoLocation['longitude'],
                       [l.longitude for l in self.geo_locations])
 
     def test_site_should_have_tidmarsh_zmq_link(self):
         site = self.get_a_site()
-        self.assertIn('rawZMQStream', site['_links'])
-        self.assertIn('href', site['_links']['rawZMQStream'])
+        self.assertIn('rawZMQStream', site.links)
+        self.assertIn('href', site.links.rawZMQStream)
 
     def test_sites_should_be_postable(self):
         new_site = {
@@ -247,15 +291,15 @@ class ApiSitesTests(ChainTestCase):
         }
         response = self.post_resource(SITES_URL, new_site)
         db_obj = Site.objects.get(name='MIT Media Lab')
-        self.assertEqual(new_site['name'], response['name'])
+        self.assertEqual(new_site['name'], response.name)
         self.assertEqual(new_site['name'], db_obj.name)
         self.assertEqual(new_site['_links']['rawZMQStream']['href'],
-                         response['_links']['rawZMQStream']['href'])
+                         response.links.rawZMQStream.href)
         self.assertEqual(new_site['_links']['rawZMQStream']['href'],
                          db_obj.raw_zmq_stream)
         for field in ['latitude', 'longitude', 'elevation']:
             self.assertEqual(new_site['geoLocation'][field],
-                             response['geoLocation'][field])
+                             response.geoLocation[field])
             self.assertEqual(new_site['geoLocation'][field],
                              getattr(db_obj.geo_location, field))
 
