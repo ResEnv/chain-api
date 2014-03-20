@@ -18,6 +18,7 @@ class Site(models.Model):
     longitude = models.FloatField(null=True, blank=True)
     url = models.CharField(max_length=255, default='', blank=True)
     geo_location = models.OneToOneField(GeoLocation, null=True, blank=True)
+    raw_zmq_stream = models.CharField(max_length=255, default='', blank=True)
 
     def __repr__(self):
         return 'Site(name=%r, latitude=%r, longitude=%r, url=%r)' % (

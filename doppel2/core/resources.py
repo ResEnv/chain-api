@@ -68,6 +68,16 @@ class SiteResource(Resource):
     }
     queryset = Site.objects
 
+    def serialize_single(self, embed, cache):
+        data = super(SiteResource, self).serialize_single(embed, cache)
+        if embed:
+            stream = self._obj.raw_zmq_stream
+            if stream:
+                data['_links']['rawZMQStream'] = {
+                    'href': stream,
+                    'title': 'Raw ZMQ Stream'}
+        return data
+
 
 class ApiRootResource(Resource):
 

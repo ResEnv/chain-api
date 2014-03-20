@@ -87,7 +87,7 @@ def paginate_href(href, offset, limit):
     return urlunparse((scheme, netloc, path, params, query, fragment))
 
 
-class CollectionField:
+class CollectionField(object):
     '''A Collection field is a field on a resource that points to a child
     collection, e.g. an Author resource might have a 'books' field that is a
     collection of all the books by that author. By default the serialized data
@@ -110,7 +110,7 @@ class CollectionField:
                                               embed=self._embed, cache=cache)
 
 
-class ResourceField:
+class ResourceField(object):
     '''Describes a related single resource field, e.g. a Book resource might
     have an 'author' field that links (or embeds) the author resource'''
     def __init__(self, related_resource_class, parent_field_name, embed=False):
@@ -135,7 +135,7 @@ def serialize_geo_location(loc):
     }
 
 
-class Resource:
+class Resource(object):
     #TODO: errors (4xx, 5xx, etc.) should be returned JSON-encoded
 
     model = None

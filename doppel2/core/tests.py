@@ -34,8 +34,13 @@ class DoppelTestCase(TestCase):
         for loc in self.geo_locations:
             loc.save()
         self.sites = [
-            Site(name='Test Site 1', geo_location=self.geo_locations[0]),
-            Site(name='Test Site 2', geo_location=self.geo_locations[1])]
+            Site(name='Test Site 1',
+                 geo_location=self.geo_locations[0],
+                 raw_zmq_stream='tcp://example.com:8372'),
+            Site(name='Test Site 2',
+                 geo_location=self.geo_locations[1],
+                 raw_zmq_stream='tcp://example.com:8172')
+        ]
         for site in self.sites:
             site.save()
         num_devices = 5
@@ -90,8 +95,14 @@ class DoppelTestCase(TestCase):
         if mime_type != 'application/hal+json':
             raise NotImplementedError('Only application/hal+json supported')
         base_response = self.get_resource(BASE_API_URL)
+        self.assertIn('_links', base_response)
+        self.assertIn('ch:sites', base_response['_links'])
+        self.assertIn('href', base_response['_links']['ch:sites'])
         sites_url = base_response['_links']['ch:sites']['href']
         sites = self.get_resource(sites_url)
+        self.assertIn('_links', sites)
+        self.assertIn('items', sites['_links'])
+        self.assertIn('href', sites['_links']['items'][0])
         site_url = sites['_links']['items'][0]['href']
         # following the link like a good RESTful client
         return self.get_resource(site_url)
@@ -213,6 +224,11 @@ class ApiSitesTests(DoppelTestCase):
         self.assertIn('longitude', site['geoLocation'])
         self.assertIn(site['geoLocation']['longitude'],
                       [l.longitude for l in self.geo_locations])
+
+    def test_site_should_have_tidmarsh_zmq_link(self):
+        site = self.get_a_site()
+        self.assertIn('rawZMQStream', site['_links'])
+        self.assertIn('href', site['_links']['rawZMQStream'])
 
 #class ApiTest(DoppelTestCase):
 #
