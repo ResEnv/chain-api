@@ -1,6 +1,6 @@
 from django.test import TestCase
 from doppel2.core.models import ScalarData, Unit, Metric, Device, Sensor, Site
-from doppel2.core.api import Resource
+#from doppel2.core.api import Resource
 from datetime import datetime
 from django.db.models import Avg
 import json
@@ -79,11 +79,14 @@ class DoppelTestCase(TestCase):
 
     def get_a_site(self, mime_type='application/hal+json'):
         '''GETs a site through the API for testing'''
-        base_response = self.get_resource(BASE_API_URL, mime_type=mime_type)
-        sites = base_response['sites']['data']
-        site_url = sites[0]['_href']
+        if mime_type != 'application/hal+json':
+            raise NotImplementedError('Only application/hal+json supported')
+        base_response = self.get_resource(BASE_API_URL)
+        sites_url = base_response['_links']['ch:sites']['href']
+        sites = self.get_resource(sites_url)
+        site_url = sites['_links']['items'][0]['href']
         # following the link like a good RESTful client
-        return self.get_resource(site_url, mime_type=mime_type)
+        return self.get_resource(site_url)
 
     def get_a_device(self, mime_type='application/hal+json'):
         '''GETs a device through the API for testing'''
@@ -183,25 +186,20 @@ class ApiSitesTests(DoppelTestCase):
         sites = self.get_sites()
         self.assertIn('items', sites['_links'])
 
+    def test_sites_links_should_have_title(self):
+        sites = self.get_sites()
+        self.assertIn(sites['_links']['items'][0]['title'],
+                      [s.name for s in self.sites])
+
+    def test_sites_collection_should_have_total_count(self):
+        sites = self.get_sites()
+        self.assertEqual(sites['totalCount'], len(self.sites))
+
+    def test_site_should_have_self_link(self):
+        site = self.get_a_site()
+        self.assertIn('_links', site)
+
 #class ApiTest(DoppelTestCase):
-#    def test_base_sites_collection_should_have_metadata(self):
-#        data = self.get_resource(BASE_API_URL)
-#        sites_coll = data['sites']
-#        self.assertEqual(sites_coll['meta']['totalCount'], len(self.sites))
-#
-#    def test_sites_should_be_expanded_in_base_url(self):
-#        response = self.get_resource(BASE_API_URL)
-#        sites = response['sites']['data']
-#        self.assertIn(sites[0]['name'], [self.sites[0].name,
-#                                         self.sites[1].name])
-#
-#    def test_site_disp_field_should_be_name(self):
-#        site = self.get_a_site()
-#        self.assertEqual(site['name'], site['_disp'])
-#
-#    def test_collections_should_have_disp_field(self):
-#        site = self.get_a_site()
-#        self.assertIn('_disp', site['devices'])
 #
 #    def test_sites_should_be_postable(self):
 #        new_site = {

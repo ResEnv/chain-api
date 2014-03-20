@@ -157,22 +157,25 @@ class Resource:
         be serialized. Note that this only gets called from the top-level
         serialize() method, which handles checking whether we're in the
         cache'''
-        data = {
-            '_href': full_reverse(self.resource_name + '-single',
-                                  self._request, args=(self._obj.id,)),
-        }
-        disp = self.display_field
-        if disp in self.model_fields:
-            data['_disp'] = self.serialize_field(getattr(self._obj, disp))
-        elif disp in self.stub_fields.keys():
-            stub_data = getattr(self._obj, disp)
-            data['_disp'] = getattr(stub_data, self.stub_fields[disp])
-        else:
-            raise NotImplementedError(
-                'display_field must be a model field or stub field')
+        data = {}
         if not embed:
+            # this is just a link, don't embed the full object
+            data['href'] = full_reverse(self.resource_name + '-single',
+                                        self._request, args=(self._obj.id,))
+            title = self.display_field
+            if title in self.model_fields:
+                data['title'] = self.serialize_field(getattr(self._obj, title))
+            elif title in self.stub_fields.keys():
+                stub_data = getattr(self._obj, title)
+                data['title'] = getattr(stub_data, self.stub_fields[title])
+            else:
+                raise NotImplementedError(
+                    'display_field must be a model field or stub field')
             return data
-        data['_type'] = self.resource_type
+        data['_links'] = {
+            'self': {'href': full_reverse(self.resource_name + '-single',
+                                          self._request, args=(self._obj.id,))}
+        }
         for field_name in self.model_fields:
             data[field_name] = self.serialize_field(
                 getattr(self._obj, field_name))
@@ -197,7 +200,6 @@ class Resource:
 
         offset = 0
         limit = self.page_size
-        #import pdb; pdb.set_trace()
 
         if 'offset' in self._filters:
             offset = int(self._filters.pop('offset'))
@@ -222,28 +224,24 @@ class Resource:
                     'href': href,
                     'title': 'Create %s' % capitalize(self.resource_type)
                 }
-            }
+            },
+            'totalCount': total_count
         }
         if embed:
-            serialized_data.update(
-                {
-                    '_type': 'resource-list',
-                    'meta': {'totalCount': total_count},
-                    'data':
-                    [self.__class__(obj=obj, request=self._request).
-                        serialize(cache=cache) for obj in queryset]
-                })
+            serialized_data['_links']['items'] = [
+                self.__class__(obj=obj, request=self._request).
+                serialize(cache=cache, embed=False) for obj in queryset]
 
             if offset > 0:
                 # make previous link
                 prev_offset = offset - limit if offset - limit > 0 else 0
-                serialized_data['meta']['previous'] = {
+                serialized_data['_links']['previous'] = {
                     '_href': paginate_href(href, prev_offset, limit),
                     '_disp': '%d through %d' % (
                         prev_offset, prev_offset + limit - 1),
                 }
                 # make first link
-                serialized_data['meta']['first'] = {
+                serialized_data['_links']['first'] = {
                     '_href': paginate_href(href, 0, limit),
                     '_disp': '0 through %d' % (limit - 1),
                 }
