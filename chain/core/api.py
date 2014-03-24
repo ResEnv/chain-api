@@ -146,7 +146,7 @@ class Resource(object):
     page_size = 30
 
     def __init__(self, obj=None, queryset=None, data=None, request=None,
-                 filters=None):
+                 filters=None, limit=None, offset=None):
         if len([arg for arg in [obj, queryset, data] if arg]) != 1:
             logging.error(
                 'Exactly 1 object, queryset, or primitive data is required')
@@ -155,6 +155,8 @@ class Resource(object):
         self._obj = obj
         self._filters = filters or {}
         self._request = request
+        self._limit = limit or self.page_size
+        self._offset = offset or 0
 
     def serialize_single(self, embed, cache):
         '''Serializes this object, assuming that there is a single instance to
@@ -210,61 +212,47 @@ class Resource(object):
             return field_value.isoformat()
         return field_value
 
-    def get_page_params(self):
-        '''Extracts the offset and limit pagination parameters from the
-        filter we got from the query string'''
-        offset = 0
-        limit = self.page_size
-
-        if 'offset' in self._filters:
-            offset = self._filters['offset']
-        if 'limit' in self._filters:
-            limit = self._filters['limit']
-        return offset, limit
-
     def get_total_count(self):
         '''Gets the total number of objects in the queryset for this
         request, ignoring pagination'''
         qs = self._queryset
-        filt = dict(self._filters)
-        if 'offset' in filt:
-            del filt['offset']
-        if 'limit' in filt:
-            del filt['limit']
-        if filt:
-            qs = qs.filter(**filt)
+        if self._filters:
+            qs = qs.filter(**self._filters)
         return qs.count()
 
     def get_queryset(self):
         '''Returns the queryset resulting from this request, including
         all filtering, and pagination'''
-        offset, limit = self.get_page_params()
         queryset = self._queryset.filter(**self._filters)
-        return queryset[offset:offset + limit]
+        return queryset[self._offset:self._offset + self._limit]
 
     def get_href(self):
         '''Gives the URL for this resource, including any filtering
         and pagination query parameters'''
+        # TODO: use this for single views as well
         href = full_reverse(self.resource_name + '-list', self._request)
-        if self._filters:
-            href += '?' + urlencode(self._filters.items())
+        query_params = self._filters.items()
+        query_params.append(('offset', self._offset))
+        query_params.append(('limit', self._limit))
+        href += '?' + urlencode(query_params)
         return href
 
     def add_page_links(self, data, href):
-        offset, limit = self.get_page_params()
+        offset = self._offset
+        limit = self._limit
         total_count = self.get_total_count()
         if offset > 0:
             # make previous link
             prev_offset = offset - limit if offset - limit > 0 else 0
             data['_links']['previous'] = {
-                '_href': update_href(href, offset=prev_offset, limit=limit),
-                '_disp': '%d through %d' % (
+                'href': update_href(href, offset=prev_offset, limit=limit),
+                'title': '%d through %d' % (
                     prev_offset, prev_offset + limit - 1),
             }
             # make first link
             data['_links']['first'] = {
-                '_href': update_href(href, offset=0, limit=limit),
-                '_disp': '0 through %d' % (limit - 1),
+                'href': update_href(href, offset=0, limit=limit),
+                'title': '0 through %d' % (limit - 1),
             }
 
         if offset + limit < total_count:
@@ -273,19 +261,19 @@ class Resource(object):
                 next_page_end = offset + 2 * limit
             else:
                 next_page_end = total_count
-            data['meta']['next'] = {
-                '_href': update_href(href,
-                                     offset=(offset + limit),
-                                     limit=limit),
-                '_disp': '%d through %d' % (
+            data['_links']['next'] = {
+                'href': update_href(href,
+                                    offset=(offset + limit),
+                                    limit=limit),
+                'title': '%d through %d' % (
                     offset + limit, next_page_end - 1),
             }
             last_page_start = int(total_count / limit) * limit
-            data['meta']['last'] = {
-                '_href': update_href(href,
-                                     offset=last_page_start,
-                                     limit=limit),
-                '_disp': '%d through %d' % (
+            data['_links']['last'] = {
+                'href': update_href(href,
+                                    offset=last_page_start,
+                                    limit=limit),
+                'title': '%d through %d' % (
                     last_page_start, total_count - 1),
             }
         return data
@@ -438,9 +426,22 @@ class Resource(object):
     def list_view(cls, request):
 
         if request.method == 'GET':
+            offset = None
+            limit = None
             filters = request.GET.dict()
+            if 'offset' in filters:
+                try:
+                    offset = int(filters.pop('offset'))
+                except ValueError:
+                    pass
+            if 'limit' in filters:
+                try:
+                    limit = int(filters.pop('limit'))
+                except ValueError:
+                    pass
             response_data = cls(queryset=cls.queryset, request=request,
-                                filters=filters).serialize()
+                                filters=filters, offset=offset,
+                                limit=limit).serialize()
             return cls.render_response(response_data, request)
         elif request.method == 'POST':
             data = json.loads(request.body)

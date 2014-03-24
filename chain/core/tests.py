@@ -1,7 +1,7 @@
 from django.test import TestCase
 from chain.core.models import ScalarData, Unit, Metric, Device, Sensor, Site
 from chain.core.models import GeoLocation
-#from chain.core.api import Resource
+from chain.core.resources import DeviceResource
 from datetime import datetime
 import json
 from chain.core.api import HTTP_STATUS_SUCCESS, HTTP_STATUS_CREATED
@@ -422,43 +422,45 @@ class ApiSensorTests(ChainTestCase):
 
 
 # these tests are testing specific URL conventions within this application
-#class CollectionFilteringTests(ChainTestCase):
-#    def test_devices_can_be_filtered_by_site(self):
-#        full_devices_coll = self.get_resource(BASE_API_URL + 'devices/')
-#        filtered_devices_coll = self.get_resource(
-#            BASE_API_URL + 'devices/?site=%d' % self.sites[0].id)
-#        self.assertEqual(len(full_devices_coll.links.items), 5)
-#        self.assertEqual(len(filtered_devices_coll.links.items), 3)
-#
-#    def test_filtered_collection_has_filtered_url(self):
-#        site_id = self.sites[0].id
-#        coll = self.get_resource(
-#            BASE_API_URL + 'devices/?site=%d' % site_id)
-#        self.assertTrue(('site=%d' % site_id) in coll.links.self.href)
-#
-#    def test_device_collections_should_limit_to_default_page_size(self):
-#        site = self.get_a_site()
-#        devs_url = site['devices']['_href']
-#        # make sure we create more devices than will fit on a page
-#        for i in range(0, Resource.page_size + 1):
-#            dev = {'name': 'test dev %d' % i}
-#            self.post_resource(devs_url, dev)
-#        devs = self.get_resource(devs_url)
-#        self.assertEqual(len(devs['data']), Resource.page_size)
-#
-#    def test_pages_should_have_next_and_prev_links(self):
-#        site = self.get_a_site()
-#        devs_url = site['devices']['_href']
-#        # make sure we create more devices than will fit on a page
-#        for i in range(0, Resource.page_size + 1):
-#            dev = {'name': 'test dev %d' % i}
-#            self.post_resource(devs_url, dev)
-#        devs = self.get_resource(devs_url)
-#        self.assertIn('next', devs['meta'])
-#        self.assertNotIn('previous', devs['meta'])
-#        next_devs = self.get_resource(devs['meta']['next']['_href'])
-#        self.assertIn('previous', next_devs['meta'])
-#        self.assertNotIn('next', next_devs['meta'])
+class CollectionFilteringTests(ChainTestCase):
+    def test_devices_can_be_filtered_by_site(self):
+        full_devices_coll = self.get_resource(BASE_API_URL + 'devices/')
+        filtered_devices_coll = self.get_resource(
+            BASE_API_URL + 'devices/?site=%d' % self.sites[0].id)
+        self.assertEqual(len(full_devices_coll.links.items), 5)
+        self.assertEqual(len(filtered_devices_coll.links.items), 3)
+
+    def test_filtered_collection_has_filtered_url(self):
+        site_id = self.sites[0].id
+        coll = self.get_resource(
+            BASE_API_URL + 'devices/?site=%d' % site_id)
+        self.assertTrue(('site=%d' % site_id) in coll.links.self.href)
+
+    def test_device_collections_should_limit_to_default_page_size(self):
+        site = self.get_a_site()
+        devices = self.get_resource(site.links['ch:devices'].href)
+        create_url = devices.links['createForm'].href
+        # make sure we create more devices than will fit on a page
+        for i in range(0, DeviceResource.page_size + 1):
+            dev = {'name': 'test dev %d' % i}
+            self.post_resource(create_url, dev)
+        devs = self.get_resource(BASE_API_URL + 'devices/')
+        self.assertEqual(len(devs.links.items), DeviceResource.page_size)
+
+    def test_pages_should_have_next_and_prev_links(self):
+        site = self.get_a_site()
+        devices = self.get_resource(site.links['ch:devices'].href)
+        create_url = devices.links['createForm'].href
+        # make sure we create more devices than will fit on a page
+        for i in range(0, DeviceResource.page_size + 1):
+            dev = {'name': 'test dev %d' % i}
+            self.post_resource(create_url, dev)
+        devs = self.get_resource(site.links['ch:devices'].href)
+        self.assertIn('next', devs.links)
+        self.assertNotIn('previous', devs.links)
+        next_devs = self.get_resource(devs.links.next.href)
+        self.assertIn('previous', next_devs.links)
+        self.assertNotIn('next', next_devs.links)
 
 
 class HTMLTests(ChainTestCase):
