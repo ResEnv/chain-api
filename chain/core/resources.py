@@ -5,15 +5,42 @@ from chain.core.models import Site, Device, Sensor, ScalarData
 from django.conf.urls import include, patterns, url
 
 
+def capitalize(word):
+    return word[0].upper() + word[1:]
+
+
 class SensorDataResource(Resource):
     model = ScalarData
     display_field = 'timestamp'
     resource_name = 'data'
     resource_type = 'data'
     model_fields = ['timestamp', 'value']
-    order_by = ['timestamp']
     queryset = ScalarData.objects
     page_size = 4000
+
+    def serialize_list(self, embed, cache):
+        if not embed:
+            return super(SensorDataResource, self).serialize_list(embed, cache)
+
+        href = self.get_href()
+
+        serialized_data = {
+            '_links': {
+                'self': {'href': href},
+                'curies': CHAIN_CURIES,
+                'createForm': {
+                    'href': href,
+                    'title': 'Add Data'
+                }
+            },
+            'totalCount': self.get_total_count()
+        }
+        objs = self.get_queryset()
+        serialized_data['_links']['items'] = [
+            self.__class__(obj=obj, request=self._request).
+            serialize(cache=cache, embed=False) for obj in objs]
+        serialized_data = self.add_page_links(serialized_data, href)
+        return serialized_data
 
 
 class SensorResource(Resource):
@@ -23,9 +50,7 @@ class SensorResource(Resource):
     resource_name = 'sensors'
     resource_type = 'sensor'
 
-    # TODO: add value and updated_timestamp attributes
     # for now, name is hardcoded as the only attribute of metric and unit
-    callback_fields = ['timestamp', 'value']
     stub_fields = {'metric': 'name', 'unit': 'name'}
     queryset = Sensor.objects
     related_fields = {
@@ -34,6 +59,17 @@ class SensorResource(Resource):
         'ch:device': ResourceField('chain.core.resources.DeviceResource',
                                    'device')
     }
+
+    def serialize_single(self, embed, cache):
+        data = super(SensorResource, self).serialize_single(embed, cache)
+        if embed:
+            data['dataType'] = 'float'
+            last_data = self._obj.scalar_data.order_by(
+                'timestamp').reverse()[:1]
+            if last_data:
+                data['scalar_value'] = last_data[0].value
+                data['updated'] = last_data[0].timestamp.isoformat()
+        return data
 
 
 class DeviceResource(Resource):

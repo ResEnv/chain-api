@@ -395,6 +395,11 @@ class ApiSensorTests(ChainTestCase):
         sensor = self.get_a_sensor()
         self.assertIn('ch:device', sensor.links)
 
+    def test_sensor_should_have_value_and_timestamp(self):
+        sensor = self.get_a_sensor()
+        self.assertIn('scalar_value', sensor)
+        self.assertIn('updated', sensor)
+
 
 #class ApiSensorDataTests(ChainTestCase):
 #    def test_sensor_data_should_have_timestamp_and_value(self):
@@ -403,7 +408,7 @@ class ApiSensorTests(ChainTestCase):
 #            sensor.links['ch:data_history'].href)
 #        self.assertIn('timestamp', sensor_data.data[0])
 #        self.assertIn('value', sensor_data.data[0])
-
+#
 #    def test_sensor_data_should_be_postable(self):
 #        sensor = self.get_a_sensor()
 #        data_url = sensor['history']['_href']
@@ -417,19 +422,19 @@ class ApiSensorTests(ChainTestCase):
 
 
 # these tests are testing specific URL conventions within this application
-class CollectionFilteringTests(ChainTestCase):
-    def test_devices_can_be_filtered_by_site(self):
-        full_devices_coll = self.get_resource(BASE_API_URL + 'devices/')
-        filtered_devices_coll = self.get_resource(
-            BASE_API_URL + 'devices/?site=%d' % self.sites[0].id)
-        self.assertEqual(len(full_devices_coll.links.items), 5)
-        self.assertEqual(len(filtered_devices_coll.links.items), 3)
-
-    def test_filtered_collection_has_filtered_url(self):
-        site_id = self.sites[0].id
-        coll = self.get_resource(
-            BASE_API_URL + 'devices/?site=%d' % site_id)
-        self.assertTrue(('site=%d' % site_id) in coll.links.self.href)
+#class CollectionFilteringTests(ChainTestCase):
+#    def test_devices_can_be_filtered_by_site(self):
+#        full_devices_coll = self.get_resource(BASE_API_URL + 'devices/')
+#        filtered_devices_coll = self.get_resource(
+#            BASE_API_URL + 'devices/?site=%d' % self.sites[0].id)
+#        self.assertEqual(len(full_devices_coll.links.items), 5)
+#        self.assertEqual(len(filtered_devices_coll.links.items), 3)
+#
+#    def test_filtered_collection_has_filtered_url(self):
+#        site_id = self.sites[0].id
+#        coll = self.get_resource(
+#            BASE_API_URL + 'devices/?site=%d' % site_id)
+#        self.assertTrue(('site=%d' % site_id) in coll.links.self.href)
 #
 #    def test_device_collections_should_limit_to_default_page_size(self):
 #        site = self.get_a_site()

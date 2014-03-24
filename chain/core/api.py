@@ -73,17 +73,14 @@ def unlazy(given):
     return given
 
 
-def paginate_href(href, offset, limit):
+def update_href(href, **kwargs):
     '''Takes a link href as a string, and updates the query string with the
     given offset and limit'''
     scheme, netloc, path, params, query, fragment = urlparse(href)
     # Note that values from parse_qs are actually lists in order to accomodate
     # possible duplicate keys. make sure you encode with doseq=True
     query_params = parse_qs(query)
-    # if the limit and offset query params aren't already there they'll be
-    # created
-    query_params['offset'] = offset
-    query_params['limit'] = limit
+    query_params.update(kwargs)
     query = urlencode(query_params, doseq=True)
     return urlunparse((scheme, netloc, path, params, query, fragment))
 
@@ -146,8 +143,6 @@ class Resource(object):
     model_fields = []
     related_fields = {}
     stub_fields = {}
-    callback_fields = []
-    order_by = []
     page_size = 30
 
     def __init__(self, obj=None, queryset=None, data=None, request=None,
@@ -215,27 +210,91 @@ class Resource(object):
             return field_value.isoformat()
         return field_value
 
-    def serialize_list(self, embed, cache):
-        '''Serializes this object, assuming that there is a queryset that needs
-        to be serialized as a collection'''
-
+    def get_page_params(self):
+        '''Extracts the offset and limit pagination parameters from the
+        filter we got from the query string'''
         offset = 0
         limit = self.page_size
 
         if 'offset' in self._filters:
-            offset = int(self._filters.pop('offset'))
+            offset = self._filters['offset']
         if 'limit' in self._filters:
-            limit = int(self._filters.pop('limit'))
+            limit = self._filters['limit']
+        return offset, limit
 
-        total_count = self._queryset.filter(**self._filters).count()
+    def get_total_count(self):
+        '''Gets the total number of objects in the queryset for this
+        request, ignoring pagination'''
+        qs = self._queryset
+        filt = dict(self._filters)
+        if 'offset' in filt:
+            del filt['offset']
+        if 'limit' in filt:
+            del filt['limit']
+        if filt:
+            qs = qs.filter(**filt)
+        return qs.count()
+
+    def get_queryset(self):
+        '''Returns the queryset resulting from this request, including
+        all filtering, and pagination'''
+        offset, limit = self.get_page_params()
         queryset = self._queryset.filter(**self._filters)
-        if self.order_by:
-            queryset = queryset.order_by(*self.order_by)
-        queryset = queryset[offset:offset + limit]
+        return queryset[offset:offset + limit]
 
+    def get_href(self):
+        '''Gives the URL for this resource, including any filtering
+        and pagination query parameters'''
         href = full_reverse(self.resource_name + '-list', self._request)
         if self._filters:
             href += '?' + urlencode(self._filters.items())
+        return href
+
+    def add_page_links(self, data, href):
+        offset, limit = self.get_page_params()
+        total_count = self.get_total_count()
+        if offset > 0:
+            # make previous link
+            prev_offset = offset - limit if offset - limit > 0 else 0
+            data['_links']['previous'] = {
+                '_href': update_href(href, offset=prev_offset, limit=limit),
+                '_disp': '%d through %d' % (
+                    prev_offset, prev_offset + limit - 1),
+            }
+            # make first link
+            data['_links']['first'] = {
+                '_href': update_href(href, offset=0, limit=limit),
+                '_disp': '0 through %d' % (limit - 1),
+            }
+
+        if offset + limit < total_count:
+            # make next link
+            if offset + 2 * limit < total_count:
+                next_page_end = offset + 2 * limit
+            else:
+                next_page_end = total_count
+            data['meta']['next'] = {
+                '_href': update_href(href,
+                                     offset=(offset + limit),
+                                     limit=limit),
+                '_disp': '%d through %d' % (
+                    offset + limit, next_page_end - 1),
+            }
+            last_page_start = int(total_count / limit) * limit
+            data['meta']['last'] = {
+                '_href': update_href(href,
+                                     offset=last_page_start,
+                                     limit=limit),
+                '_disp': '%d through %d' % (
+                    last_page_start, total_count - 1),
+            }
+        return data
+
+    def serialize_list(self, embed, cache):
+        '''Serializes this object, assuming that there is a queryset that needs
+        to be serialized as a collection'''
+
+        href = self.get_href()
 
         if not embed:
             # the actual items aren't embedded, we're just providing a link
@@ -248,50 +307,21 @@ class Resource(object):
 
         serialized_data = {
             '_links': {
-                'self': {'href': paginate_href(href, offset, limit)},
+                'self': {'href': href},
                 'curies': CHAIN_CURIES,
                 'createForm': {
                     'href': href,
                     'title': 'Create %s' % capitalize(self.resource_type)
                 }
             },
-            'totalCount': total_count
+            'totalCount': self.get_total_count()
         }
+        queryset = self.get_queryset()
         serialized_data['_links']['items'] = [
             self.__class__(obj=obj, request=self._request).
             serialize(cache=cache, embed=False) for obj in queryset]
 
-        if offset > 0:
-            # make previous link
-            prev_offset = offset - limit if offset - limit > 0 else 0
-            serialized_data['_links']['previous'] = {
-                '_href': paginate_href(href, prev_offset, limit),
-                '_disp': '%d through %d' % (
-                    prev_offset, prev_offset + limit - 1),
-            }
-            # make first link
-            serialized_data['_links']['first'] = {
-                '_href': paginate_href(href, 0, limit),
-                '_disp': '0 through %d' % (limit - 1),
-            }
-
-        if offset + limit < total_count:
-            # make next link
-            if offset + 2 * limit < total_count:
-                next_page_end = offset + 2 * limit
-            else:
-                next_page_end = total_count
-            serialized_data['meta']['next'] = {
-                '_href': paginate_href(href, offset + limit, limit),
-                '_disp': '%d through %d' % (
-                    offset + limit, next_page_end - 1),
-            }
-            last_page_start = int(total_count / limit) * limit
-            serialized_data['meta']['last'] = {
-                '_href': paginate_href(href, last_page_start, limit),
-                '_disp': '%d through %d' % (
-                    last_page_start, total_count - 1),
-            }
+        serialized_data = self.add_page_links(serialized_data, href)
         return serialized_data
 
     def serialize(self, embed=True, cache=None):

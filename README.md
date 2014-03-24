@@ -376,8 +376,8 @@ buildings.
 * `name` (string) - Name of this site
 * `geoLocation` (elevation, latitude, longitude) - The geographic location of
   the site. All measurements are in meters.
-* `devices` (related resource) - A collection of all the devices in this site.
-  New devices can be POSTed to this collection to add them to this site.
+* `ch:devices` (related resource) - A collection of all the devices in this
+  site.  New devices can be POSTed to this collection to add them to this site.
 
 ### Example
 
@@ -410,12 +410,12 @@ A device that may contain several sensor channels.
 ### Resource Fields
 
 * `name` (string) - Name of this device
-* `site` (related resource) - The site this device is a part of
+* `ch:site` (related resource) - The site this device is a part of
 * `description` (string) - A longer description of this device
 * `building` (string) - The building the device is in
 * `floor` (string) - The floor of the building
 * `room` (string) - The room containing the device
-* `sensors` (related resource) - A collection of all the sensors in this
+* `ch:sensors` (related resource) - A collection of all the sensors in this
   device. New sensors can be POSTed to this collection to add them to this
   device.
 
@@ -455,11 +455,12 @@ TBD data types.
 
 ### Resource Fields
 
-* `device` (related resource) - The device this sensor is part of
-* `history` (related resource) - Collection of data from this sensor
+* `ch:device` (related resource) - The device this sensor is part of
+* `ch:data_history` (related resource) - Collection of data from this sensor
 * `metric` (string) - What the sensor is measuring (e.g. "temperature")
 * `unit` (string) - The unit the data is in, e.g. "kW-hr". This should be an
   abbreviation from the [QUDT unit list][qudt].
+* `dataType` (string) - Data type of this sensor. Currently there's only `float`
 * `updated` (ISO8601 timestamp) - Timestamp of the most recent update
 * `value` (various) - The most recent reading from this sensor. Currently only
   floating point sensors are supported, but in the future this could be an xyz
@@ -477,7 +478,7 @@ _TODO: We need to figure out a way to communicate the datatype_
             "templated": true
           }],
           "self": { "href": "/api/sensors/929" },
-          "ch:history": {
+          "ch:data_history": {
             "title": "History",
             "href": "/api/sensors/929/history"
           },
@@ -486,6 +487,7 @@ _TODO: We need to figure out a way to communicate the datatype_
             "href": "/api/devices/928",
           },
       },
+      "dataType": "float",
       "value": 23.5,
       "updated": "2014-03-12T13:37:27+00:00"
       "metric": "temperature",
