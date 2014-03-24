@@ -389,7 +389,7 @@ class ApiSensorTests(ChainTestCase):
 
     def test_sensor_should_have_data_url(self):
         sensor = self.get_a_sensor()
-        self.assertIn('ch:data_history', sensor.links)
+        self.assertIn('ch:dataHistory', sensor.links)
 
     def test_sensor_should_have_parent_link(self):
         sensor = self.get_a_sensor()
@@ -397,28 +397,47 @@ class ApiSensorTests(ChainTestCase):
 
     def test_sensor_should_have_value_and_timestamp(self):
         sensor = self.get_a_sensor()
-        self.assertIn('scalar_value', sensor)
+        self.assertIn('value', sensor)
         self.assertIn('updated', sensor)
 
+    def test_sensor_should_have_float_datatype(self):
+        sensor = self.get_a_sensor()
+        self.assertIn('dataType', sensor)
+        self.assertEquals(sensor.dataType, 'float')
 
-#class ApiSensorDataTests(ChainTestCase):
-#    def test_sensor_data_should_have_timestamp_and_value(self):
-#        sensor = self.get_a_sensor()
-#        sensor_data = self.get_resource(
-#            sensor.links['ch:data_history'].href)
-#        self.assertIn('timestamp', sensor_data.data[0])
-#        self.assertIn('value', sensor_data.data[0])
-#
-#    def test_sensor_data_should_be_postable(self):
-#        sensor = self.get_a_sensor()
-#        data_url = sensor['history']['_href']
-#        timestamp = make_aware(datetime(2013, 1, 1, 0, 0, 0), utc)
-#        data = {
-#            'value': 23,
-#            'timestamp': timestamp.isoformat()
-#        }
-#        self.post_resource(data_url, data)
-#        # TODO: actually make sure the posted data is correct
+
+class ApiSensorDataTests(ChainTestCase):
+    def test_sensor_data_should_have_timestamp_and_value(self):
+        sensor = self.get_a_sensor()
+        sensor_data = self.get_resource(
+            sensor.links['ch:dataHistory'].href)
+        self.assertIn('timestamp', sensor_data.data[0])
+        self.assertIn('value', sensor_data.data[0])
+
+    def test_sensor_data_should_have_data_type(self):
+        sensor = self.get_a_sensor()
+        sensor_data = self.get_resource(
+            sensor.links['ch:dataHistory'].href)
+        self.assertIn('dataType', sensor_data)
+        self.assertEqual('float', sensor_data.dataType)
+
+    def test_sensor_data_should_be_postable(self):
+        device = self.get_a_device()
+        sensor = self.get_a_sensor()
+        sensor_data = self.get_resource(
+            sensor.links['ch:dataHistory'].href)
+        data_url = sensor_data.links.createForm.href
+        timestamp = make_aware(datetime(2013, 1, 1, 0, 0, 0), utc)
+        data = {
+            'value': 23,
+            'timestamp': timestamp.isoformat()
+        }
+        self.post_resource(data_url, data)
+        db_data = ScalarData.objects.get(
+            sensor__metric__name=sensor.metric,
+            sensor__device__name=device.name,
+            timestamp=timestamp)
+        self.assertEqual(db_data.value, data['value'])
 
 
 # these tests are testing specific URL conventions within this application

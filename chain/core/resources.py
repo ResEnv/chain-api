@@ -19,6 +19,8 @@ class SensorDataResource(Resource):
     page_size = 4000
 
     def serialize_list(self, embed, cache):
+        '''a "list" of SensorData resources is actually represented
+        as a single resource with a list of data points'''
         if not embed:
             return super(SensorDataResource, self).serialize_list(embed, cache)
 
@@ -33,12 +35,15 @@ class SensorDataResource(Resource):
                     'title': 'Add Data'
                 }
             },
-            'totalCount': self.get_total_count()
+            'totalCount': self.get_total_count(),
+            'dataType': 'float'
         }
-        objs = self.get_queryset()
-        serialized_data['_links']['items'] = [
-            self.__class__(obj=obj, request=self._request).
-            serialize(cache=cache, embed=False) for obj in objs]
+        objs = self._queryset.filter(**self._filters).order_by('timestamp')
+        objs = objs[self._offset:self._offset + self._limit]
+        serialized_data['data'] = [{
+            'value': obj.value,
+            'timestamp': obj.timestamp.isoformat()}
+            for obj in objs]
         serialized_data = self.add_page_links(serialized_data, href)
         return serialized_data
 
@@ -54,8 +59,8 @@ class SensorResource(Resource):
     stub_fields = {'metric': 'name', 'unit': 'name'}
     queryset = Sensor.objects
     related_fields = {
-        'ch:data_history': CollectionField(SensorDataResource,
-                                           reverse_name='sensor'),
+        'ch:dataHistory': CollectionField(SensorDataResource,
+                                          reverse_name='sensor'),
         'ch:device': ResourceField('chain.core.resources.DeviceResource',
                                    'device')
     }
@@ -67,7 +72,7 @@ class SensorResource(Resource):
             last_data = self._obj.scalar_data.order_by(
                 'timestamp').reverse()[:1]
             if last_data:
-                data['scalar_value'] = last_data[0].value
+                data['value'] = last_data[0].value
                 data['updated'] = last_data[0].timestamp.isoformat()
         return data
 

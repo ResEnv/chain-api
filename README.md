@@ -456,7 +456,7 @@ TBD data types.
 ### Resource Fields
 
 * `ch:device` (related resource) - The device this sensor is part of
-* `ch:data_history` (related resource) - Collection of data from this sensor
+* `ch:dataHistory` (related resource) - Collection of data from this sensor
 * `metric` (string) - What the sensor is measuring (e.g. "temperature")
 * `unit` (string) - The unit the data is in, e.g. "kW-hr". This should be an
   abbreviation from the [QUDT unit list][qudt].
@@ -465,8 +465,6 @@ TBD data types.
 * `value` (various) - The most recent reading from this sensor. Currently only
   floating point sensors are supported, but in the future this could be an xyz
   position, GPS coordinate, image, etc.
-
-_TODO: We need to figure out a way to communicate the datatype_
 
 ### Example
 
@@ -478,7 +476,7 @@ _TODO: We need to figure out a way to communicate the datatype_
             "templated": true
           }],
           "self": { "href": "/api/sensors/929" },
-          "ch:data_history": {
+          "ch:dataHistory": {
             "title": "History",
             "href": "/api/sensors/929/history"
           },
@@ -497,24 +495,43 @@ _TODO: We need to figure out a way to communicate the datatype_
 Sensor Data
 -----------
 
-Sensor Data is the raw data captured by the sensors. Each Sensor Data resource
-represents a single data point, so the client is often looking at large
-aggregations of this data.
+Sensor Data is the raw data captured by the sensors. The `data` field is a list
+containing the actual data points. If necessary there are pagination links just
+like collection resources. There is also a `createForm` link which gives the
+URL to post data to this data set.
 
 ### Resource Fields
 
-* `value` (float) - The value of the sensor data
-* `timestamp` (ISO 8601 timestamp) - Timestamp marking when the data was
-  captured
+* `dataType` (string) - The type of the data, currently always "float"
+* `data` (list) - List of data, each of which is a JSON object with at least
+  a `value` key and a `timestamp` key. The type of the `value` key is determined
+  by the `datatype` attribute
+* `totalCount` (int) - The total number of data points in the collection. If the
+  total count is too large a single response may only have one page of data
 
 ### Example
 
     {
       "_links": {
-          "self": { "href": "/api/scalar_data/91830" }
+          "self": {"href": "/api/scalar_data/?device=9382"},
+          "curies": [{
+              "name": "ch",
+              "href": "/rels/{rel}",
+              "templated": true
+          }],
+          "createForm": {
+              "href": "/api/scalar_data/?device=9382",
+              "title": "Add Data"
+          }
       },
-      "value": 23.5,
-      "timestamp": "2014-03-12T13:37:27+00:00"
+      "dataType": "float",
+      "data": [
+        {"value": 23.5, "timestamp": "2014-03-12T13:37:27+00:00"},
+        {"value": 23.3, "timestamp": "2014-03-12T13:38:81+00:00"},
+        {"value": 22.9, "timestamp": "2014-03-12T13:39:75+00:00"},
+        {"value": 22.4, "timestamp": "2014-03-12T13:40:98+00:00"}
+      ],
+      "totalCount": 4
     }
 
 Dev Server Initial Setup
