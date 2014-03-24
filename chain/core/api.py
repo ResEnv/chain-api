@@ -182,8 +182,11 @@ class Resource(object):
                     'display_field must be a model field or stub field')
             return data
         data['_links'] = {
-            'self': {'href': full_reverse(self.resource_name + '-single',
-                                          self._request, args=(self._obj.id,))}
+            'self': {
+                'href': full_reverse(self.resource_name + '-single',
+                                     self._request, args=(self._obj.id,)),
+            },
+            'curies': CHAIN_CURIES
         }
         for field_name in self.model_fields:
             data[field_name] = self.serialize_field(

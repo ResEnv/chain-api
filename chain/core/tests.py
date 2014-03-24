@@ -142,35 +142,36 @@ class ChainTestCase(TestCase):
         else:
             return response.content
 
-    def get_a_site(self, mime_type='application/hal+json'):
+    def get_sites(self):
+        root = self.get_resource(BASE_API_URL)
+        sites_url = root.links['ch:sites'].href
+        return self.get_resource(sites_url)
+
+    def get_a_site(self):
         '''GETs a site through the API for testing'''
-        if mime_type != 'application/hal+json':
-            raise NotImplementedError('Only application/hal+json supported')
-        base_response = self.get_resource(BASE_API_URL)
-        self.assertIn('ch:sites', base_response.links)
-        self.assertIn('href', base_response.links['ch:sites'])
-        sites_url = base_response.links['ch:sites'].href
-        sites = self.get_resource(sites_url)
+        sites = self.get_sites()
         self.assertIn('items', sites.links)
         self.assertIn('href', sites.links.items[0])
         site_url = sites.links.items[0].href
         # following the link like a good RESTful client
         return self.get_resource(site_url)
 
-    def get_a_device(self, mime_type='application/hal+json'):
-        '''GETs a device through the API for testing'''
-        site = self.get_a_site(mime_type=mime_type)
-        devices_url = site['devices']['_href']
-        devices = self.get_resource(devices_url, mime_type=mime_type)
-        device_url = devices['data'][0]['_href']
-        return self.get_resource(device_url, mime_type=mime_type)
+    def get_devices(self):
+        site = self.get_a_site()
+        return self.get_resource(site.links['ch:devices'].href)
 
-    def get_a_sensor(self, mime_type='application/hal+json'):
-        device = self.get_a_device(mime_type=mime_type)
-        sensors_url = device['sensors']['_href']
-        sensors = self.get_resource(sensors_url, mime_type=mime_type)
-        sensor_url = sensors['data'][0]['_href']
-        return self.get_resource(sensor_url, mime_type=mime_type)
+    def get_a_device(self):
+        '''GETs a device through the API for testing'''
+        devices = self.get_devices()
+        return self.get_resource(devices.links.items[0].href)
+
+    def get_sensors(self):
+        device = self.get_a_device()
+        return self.get_resource(device.links['ch:sensors'].href)
+
+    def get_a_sensor(self):
+        sensors = self.get_sensors()
+        return self.get_resource(sensors.links.items[0].href)
 
 
 class SensorDataTest(ChainTestCase):
@@ -208,17 +209,17 @@ class ApiRootTests(ChainTestCase):
 
 
 class ApiSitesTests(ChainTestCase):
-    def get_sites(self):
-        root = self.get_resource(BASE_API_URL,
-                                 mime_type='application/hal+json')
-        sites_url = root['_links']['ch:sites']['href']
-        return self.get_resource(sites_url)
-
-    def test_sites_should_have_self_rel(self):
+    def test_sites_coll_should_have_self_rel(self):
         sites = self.get_sites()
         self.assertIn('href', sites.links.self)
 
-    def test_sites_should_have_curries_link(self):
+    def test_site_should_have_curies_link(self):
+        site = self.get_a_site()
+        curies = site.links.curies
+        self.assertEqual(curies[0].name, 'ch')
+        self.assertRegexpMatches(curies[0].href, 'http://.*')
+
+    def test_sites_coll_should_have_curies_link(self):
         sites = self.get_sites()
         curies = sites.links.curies
         self.assertEqual(curies[0].name, 'ch')
@@ -289,7 +290,9 @@ class ApiSitesTests(ChainTestCase):
                 'rawZMQStream': {'href': 'tcp://example.com:8372'}
             }
         }
-        response = self.post_resource(SITES_URL, new_site)
+        sites = self.get_sites()
+        response = self.post_resource(sites.links.createForm.href,
+                                      new_site)
         db_obj = Site.objects.get(name='MIT Media Lab')
         self.assertEqual(new_site['name'], response.name)
         self.assertEqual(new_site['name'], db_obj.name)
@@ -303,118 +306,104 @@ class ApiSitesTests(ChainTestCase):
             self.assertEqual(new_site['geoLocation'][field],
                              getattr(db_obj.geo_location, field))
 
-#class ApiTest(ChainTestCase):
-#
-#    def test_devices_should_be_postable_to_a_site(self):
-#        sites_coll = self.get_resource(SITES_URL)['data']
-#        dev_url = sites_coll[0]['devices']['_href']
-#        new_device = {
-#            "_type": "device",
-#            "building": "E14",
-#            "description": "A great device",
-#            "floor": "5",
-#            "name": "Thermostat 42",
-#            "room": "E14-548R"
-#        }
-#        self.post_resource(dev_url, new_device)
-#        db_device = Device.objects.get(name=new_device['name'])
-#        db_site = Site.objects.get(name=sites_coll[0]['name'])
-#        self.assertEqual(db_device.site, db_site)
-#
-#    def test_sensors_should_be_postable_to_existing_device(self):
-#        sites_coll = self.get_resource(SITES_URL)['data']
-#        dev_url = sites_coll[0]['devices']['_href']
-#        device = self.get_resource(dev_url)['data'][0]
-#
-#        pressure_metric = Metric(name='Pressure')
-#        pressure_metric.save()
-#
-#        dev_href = device['sensors']['_href']
-#        new_sensor = {
-#            "_type": "sensor",
-#            'metric': 'Pressure',
-#            'unit': 'C',
-#            'value': 0,
-#            'timestamp': 0,
-#        }
-#        self.post_resource(dev_href, new_sensor)
-#        db_sensor = Sensor.objects.get(metric=pressure_metric)
-#        self.assertEqual(pressure_metric, db_sensor.metric)
-#
-#    def test_sensors_should_be_postable_to_newly_posted_device(self):
-#        sites_coll = self.get_resource(SITES_URL)['data']
-#        dev_url = sites_coll[0]['devices']['_href']
-#
-#        new_device = {
-#            "_type": "device",
-#            "building": "E14",
-#            "description": "A great device",
-#            "floor": "5",
-#            "name": "Thermostat 42",
-#            "room": "E14-548R"
-#        }
-#        device = self.post_resource(dev_url, new_device)
-#
-#        pressure_metric = Metric(name='Pressure')
-#        pressure_metric.save()
-#        dev_href = device['sensors']['_href']
-#        new_sensor = {
-#            "_type": "sensor",
-#            'metric': 'Pressure',
-#            'unit': 'C',
-#            'value': 0,
-#            'timestamp': 0,
-#        }
-#        self.post_resource(dev_href, new_sensor)
-#        db_sensor = Sensor.objects.get(metric=pressure_metric)
-#        self.assertEqual(pressure_metric, db_sensor.metric)
-#
-#    def test_site_resource_should_have_devices(self):
-#        site = self.get_a_site()
-#        device_coll = self.get_resource(site['devices']['_href'])
-#        db_site = Site.objects.get(name=site['name'])
-#        self.assertEqual(len(device_coll['data']),
-#                         db_site.devices.count())
-#
-#    def test_devices_can_be_filtered_by_site(self):
-#        full_devices_coll = self.get_resource(BASE_API_URL + 'devices/')
-#        filtered_devices_coll = self.get_resource(
-#            BASE_API_URL + 'devices/?site=%d' % self.sites[0].id)
-#        self.assertEqual(len(full_devices_coll['data']), 5)
-#        self.assertEqual(len(filtered_devices_coll['data']), 3)
-#
-#    def test_filtered_collection_has_filtered_url(self):
-#        site_id = self.sites[0].id
-#        coll = self.get_resource(
-#            BASE_API_URL + 'devices/?site=%d' % site_id)
-#        self.assertTrue(('site=%d' % site_id) in coll['_href'])
-#
-#    def test_device_resource_should_have_sensors(self):
-#        device = self.get_a_device()
-#        self.assertIn('sensors', device)
-#        self.assertIn('_href', device['sensors'])
-#
-#    def test_site_should_link_to_device_coll(self):
-#        site = self.get_a_site()
-#        # a link is a resource with only _href and _disp fields
-#        self.assertIn('_href', site['devices'])
-#        self.assertIn('_disp', site['devices'])
-#        self.assertEquals(2, len(site['devices']))
-#
-#    def test_sensor_should_have_data_url(self):
-#        sensor = self.get_a_sensor()
-#        self.assertIn('_href', sensor['history'])
-#
+
+class ApiDeviceTests(ChainTestCase):
+    def test_device_should_have_sensors_link(self):
+        device = self.get_a_device()
+        self.assertIn('ch:sensors', device.links)
+        self.assertEqual('Sensors', device.links['ch:sensors'].title)
+
+    def test_device_should_have_site_link(self):
+        device = self.get_a_device()
+        self.assertIn('ch:site', device.links)
+
+    def test_device_should_have_curies_link(self):
+        device = self.get_a_device()
+        curies = device.links.curies
+        self.assertEqual(curies[0].name, 'ch')
+        self.assertRegexpMatches(curies[0].href, 'http://.*')
+
+    def test_devices_coll_should_have_curies_link(self):
+        devices = self.get_devices()
+        curies = devices.links.curies
+        self.assertEqual(curies[0].name, 'ch')
+        self.assertRegexpMatches(curies[0].href, 'http://.*')
+
+    def test_device_should_be_postable_to_a_site(self):
+        site = self.get_a_site()
+        devices = self.get_resource(site.links['ch:devices'].href)
+        dev_url = devices.links.createForm.href
+        new_device = {
+            "building": "E14",
+            "description": "A great device",
+            "floor": "5",
+            "name": "Unit Test Thermostat 42",
+            "room": "E14-548R"
+        }
+        self.post_resource(dev_url, new_device)
+        # make sure that a device now exists with the right name
+        db_device = Device.objects.get(name=new_device['name'])
+        # make sure that the device is set up in the right site
+        db_site = Site.objects.get(name=site['name'])
+        self.assertEqual(db_device.site, db_site)
+
+
+class ApiSensorTests(ChainTestCase):
+    def test_sensors_should_be_postable_to_existing_device(self):
+        device = self.get_a_device()
+        sensors = self.get_resource(device.links['ch:sensors'].href)
+        sensor_url = sensors.links['createForm'].href
+
+        new_sensor = {
+            'metric': 'Bridge Length',
+            'unit': 'Smoots',
+        }
+        self.post_resource(sensor_url, new_sensor)
+        db_sensor = Sensor.objects.get(metric__name='Bridge Length',
+                                       device__name=device.name)
+        self.assertEqual('Smoots', db_sensor.unit.name)
+
+    def test_sensors_should_be_postable_to_newly_posted_device(self):
+        site = self.get_a_site()
+        devices = self.get_resource(site.links['ch:devices'].href)
+
+        new_device = {
+            "building": "E14",
+            "description": "A great device",
+            "floor": "5",
+            "name": "Unit Test Thermostat 49382",
+            "room": "E14-548R"
+        }
+        device = self.post_resource(devices.links['createForm'].href,
+                                    new_device)
+
+        sensors = self.get_resource(device.links['ch:sensors'].href)
+        new_sensor = {
+            'metric': 'Beauty',
+            'unit': 'millihelen',
+        }
+        self.post_resource(sensors.links['createForm'].href, new_sensor)
+        db_sensor = Sensor.objects.get(metric__name='Beauty',
+                                       device__name=device.name)
+        self.assertEqual('millihelen', db_sensor.unit.name)
+
+    def test_sensor_should_have_data_url(self):
+        sensor = self.get_a_sensor()
+        self.assertIn('ch:data_history', sensor.links)
+
+    def test_sensor_should_have_parent_link(self):
+        sensor = self.get_a_sensor()
+        self.assertIn('ch:device', sensor.links)
+
+
+#class ApiSensorDataTests(ChainTestCase):
 #    def test_sensor_data_should_have_timestamp_and_value(self):
 #        sensor = self.get_a_sensor()
-#        sensor_data = self.get_resource(sensor['history']['_href'])
-#        self.assertIn('timestamp', sensor_data['data'][0])
-#        self.assertIn('value', sensor_data['data'][0])
-#
-#    def test_sensor_should_have_parent_link(self):
-#        sensor = self.get_a_sensor()
-#        self.assertIn('device', sensor)
-#
+#        sensor_data = self.get_resource(
+#            sensor.links['ch:data_history'].href)
+#        self.assertIn('timestamp', sensor_data.data[0])
+#        self.assertIn('value', sensor_data.data[0])
+
 #    def test_sensor_data_should_be_postable(self):
 #        sensor = self.get_a_sensor()
 #        data_url = sensor['history']['_href']
@@ -425,6 +414,22 @@ class ApiSitesTests(ChainTestCase):
 #        }
 #        self.post_resource(data_url, data)
 #        # TODO: actually make sure the posted data is correct
+
+
+# these tests are testing specific URL conventions within this application
+class CollectionFilteringTests(ChainTestCase):
+    def test_devices_can_be_filtered_by_site(self):
+        full_devices_coll = self.get_resource(BASE_API_URL + 'devices/')
+        filtered_devices_coll = self.get_resource(
+            BASE_API_URL + 'devices/?site=%d' % self.sites[0].id)
+        self.assertEqual(len(full_devices_coll.links.items), 5)
+        self.assertEqual(len(filtered_devices_coll.links.items), 3)
+
+    def test_filtered_collection_has_filtered_url(self):
+        site_id = self.sites[0].id
+        coll = self.get_resource(
+            BASE_API_URL + 'devices/?site=%d' % site_id)
+        self.assertTrue(('site=%d' % site_id) in coll.links.self.href)
 #
 #    def test_device_collections_should_limit_to_default_page_size(self):
 #        site = self.get_a_site()

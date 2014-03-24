@@ -106,7 +106,7 @@ which when followed gives you a full collection resource:
           {"href": "/children/8371", "title": "Child 2"},
           {"href": "/children/716", "title": "Child 3"}
         ]
-      ],
+      ]
     }
 
 or a collection resource with embedded children
@@ -418,8 +418,6 @@ A device that may contain several sensor channels.
 * `sensors` (related resource) - A collection of all the sensors in this
   device. New sensors can be POSTed to this collection to add them to this
   device.
-* `site` (related resource) - The site that this sensor is located at
-
 
 ### Example
 

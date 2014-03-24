@@ -29,10 +29,10 @@ class SensorResource(Resource):
     stub_fields = {'metric': 'name', 'unit': 'name'}
     queryset = Sensor.objects
     related_fields = {
-        'history': CollectionField(SensorDataResource,
-                                   reverse_name='sensor'),
-        'device': ResourceField('chain.core.resources.DeviceResource',
-                                'device')
+        'ch:data_history': CollectionField(SensorDataResource,
+                                           reverse_name='sensor'),
+        'ch:device': ResourceField('chain.core.resources.DeviceResource',
+                                   'device')
     }
 
 
@@ -45,9 +45,9 @@ class DeviceResource(Resource):
 
     model_fields = ['name', 'description', 'building', 'floor', 'room']
     related_fields = {
-        'sensors': CollectionField(SensorResource,
-                                   reverse_name='device'),
-        'site': ResourceField('chain.core.resources.SiteResource', 'site')
+        'ch:sensors': CollectionField(SensorResource,
+                                      reverse_name='device'),
+        'ch:site': ResourceField('chain.core.resources.SiteResource', 'site')
     }
     queryset = Device.objects
 
@@ -63,8 +63,7 @@ class SiteResource(Resource):
     display_field = 'name'
     model_fields = ['name']
     related_fields = {
-        'ch:devices': CollectionField(DeviceResource, reverse_name='site',
-                                      embed=False)
+        'ch:devices': CollectionField(DeviceResource, reverse_name='site')
     }
     queryset = Site.objects
 
