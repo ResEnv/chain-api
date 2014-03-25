@@ -1,56 +1,3 @@
-{% macro show_list(val) -%}
-    <ul class="list-group">
-        {% for subval in val %}
-            <li class="list-group-item">{{ show_value(subval) }}</li>
-        {% endfor %}
-    </ul> <!-- list-group -->
-{%- endmacro %}
-
-{% macro show_value(val) -%}
-    {% if val.items  %}
-        {{ show_dict(val, gen_id()) }}
-    {% elif val.__iter__ %}
-        {{ show_list(val) }}
-    {% else %}
-        {{ val }}
-    {% endif %}
-{%- endmacro %}
-
-{% macro show_dict(val, unique, collapsed=True) -%}
-    {% if '_href' in val and not '_type' in val %}
-        <!-- just a link -->
-        <a href={{ val._href }}>{{ val._disp }}</a>
-    {% else %}
-        <!-- either an embedded resource or normal dict -->
-        {% if '_disp' in val %}
-            <div class="panel panel-default">
-                <div class="panel-heading">
-                    <a class="list-group-item-header" href={{ val._href }}>{{ val._disp }}</a>
-                    <button type="button" class="btn btn-xs pull-right" data-toggle="collapse" data-target="#{{ unique }}">
-                        <span class="caret"></span>
-                    </button>
-                </div> <!-- panel-heading -->
-            {% if collapsed %}
-            <ul class="list-group collapse" id="{{ unique }}">
-            {% else %}
-            <ul class="list-group collapse in" id="{{ unique }}">
-            {% endif %}
-        {% else %}
-            <ul class="list-group">
-        {% endif %}
-            {% for key, subval in val.items() %}
-                {% if key[0] != '_' %}
-                    <li class="list-group-item">
-                        {{ key }}: {{ show_value(subval) }}
-                    </li>
-                {% endif %}
-            {% endfor %}
-        </ul>
-        {% if '_disp' in val %}
-            </div> <!-- panel -->
-        {% endif %}
-    {% endif %}
-{%- endmacro %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -61,6 +8,9 @@
 
     <!-- Bootstrap -->
     <link href="/static/lib/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+    <!-- RickShaw -->
+    <link rel="stylesheet" href="/static/lib/rickshaw.min.css">
+    <link type="text/css" rel="stylesheet" href="http://code.jquery.com/ui/1.10.4/themes/smoothness/jquery-ui.css">
     <style>
         .rickshaw_graph .detail .x_label {
             top: -30px;  /* workaround so hovers don't overlap when the point
@@ -83,17 +33,18 @@
         <div class="row">
             <div class="col-md-5">
                 <h3 id="chart-header" class="hidden">Data</h3>
-                <div id="chart_container">
+                <div id="chart-container">
                     <div id="y_axis"></div>
                     <div id="data-chart"></div>
                     <div id="slider"></div>
                 </div>
                 <h3>Resource</h3>
-                {{ show_dict(resource, gen_id(), False) }}
+                <div id="rendered-response"></div>
             </div>
             <div class="col-md-7">
                 <h3 class="text-right">Raw Response</h3>
-                <pre>{{ json_str }}</pre>
+                <pre id="raw-response"></pre>
+                </div>
             </div>
         </div>
     </div> <!-- container -->
@@ -106,51 +57,16 @@
     <script src="/static/lib/d3.min.js"></script>
     <script src="/static/lib/d3.layout.min.js"></script>
     <script src="/static/lib/rickshaw.min.js"></script>
-    <link rel="stylesheet" href="/static/lib/rickshaw.min.css">
-    <link type="text/css" rel="stylesheet" href="http://code.jquery.com/ui/1.10.4/themes/smoothness/jquery-ui.css">
+    <script src="/static/chainbrowser.js"></script>
+
     <script>
         var resource_data = {{ json_str }};
-        if((resource_data._type == "resource-list") &&
-                (resource_data.data.length > 0) &&
-                (resource_data.data[0]._type == "data")) {
-
-            $("#chart-header").removeClass("hidden")
-
-            data = []
-            for(i = 0; i < resource_data.data.length; i++) {
-                new_point = {
-                    x: Date.parse(resource_data.data[i].timestamp) / 1000,
-                    y: resource_data.data[i].value
-                }
-                data.push(new_point)
-            };
-
-            var graph = new Rickshaw.Graph( {
-                element: document.querySelector("#data-chart"),
-                // width: 580,
-                height: 250,
-                series: [ {
-                    name: 'Value',
-                    color: 'steelblue',
-                    data: data
-                } ]
-            } );
-            var xAxis = new Rickshaw.Graph.Axis.Time({
-                graph: graph,
-                timeFixture: new Rickshaw.Fixtures.Time.Local()
-            });
-            var yAxis = new Rickshaw.Graph.Axis.Y({graph: graph});
-            var hoverDetail = new Rickshaw.Graph.HoverDetail({
-                graph: graph,
-                xFormatter: function(x) {
-                    return new Date(x * 1000).toString();
-            }});
-            graph.render();
-
-            var slider = new Rickshaw.Graph.RangeSlider({
-                graph: graph,
-                element: document.querySelector('#slider')
-            });
+        $("#raw-response").text(JSON.stringify(resource_data, undefined, 2));
+        render_response(resource_data, $("#rendered-response"));
+        if(resource_data.hasOwnProperty("data") &&
+                resource_data.dataType == "float" &&
+                resource_data.totalCount > 0) {
+            render_chart(resource_data.data, $("#chart-container"));
         }
     </script>
 </body>
