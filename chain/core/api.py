@@ -2,14 +2,13 @@
 # -*- coding: utf-8 -*-
 import logging
 from django.conf.urls import patterns, url
+from django.db import models
 import json
 from django.http import HttpResponse
 from django.core.urlresolvers import reverse
 from django.views.decorators.csrf import csrf_exempt
 from datetime import datetime
 from jinja2 import Environment, PackageLoader
-import random
-import string
 from urlparse import urlparse, urlunparse, parse_qs
 from urllib import urlencode
 from chain.core.models import GeoLocation
@@ -17,6 +16,20 @@ from chain.core.models import GeoLocation
 
 def capitalize(word):
     return word[0].upper() + word[1:]
+
+
+def schema_type_from_model_field(field):
+    field_class = field.__class__
+    if field_class == models.FloatField:
+        return 'number', None
+    elif field_class in [models.CharField, models.TextField]:
+        return 'string', None
+    elif field_class == models.DateTimeField:
+        return 'string', 'datetime'
+    elif field_class == models.BooleanField:
+        return 'boolean', None
+    else:
+        raise NotImplementedError('Field type %s not recognized' % field_class)
 
 
 # TODO: this should get the URL dynamically
@@ -37,11 +50,6 @@ jinja_env = Environment(loader=PackageLoader('chain.core', 'templates'))
 def full_reverse(view_name, request, *args, **kwargs):
     partial_reverse = reverse(view_name, *args, **kwargs)
     return request.build_absolute_uri(partial_reverse)
-
-
-def gen_id(length=16):
-    '''Generates a random string usable as DOM element id'''
-    return ''.join(random.choice(string.lowercase) for i in range(length))
 
 
 # store the objects referenced lazily so we only need to use eval() the first
@@ -143,6 +151,7 @@ class Resource(object):
     model_fields = []
     related_fields = {}
     stub_fields = {}
+    required_fields = []
     page_size = 30
 
     def __init__(self, obj=None, queryset=None, data=None, request=None,
@@ -226,7 +235,7 @@ class Resource(object):
         queryset = self._queryset.filter(**self._filters)
         return queryset[self._offset:self._offset + self._limit]
 
-    def get_href(self):
+    def get_list_href(self):
         '''Gives the URL for this resource, including any filtering
         and pagination query parameters'''
         # TODO: use this for single views as well
@@ -235,6 +244,13 @@ class Resource(object):
         query_params.append(('offset', self._offset))
         query_params.append(('limit', self._limit))
         href += '?' + urlencode(query_params)
+        return href
+
+    def get_create_href(self):
+        href = full_reverse(self.resource_name + '-create', self._request)
+        query_params = self._filters.items()
+        if query_params:
+            href += '?' + urlencode(query_params)
         return href
 
     def add_page_links(self, data, href):
@@ -282,7 +298,7 @@ class Resource(object):
         '''Serializes this object, assuming that there is a queryset that needs
         to be serialized as a collection'''
 
-        href = self.get_href()
+        href = self.get_list_href()
 
         if not embed:
             # the actual items aren't embedded, we're just providing a link
@@ -298,7 +314,7 @@ class Resource(object):
                 'self': {'href': href},
                 'curies': CHAIN_CURIES,
                 'createForm': {
-                    'href': href,
+                    'href': self.get_create_href(),
                     'title': 'Create %s' % capitalize(self.resource_type)
                 }
             },
@@ -354,6 +370,14 @@ class Resource(object):
 
         return matching_related_obj
 
+    @classmethod
+    def model_has_field(cls, field_name):
+        try:
+            cls.model._meta.get_field_by_name(field_name)
+            return True
+        except models.FieldDoesNotExist:
+            return False
+
     def deserialize(self):
         '''Deserializes this instance and returns the object representation'''
 
@@ -370,8 +394,8 @@ class Resource(object):
             for stub_field_name in self.stub_fields.keys():
                 new_obj_data[stub_field_name] = self.stub_object_finding(
                     new_obj_data, stub_field_name, self._data[stub_field_name])
-            # TODO: What if the obj doesn't support geolocation?
-            if 'geoLocation' in self._data:
+            if self.model_has_field('geo_location') and \
+                    'geoLocation' in self._data:
                 dataloc = self._data['geoLocation']
                 loc = GeoLocation(elevation=dataloc.get('elevation', None),
                                   latitude=dataloc['latitude'],
@@ -407,8 +431,7 @@ class Resource(object):
                                     content_type=accept)
             elif accept == 'text/html':
                 context = {'resource': data,
-                           'json_str': json.dumps(data, indent=2),
-                           'gen_id': gen_id}
+                           'json_str': json.dumps(data, indent=2)}
                 template = jinja_env.get_template('resource.html')
                 return HttpResponse(template.render(**context),
                                     status=status,
@@ -424,37 +447,73 @@ class Resource(object):
     @classmethod
     @csrf_exempt
     def list_view(cls, request):
+        offset = None
+        limit = None
+        filters = request.GET.dict()
+        if 'offset' in filters:
+            try:
+                offset = int(filters.pop('offset'))
+            except ValueError:
+                pass
+        if 'limit' in filters:
+            try:
+                limit = int(filters.pop('limit'))
+            except ValueError:
+                pass
+        response_data = cls(queryset=cls.queryset, request=request,
+                            filters=filters, offset=offset,
+                            limit=limit).serialize()
+        return cls.render_response(response_data, request)
 
-        if request.method == 'GET':
-            offset = None
-            limit = None
-            filters = request.GET.dict()
-            if 'offset' in filters:
-                try:
-                    offset = int(filters.pop('offset'))
-                except ValueError:
-                    pass
-            if 'limit' in filters:
-                try:
-                    limit = int(filters.pop('limit'))
-                except ValueError:
-                    pass
-            response_data = cls(queryset=cls.queryset, request=request,
-                                filters=filters, offset=offset,
-                                limit=limit).serialize()
-            return cls.render_response(response_data, request)
-        elif request.method == 'POST':
-            data = json.loads(request.body)
-            obj_params = request.GET.dict()
-            if 'offset' in obj_params:
-                del obj_params['offset']
-            if 'limit' in obj_params:
-                del obj_params['limit']
-            new_object = cls(data=data, request=request, filters=obj_params)
-            new_object.save()
-            response_data = new_object.serialize()
-            return cls.render_response(response_data, request,
-                                       status=HTTP_STATUS_CREATED)
+    @classmethod
+    def get_field_schema_type(cls, field_name):
+        '''Returns the type string and format for a given field name, usable in
+        the schema definition. Format may be None'''
+        if field_name in cls.model_fields:
+            field = cls.model._meta.get_field_by_name(field_name)[0]
+        elif field_name in cls.stub_fields.keys():
+            stub_data = cls.model._meta.get_field_by_name(field_name)[0]
+            field = stub_data.rel.to._meta.get_field_by_name(
+                cls.stub_fields[field_name])[0]
+        else:
+            raise NotImplementedError(
+                "tried to look up field %s but didn't know where" % field_name)
+        # returns a (type, format) tuple
+        return schema_type_from_model_field(field)
+
+    @classmethod
+    def get_schema(cls):
+        '''Returns the JSON schema for this resource as a dictionary.
+        Subclasses should override this method'''
+        schema = {
+            'type': 'object',
+            'title': 'Create ' + capitalize(cls.resource_type),
+            'properties': {},
+            'required': cls.required_fields
+        }
+        for field_name in cls.model_fields + cls.stub_fields.keys():
+            sch_type, sch_format = cls.get_field_schema_type(field_name)
+            schema['properties'][field_name] = {
+                'type': sch_type,
+                'title': field_name
+            }
+            if sch_format:
+                schema['properties'][field_name]['format'] = sch_format
+            # don't allow empty strings in required fields
+            if field_name in cls.required_fields and sch_type == 'string':
+                    schema['properties'][field_name]['minLength'] = 1
+        if cls.model_has_field('geo_location'):
+            schema['properties']['geoLocation'] = {
+                'type': 'object',
+                'title': 'geoLocation',
+                'properties': {
+                    'latitude': {'type': 'number', 'title': 'latitude'},
+                    'longitude': {'type': 'number', 'title': 'longitude'},
+                    'elevation': {'type': 'number', 'title': 'elevation'}
+                },
+                'required': ['latitude', 'longitude']
+            }
+        return schema
 
     @classmethod
     def single_view(cls, request, id):
@@ -463,13 +522,31 @@ class Resource(object):
         return cls.render_response(response_data, request)
 
     @classmethod
+    @csrf_exempt
+    def create_view(cls, request):
+        if request.method == 'GET':
+            schema = cls.get_schema()
+            return cls.render_response(schema, request)
+
+        elif request.method == 'POST':
+            data = json.loads(request.body)
+            obj_params = request.GET.dict()
+            new_object = cls(data=data, request=request, filters=obj_params)
+            new_object.save()
+            response_data = new_object.serialize()
+            return cls.render_response(response_data, request,
+                                       status=HTTP_STATUS_CREATED)
+
+    @classmethod
     def urls(cls):
         base_name = cls.resource_name
         return patterns('',
                         url(r'^$',
                             cls.list_view, name=base_name + '-list'),
                         url(r'^(\d+)$',
-                            cls.single_view, name=base_name + '-single'))
+                            cls.single_view, name=base_name + '-single'),
+                        url(r'^create$',
+                            cls.create_view, name=base_name + '-create'))
 
 
 def handle404(request):

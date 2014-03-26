@@ -24,14 +24,14 @@ class SensorDataResource(Resource):
         if not embed:
             return super(SensorDataResource, self).serialize_list(embed, cache)
 
-        href = self.get_href()
+        href = self.get_list_href()
 
         serialized_data = {
             '_links': {
                 'self': {'href': href},
                 'curies': CHAIN_CURIES,
                 'createForm': {
-                    'href': href,
+                    'href': self.get_create_href(),
                     'title': 'Add Data'
                 }
             },
@@ -54,6 +54,7 @@ class SensorResource(Resource):
     display_field = 'metric'
     resource_name = 'sensors'
     resource_type = 'sensor'
+    required_fields = ['metric', 'unit']
 
     # for now, name is hardcoded as the only attribute of metric and unit
     stub_fields = {'metric': 'name', 'unit': 'name'}
@@ -83,7 +84,7 @@ class DeviceResource(Resource):
     display_field = 'name'
     resource_name = 'devices'
     resource_type = 'device'
-
+    required_fields = ['name']
     model_fields = ['name', 'description', 'building', 'floor', 'room']
     related_fields = {
         'ch:sensors': CollectionField(SensorResource,
@@ -103,6 +104,7 @@ class SiteResource(Resource):
     resource_type = 'site'
     display_field = 'name'
     model_fields = ['name']
+    required_fields = ['name']
     related_fields = {
         'ch:devices': CollectionField(DeviceResource, reverse_name='site')
     }
@@ -124,6 +126,17 @@ class SiteResource(Resource):
             self._obj.raw_zmq_stream = \
                 self._data['_links']['rawZMQStream']['href']
         return self._obj
+
+    @classmethod
+    def get_schema(cls):
+        #import pdb; pdb.set_trace()
+        schema = super(SiteResource, cls).get_schema()
+        schema['properties']['rawZMQStream'] = {
+            'type': 'string',
+            'format': 'uri',
+            'title': 'rawZMQStream'
+        }
+        return schema
 
 
 class ApiRootResource(Resource):

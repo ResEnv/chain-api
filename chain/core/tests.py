@@ -306,6 +306,39 @@ class ApiSitesTests(ChainTestCase):
             self.assertEqual(new_site['geoLocation'][field],
                              getattr(db_obj.geo_location, field))
 
+    def test_site_create_form_should_return_schema(self):
+        sites = self.get_sites()
+        site_schema = self.get_resource(sites.links.createForm.href)
+        self.assertIn('type', site_schema)
+        self.assertEquals(site_schema['type'], 'object')
+        self.assertIn('properties', site_schema)
+        self.assertIn('name', site_schema['properties'])
+        self.assertEquals(site_schema['properties']['name'],
+                          {'type': 'string', 'title': 'name', 'minLength': 1})
+        self.assertIn('rawZMQStream', site_schema['properties'])
+        self.assertEquals(site_schema['properties']['rawZMQStream'],
+                          {'type': 'string',
+                           'format': 'uri',
+                           'title': 'rawZMQStream'})
+        self.assertIn('required', site_schema)
+        self.assertEquals(site_schema['required'], ['name'])
+
+    def test_site_schema_should_include_geolocation(self):
+        sites = self.get_sites()
+        site_schema = self.get_resource(sites.links.createForm.href)
+        self.assertIn('properties', site_schema)
+        self.assertIn('geoLocation', site_schema['properties'])
+        self.assertEquals(site_schema['properties']['geoLocation'], {
+            'type': 'object',
+            'title': 'geoLocation',
+            'properties': {
+                'latitude': {'type': 'number', 'title': 'latitude'},
+                'longitude': {'type': 'number', 'title': 'longitude'},
+                'elevation': {'type': 'number', 'title': 'elevation'}
+            },
+            'required': ['latitude', 'longitude']
+        })
+
 
 class ApiDeviceTests(ChainTestCase):
     def test_device_should_have_sensors_link(self):
@@ -346,6 +379,41 @@ class ApiDeviceTests(ChainTestCase):
         # make sure that the device is set up in the right site
         db_site = Site.objects.get(name=site['name'])
         self.assertEqual(db_device.site, db_site)
+
+    def test_device_create_form_should_return_schema(self):
+        devices = self.get_devices()
+        device_schema = self.get_resource(devices.links.createForm.href)
+        self.assertIn('type', device_schema)
+        self.assertEquals(device_schema['type'], 'object')
+        self.assertIn('properties', device_schema)
+        self.assertIn('name', device_schema['properties'])
+        self.assertEquals(device_schema['properties']['name'],
+                          {'type': 'string',
+                           'title': 'name',
+                           'minLength': 1})
+        for field_name in ['description', 'building', 'floor', 'room']:
+            self.assertIn(field_name, device_schema['properties'])
+            self.assertEquals(device_schema['properties'][field_name],
+                              {'type': 'string',
+                               'title': field_name})
+        self.assertIn('required', device_schema)
+        self.assertEquals(device_schema['required'], ['name'])
+
+    def test_device_schema_should_include_geolocation(self):
+        devices = self.get_devices()
+        device_schema = self.get_resource(devices.links.createForm.href)
+        self.assertIn('properties', device_schema)
+        self.assertIn('geoLocation', device_schema['properties'])
+        self.assertEquals(device_schema['properties']['geoLocation'], {
+            'type': 'object',
+            'title': 'geoLocation',
+            'properties': {
+                'latitude': {'type': 'number', 'title': 'latitude'},
+                'longitude': {'type': 'number', 'title': 'longitude'},
+                'elevation': {'type': 'number', 'title': 'elevation'}
+            },
+            'required': ['latitude', 'longitude']
+        })
 
 
 class ApiSensorTests(ChainTestCase):

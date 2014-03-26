@@ -38,13 +38,14 @@
                     <div id="data-chart"></div>
                     <div id="slider"></div>
                 </div>
-                <h3>Resource</h3>
+                <h3 id="response-title"></h3>
+                <div id="submit-form"></div>
+                <button type="button" class="btn btn-primary btn-lg" id="submit-btn">Add</button>
                 <div id="rendered-response"></div>
             </div>
             <div class="col-md-7">
                 <h3 class="text-right">Raw Response</h3>
                 <pre id="raw-response"></pre>
-                </div>
             </div>
         </div>
     </div> <!-- container -->
@@ -57,12 +58,24 @@
     <script src="/static/lib/d3.min.js"></script>
     <script src="/static/lib/d3.layout.min.js"></script>
     <script src="/static/lib/rickshaw.min.js"></script>
+    <script src="/static/lib/jsoneditor.js"></script>
     <script src="/static/chainbrowser.js"></script>
 
     <script>
         var resource_data = {{ json_str }};
         $("#raw-response").text(JSON.stringify(resource_data, undefined, 2));
-        render_response(resource_data, $("#rendered-response"));
+        // all of the non-form hal+json responses have a _links field
+        if(resource_data._links) {
+            $("#response-title").text("Resource");
+            $("#submit-btn").hide();
+            render_response(resource_data, $("#rendered-response"));
+        }
+        else {
+            $("#response-title").hide();
+            render_form(resource_data,
+                        document.getElementById('submit-form'),
+                        document.getElementById('submit-btn'));
+        }
         if(resource_data.hasOwnProperty("data") &&
                 resource_data.dataType == "float" &&
                 resource_data.totalCount > 0) {

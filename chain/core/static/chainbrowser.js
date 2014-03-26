@@ -96,6 +96,32 @@ function render_chart(raw_data, element) {
     });
 }
 
+function render_dict(data, title, element) {
+    var attrs_panel = $("<div/>").addClass("panel").addClass("panel-default");
+    element.append(attrs_panel);
+    if(title !== null) {
+        var attrs_title = $("<div/>").addClass("panel-heading").text(title);
+        attrs_panel.append(attrs_title);
+    }
+    var attrs_ul = $("<ul/>").addClass("list-group");
+    attrs_panel.append(attrs_ul);
+    if(data) {
+        $.each(data, function(key, val) {
+            if(key != "_links" && key != "_embedded") {
+                var cell = $("<li/>").addClass("list-group-item");
+                attrs_ul.append(cell);
+                cell.append(key + ": ");
+                if($.isPlainObject(val)) {
+                    render_dict(val, null, cell);
+                }
+                else if(key != "data") {
+                    cell.append(val.toString());
+                }
+            }
+        })
+    }
+}
+
 function render_response(data, element) {
     links_panel = $("<div/>").addClass("panel").addClass("panel-default");
     element.append(links_panel);
@@ -105,43 +131,51 @@ function render_response(data, element) {
     rels_ul = $("<ul/>").addClass("list-group");
     links_panel.append(rels_ul);
 
-    $.each(data._links, function(rel, link) {
-        if(rel != "self" && rel != "curies") {
-            cell = $("<li/>").addClass("list-group-item");
-            rels_ul.append(cell);
-            cell.append(rel + ": ");
-            if($.isArray(link)) {
-                ul = $("<ul/>").addClass("list-group");
-                cell.append(ul)
-                $.each(link, function(i, link_item) {
-                    li = $("<li/>").addClass("list-group-item");
-                    ul.append(li)
-                    dest_link = $("<a/>").text(link_item.title).attr("href", link_item.href);
-                    li.append(dest_link);
-                })
+    if(data._links) {
+        $.each(data._links, function(rel, link) {
+            if(rel != "self" && rel != "curies") {
+                cell = $("<li/>").addClass("list-group-item");
+                rels_ul.append(cell);
+                cell.append(rel + ": ");
+                if($.isArray(link)) {
+                    ul = $("<ul/>").addClass("list-group");
+                    cell.append(ul)
+                    $.each(link, function(i, link_item) {
+                        li = $("<li/>").addClass("list-group-item");
+                        ul.append(li)
+                        dest_link = $("<a/>").text(link_item.title).attr("href", link_item.href);
+                        li.append(dest_link);
+                    })
+                }
+                else {
+                    // link is just a link, not a list of links
+                    dest_link = $("<a>").text(link.title).attr("href", link.href);
+                    cell.append(dest_link);
+                }
             }
-            else {
-                // link is just a link, not a list of links
-                dest_link = $("<a>").text(link.title).attr("href", link.href);
-                cell.append(dest_link);
-            }
-        }
-    })
+        })
+    }
 
-    attrs_panel = $("<div/>").addClass("panel").addClass("panel-default");
-    element.append(attrs_panel);
-    attrs_title = $("<div/>").addClass("panel-heading").text("Attributes");
-    attrs_panel.append(attrs_title);
-    attrs_ul = $("<ul/>").addClass("list-group");
-    attrs_panel.append(attrs_ul);
-    $.each(data, function(key, val) {
-        if(key != "_links" && key != "_embedded") {
-            cell = $("<li/>").addClass("list-group-item");
-            attrs_ul.append(cell);
-            cell.append(key + ": ");
-            if(key != "data") {
-                cell.append(val.toString());
-            }
+    render_dict(data, "Attributes", element);
+}
+
+function render_form(data, form_element, submit_btn) {
+    var form = new JSONEditor(form_element, {
+        schema: data,
+        theme: 'bootstrap3'
+    });
+    submit_btn.addEventListener('click', function() {
+        // Get the value from the editor
+        var errors = form.validate();
+        if(errors.length == 0) {
+            var form_json = JSON.stringify(form.getValue());
+            $.post(window.location.href, form_json, function(data) {
+                // redirect to the given page
+                window.location.href = data._links.self.href;
+            });
         }
-    })
+        else {
+            alert("Form Validation Errors");
+        }
+    });
 }
