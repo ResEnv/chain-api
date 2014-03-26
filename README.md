@@ -319,15 +319,26 @@ resource, e.g.
 Posting Data
 ------------
 
-You'll see in the above collection payload a "createForm" rel, which is a link
+You'll see in the above collection payload a `createForm` rel, which is a link
 that you can use to add new elements to the collection. Issuing a GET request
-to the createForm link will return a document in [JSON-schema][json-schema]
+to the `createForm` link will return a document in [JSON-schema][json-schema]
 format that tells the client what format the resource should take. POSTing to
 the link in the proper format will create a new resource and will return it
 with an HTTP 201 Created status.
 
-_Note that this form behavior is not yet implemented_
+Editing Data
+------------
 
+When the client is able to edit a resource, there will be an `editForm` rel.
+As with `createForm`, sending a GET request to this URL will return a
+[JSON-schema][json-schema] document. The default values given in the schema are
+the current vaues for the resource being edited. POSTing to the URL with the
+updated JSON data will update the resource.
+
+Details on the `createForm` and `editForm` rels can be found in
+[RFC6861][rfc6861]. Note that, following JSON conventions and to make things
+easier on clients, we have modified the standard hyphonated rel names to
+camelCase.
 
 The Chain API
 =============
@@ -605,6 +616,7 @@ and access it from your host machine's browser at
 
 [hal]: http://stateless.co/hal_specification.html
 [hal-spec]: http://tools.ietf.org/html/draft-kelly-json-hal-06
+[rfc6861]: http://tools.ietf.org/html/rfc6861
 [rfc5988]: http://tools.ietf.org/html/rfc5988
 [rfc1808]: http://tools.ietf.org/html/rfc1808
 [curie-w3c]: http://www.w3.org/TR/curie/

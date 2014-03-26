@@ -286,9 +286,7 @@ class ApiSitesTests(ChainTestCase):
                 'elevation': 12
             },
             'name': 'MIT Media Lab',
-            '_links': {
-                'rawZMQStream': {'href': 'tcp://example.com:8372'}
-            }
+            'rawZMQStream': 'tcp://example.com:8372'
         }
         sites = self.get_sites()
         response = self.post_resource(sites.links.createForm.href,
@@ -296,9 +294,9 @@ class ApiSitesTests(ChainTestCase):
         db_obj = Site.objects.get(name='MIT Media Lab')
         self.assertEqual(new_site['name'], response.name)
         self.assertEqual(new_site['name'], db_obj.name)
-        self.assertEqual(new_site['_links']['rawZMQStream']['href'],
+        self.assertEqual(new_site['rawZMQStream'],
                          response.links.rawZMQStream.href)
-        self.assertEqual(new_site['_links']['rawZMQStream']['href'],
+        self.assertEqual(new_site['rawZMQStream'],
                          db_obj.raw_zmq_stream)
         for field in ['latitude', 'longitude', 'elevation']:
             self.assertEqual(new_site['geoLocation'][field],
@@ -338,6 +336,19 @@ class ApiSitesTests(ChainTestCase):
             },
             'required': ['latitude', 'longitude']
         })
+
+    def test_site_should_have_edit_link(self):
+        site = self.get_a_site()
+        self.assertIn('editForm', site.links)
+
+    def test_site_edit_view_should_have_schema_with_defaults(self):
+        site = self.get_a_site()
+        edit_form = self.get_resource(site.links.editForm.href)
+        self.assertEquals(edit_form['type'], 'object')
+        self.assertEquals(edit_form['properties']['name']['default'],
+                          site.name)
+        self.assertEquals(edit_form['properties']['rawZMQStream']['default'],
+                          site.links.rawZMQStream.href)
 
 
 class ApiDeviceTests(ChainTestCase):

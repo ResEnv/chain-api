@@ -25,7 +25,7 @@ def schema_type_from_model_field(field):
     elif field_class in [models.CharField, models.TextField]:
         return 'string', None
     elif field_class == models.DateTimeField:
-        return 'string', 'datetime'
+        return 'string', 'date-time'
     elif field_class == models.BooleanField:
         return 'boolean', None
     else:
@@ -175,8 +175,7 @@ class Resource(object):
         data = {}
         if not embed:
             # this is just a link, don't embed the full object
-            data['href'] = full_reverse(self.resource_name + '-single',
-                                        self._request, args=(self._obj.id,))
+            data['href'] = self.get_single_href()
             title = self.display_field
             if title in self.model_fields:
                 data['title'] = self.serialize_field(getattr(self._obj, title))
@@ -189,8 +188,11 @@ class Resource(object):
             return data
         data['_links'] = {
             'self': {
-                'href': full_reverse(self.resource_name + '-single',
-                                     self._request, args=(self._obj.id,)),
+                'href': self.get_single_href(),
+            },
+            'editForm': {
+                'href': self.get_edit_href(),
+                'title': 'Edit %s' % capitalize(self.resource_type)
             },
             'curies': CHAIN_CURIES
         }
@@ -234,6 +236,18 @@ class Resource(object):
         all filtering, and pagination'''
         queryset = self._queryset.filter(**self._filters)
         return queryset[self._offset:self._offset + self._limit]
+
+    def get_single_href(self):
+        '''Gives the URL for this single element, assuming we have an
+        object'''
+        return full_reverse(self.resource_name + '-single',
+                            self._request, args=(self._obj.id,))
+
+    def get_edit_href(self):
+        '''Gives the URL for this single element, assuming we have an
+        object'''
+        return full_reverse(self.resource_name + '-edit',
+                            self._request, args=(self._obj.id,))
 
     def get_list_href(self):
         '''Gives the URL for this resource, including any filtering
@@ -418,6 +432,17 @@ class Resource(object):
             self.deserialize()
         self._obj.save()
 
+    def get_filled_schema(self):
+        '''Returns a schema dict with default values filled from the object's
+        values'''
+        schema = self.get_schema()
+        schema['title'] = 'Edit ' + capitalize(self.resource_type)
+        props = schema['properties']
+        for field in self.model_fields:
+            props[field]['default'] = self.serialize_field(
+                getattr(self._obj, field))
+        return schema
+
     @classmethod
     def render_response(cls, data, request, status=None):
         # TODO: there's got to be a more robust library to parse accept headers
@@ -522,6 +547,15 @@ class Resource(object):
         return cls.render_response(response_data, request)
 
     @classmethod
+    def edit_view(cls, request, id):
+        if request.method == 'GET':
+            resource = cls(obj=cls.queryset.get(id=id), request=request)
+            schema = resource.get_filled_schema()
+            return cls.render_response(schema, request)
+        else:
+            raise NotImplementedError("only GET implemented")
+
+    @classmethod
     @csrf_exempt
     def create_view(cls, request):
         if request.method == 'GET':
@@ -545,6 +579,8 @@ class Resource(object):
                             cls.list_view, name=base_name + '-list'),
                         url(r'^(\d+)$',
                             cls.single_view, name=base_name + '-single'),
+                        url(r'^(\d+)/edit$',
+                            cls.edit_view, name=base_name + '-edit'),
                         url(r'^create$',
                             cls.create_view, name=base_name + '-create'))
 

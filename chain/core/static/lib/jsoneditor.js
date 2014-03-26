@@ -1393,8 +1393,9 @@ JSONEditor.AbstractEditor = Class.extend({
     this.setValue(this.getDefault(), true);
     this.updateHeaderText();
     this.watch_listener();
-    // by default remove non-required properties. There's probably a better way to do this
-    if(!this.isRequired()) {
+    // by default remove non-required properties. There's probably a better way
+    // to do this
+    if(!this.isRequired() && this.getDefault() == null) {
         this.removeProperty();
     }
   },
@@ -1649,8 +1650,8 @@ JSONEditor.defaults.editors.null = JSONEditor.AbstractEditor.extend({
 });
 
 JSONEditor.defaults.editors.string = JSONEditor.AbstractEditor.extend({
-  getDefault: function() {    
-    return this.schema.default || '';
+  getDefault: function() {
+    return this.schema.default || null
   },
   setValue: function(value,initial,from_template) {
     var self = this;
@@ -1999,7 +2000,7 @@ JSONEditor.defaults.editors.string = JSONEditor.AbstractEditor.extend({
 
 JSONEditor.defaults.editors.number = JSONEditor.defaults.editors.string.extend({
   getDefault: function() {
-    return this.schema.default || 0;
+    return this.schema.default || null;
   },
   sanitize: function(value) {
     return (value+"").replace(/[^0-9\.\-]/g,'');
@@ -2018,7 +2019,7 @@ JSONEditor.defaults.editors.integer = JSONEditor.defaults.editors.number.extend(
 
 JSONEditor.defaults.editors.object = JSONEditor.AbstractEditor.extend({
   getDefault: function() {
-    return $extend({},this.schema.default || {});
+    return this.schema.default || null;
   },
   getChildEditors: function() {
     return this.editors;
@@ -2370,7 +2371,7 @@ JSONEditor.defaults.editors.object = JSONEditor.AbstractEditor.extend({
 
 JSONEditor.defaults.editors.array = JSONEditor.AbstractEditor.extend({
   getDefault: function() {
-    return this.schema.default || [];
+    return this.schema.default || null;
   },
   register: function() {
     this._super();
@@ -3686,7 +3687,7 @@ JSONEditor.defaults.editors.multiple = JSONEditor.AbstractEditor.extend({
 // Enum Editor (used for objects and arrays with enumerated values)
 JSONEditor.defaults.editors.enum = JSONEditor.AbstractEditor.extend({
   getDefault: function() {
-    return this.schema.enum[0];
+    return this.schema.default || null;
   },
   addProperty: function() {
     this._super();
@@ -3827,7 +3828,7 @@ JSONEditor.defaults.editors.enum = JSONEditor.AbstractEditor.extend({
 
 JSONEditor.defaults.editors.select = JSONEditor.AbstractEditor.extend({
   getDefault: function() {
-    return this.schema.default || '';
+    return this.schema.default || null;
   },
   setValue: function(value,initial) {
     value = this.typecast(value||'');
