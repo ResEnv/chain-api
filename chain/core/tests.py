@@ -20,6 +20,20 @@ ACCEPT_TAIL = 'application/xhtml+xml,application/xml;q=0.9,\
         image/webp,*/*;q=0.8'
 
 
+def obj_from_filled_schema(schema):
+    '''Creates an object corresponding to the default values provided with
+    a form schema'''
+    obj = {}
+    for k, v in schema['properties'].iteritems():
+        if v['type'] == 'object':
+            subobj = obj_from_filled_schema(v)
+            if subobj:
+                obj[k] = subobj
+        elif 'default' in v:
+            obj[k] = v['default']
+    return obj
+
+
 class HalTests(TestCase):
     def setUp(self):
         self.test_doc = {
@@ -128,12 +142,19 @@ class ChainTestCase(TestCase):
         else:
             return response.content
 
-    def post_resource(self, url, resource, mime_type='application/hal+json'):
+    def create_resource(self, url, resource):
+        return self.post_resource(url, resource, HTTP_STATUS_CREATED)
+
+    def update_resource(self, url, resource):
+        return self.post_resource(url, resource, HTTP_STATUS_SUCCESS)
+
+    def post_resource(self, url, resource, expected_status):
+        mime_type = 'application/hal+json'
         accept_header = mime_type + ',' + ACCEPT_TAIL
         response = self.client.post(url, json.dumps(resource),
                                     content_type=mime_type,
                                     HTTP_ACCEPT=accept_header)
-        self.assertEqual(response.status_code, HTTP_STATUS_CREATED)
+        self.assertEqual(response.status_code, expected_status)
         self.assertEqual(response['Content-Type'], mime_type)
         if mime_type == 'application/hal+json':
             return HALDoc(json.loads(response.content))
@@ -289,8 +310,7 @@ class ApiSitesTests(ChainTestCase):
             'rawZMQStream': 'tcp://example.com:8372'
         }
         sites = self.get_sites()
-        response = self.post_resource(sites.links.createForm.href,
-                                      new_site)
+        response = self.create_resource(sites.links.createForm.href, new_site)
         db_obj = Site.objects.get(name='MIT Media Lab')
         self.assertEqual(new_site['name'], response.name)
         self.assertEqual(new_site['name'], db_obj.name)
@@ -350,6 +370,20 @@ class ApiSitesTests(ChainTestCase):
         self.assertEquals(edit_form['properties']['rawZMQStream']['default'],
                           site.links.rawZMQStream.href)
 
+    def test_sites_should_be_editable(self):
+        site = self.get_a_site()
+        edit_href = site.links.editForm.href
+        edit_form = self.get_resource(edit_href)
+        new_site = obj_from_filled_schema(edit_form)
+        new_site['name'] = 'Some New Name'
+        new_site['rawZMQStream'] = 'tcp://newexample.com:7162'
+        response = self.update_resource(edit_href, new_site)
+        self.assertEqual(response.name, new_site['name'])
+        self.assertEqual(response.geoLocation['latitude'],
+                         site.geoLocation['latitude'])
+        self.assertEqual(response.links.rawZMQStream.href,
+                         new_site['rawZMQStream'])
+
 
 class ApiDeviceTests(ChainTestCase):
     def test_device_should_have_sensors_link(self):
@@ -384,7 +418,7 @@ class ApiDeviceTests(ChainTestCase):
             "name": "Unit Test Thermostat 42",
             "room": "E14-548R"
         }
-        self.post_resource(dev_url, new_device)
+        self.create_resource(dev_url, new_device)
         # make sure that a device now exists with the right name
         db_device = Device.objects.get(name=new_device['name'])
         # make sure that the device is set up in the right site
@@ -437,7 +471,7 @@ class ApiSensorTests(ChainTestCase):
             'metric': 'Bridge Length',
             'unit': 'Smoots',
         }
-        self.post_resource(sensor_url, new_sensor)
+        self.create_resource(sensor_url, new_sensor)
         db_sensor = Sensor.objects.get(metric__name='Bridge Length',
                                        device__name=device.name)
         self.assertEqual('Smoots', db_sensor.unit.name)
@@ -453,15 +487,15 @@ class ApiSensorTests(ChainTestCase):
             "name": "Unit Test Thermostat 49382",
             "room": "E14-548R"
         }
-        device = self.post_resource(devices.links['createForm'].href,
-                                    new_device)
+        device = self.create_resource(devices.links['createForm'].href,
+                                      new_device)
 
         sensors = self.get_resource(device.links['ch:sensors'].href)
         new_sensor = {
             'metric': 'Beauty',
             'unit': 'millihelen',
         }
-        self.post_resource(sensors.links['createForm'].href, new_sensor)
+        self.create_resource(sensors.links['createForm'].href, new_sensor)
         db_sensor = Sensor.objects.get(metric__name='Beauty',
                                        device__name=device.name)
         self.assertEqual('millihelen', db_sensor.unit.name)
@@ -511,7 +545,7 @@ class ApiSensorDataTests(ChainTestCase):
             'value': 23,
             'timestamp': timestamp.isoformat()
         }
-        self.post_resource(data_url, data)
+        self.create_resource(data_url, data)
         db_data = ScalarData.objects.get(
             sensor__metric__name=sensor.metric,
             sensor__device__name=device.name,
@@ -541,7 +575,7 @@ class CollectionFilteringTests(ChainTestCase):
         # make sure we create more devices than will fit on a page
         for i in range(0, DeviceResource.page_size + 1):
             dev = {'name': 'test dev %d' % i}
-            self.post_resource(create_url, dev)
+            self.create_resource(create_url, dev)
         devs = self.get_resource(BASE_API_URL + 'devices/')
         self.assertEqual(len(devs.links.items), DeviceResource.page_size)
 
@@ -552,7 +586,7 @@ class CollectionFilteringTests(ChainTestCase):
         # make sure we create more devices than will fit on a page
         for i in range(0, DeviceResource.page_size + 1):
             dev = {'name': 'test dev %d' % i}
-            self.post_resource(create_url, dev)
+            self.create_resource(create_url, dev)
         devs = self.get_resource(site.links['ch:devices'].href)
         self.assertIn('next', devs.links)
         self.assertNotIn('previous', devs.links)

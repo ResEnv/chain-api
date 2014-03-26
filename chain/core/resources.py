@@ -132,6 +132,12 @@ class SiteResource(Resource):
             self._obj.raw_zmq_stream = self._data['rawZMQStream']
         return self._obj
 
+    def update(self, data):
+        super(SiteResource, self).update(data)
+        if 'rawZMQStream' in data:
+            self._obj.raw_zmq_stream = data['rawZMQStream']
+        self._obj.save()
+
     @classmethod
     def get_schema(cls):
         #import pdb; pdb.set_trace()

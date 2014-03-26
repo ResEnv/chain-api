@@ -423,6 +423,24 @@ class Resource(object):
             self._obj = self.model(**new_obj_data)
         return self._obj
 
+    def update(self, data):
+        '''Updates this resource given the data, which is expected to be a dict
+        in the format given by this resource's schema'''
+        for k, v in data.iteritems():
+            if k in self.model_fields:
+                setattr(self._obj, k, v)
+            elif k == 'geoLocation':
+                loc = self._obj.geo_location
+                if loc is None:
+                    loc = GeoLocation(elevation=v.get('elevation', None),
+                                      latitude=v['latitude'],
+                                      longitude=v['longitude'])
+                    self._obj.geo_location = loc
+                else:
+                    loc.update(**v)
+                loc.save()
+        self._obj.save()
+
     def save(self):
         if not self._obj:
 
@@ -552,8 +570,12 @@ class Resource(object):
             resource = cls(obj=cls.queryset.get(id=id), request=request)
             schema = resource.get_filled_schema()
             return cls.render_response(schema, request)
-        else:
-            raise NotImplementedError("only GET implemented")
+
+        elif request.method == 'POST':
+            resource = cls(obj=cls.queryset.get(id=id), request=request)
+            data = json.loads(request.body)
+            resource.update(data)
+            return cls.render_response(resource.serialize(), request)
 
     @classmethod
     @csrf_exempt
@@ -565,9 +587,9 @@ class Resource(object):
         elif request.method == 'POST':
             data = json.loads(request.body)
             obj_params = request.GET.dict()
-            new_object = cls(data=data, request=request, filters=obj_params)
-            new_object.save()
-            response_data = new_object.serialize()
+            new_resource = cls(data=data, request=request, filters=obj_params)
+            new_resource.save()
+            response_data = new_resource.serialize()
             return cls.render_response(response_data, request,
                                        status=HTTP_STATUS_CREATED)
 
