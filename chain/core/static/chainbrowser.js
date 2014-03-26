@@ -114,7 +114,7 @@ function render_dict(data, title, element) {
                 if($.isPlainObject(val)) {
                     render_dict(val, null, cell);
                 }
-                else if(key != "data") {
+                else if(key != "data" && val !== null) {
                     cell.append(val.toString());
                 }
             }
