@@ -77,12 +77,12 @@ package { "django-debug-toolbar":
 
 # Set up DB schema and users
 
-postgresql::server::role { 'doppellab':
+postgresql::server::role { 'chain':
     createdb => true,
-    password_hash => postgresql_password('doppellab', 'secret'),
+    password_hash => postgresql_password('chain', 'secret'),
 }
 
-postgresql::server::db { 'doppellab':
-    user     => 'doppellab',
-    password => postgresql_password('doppellab', 'secret')
+postgresql::server::db { 'chain':
+    user     => 'chain',
+    password => postgresql_password('chain', 'secret')
 }

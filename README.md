@@ -571,9 +571,11 @@ there you can follow the below instructions on setting up a Chain API server.
 Chain API Server Setup Instructions
 ===================================
 
+Currently Chain API is supported on Ubuntu Precise (12.04 LTS)
 Install puppet and the proper puppet modules with
 
-    sudo apt-get install puppet
+    sudo apt-get install rubygems
+    sudo gem install puppet -v3.4.3 --no-rdoc --no-ri
     (or on Arch use yaourt -S puppet)
     sudo puppet module install puppetlabs/postgresql -v3.2.0
 
@@ -590,13 +592,18 @@ END OF ARCH-SPECIFIC NOTE
 
 edit manifest.pp and change the database username and password.
 
-Edit settings.py and set the username and password, as well as the
-`SECRET_KEY` setting.
+Copy `localsettings_template.py` into a new file called `localsettings.py`, setting
+the username and password, as well as the `SECRET_KEY`. You can generate an
+appropriate secret key in python with:
+
+    import random
+    ''.join([random.SystemRandom().
+        choice('abcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*(-_=+)')
+        for i in range(50)])
 
 Then set up the server with
 
     sudo puppet apply manifest.pp
-
 
 Now you can initialize your django environment
 
@@ -610,7 +617,6 @@ Now you should be able to run the server with:
 and access it from your host machine's browser at
 
     http://localhost:8000/admin
-
 
 
 
