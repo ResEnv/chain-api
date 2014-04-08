@@ -565,6 +565,7 @@ class Resource(object):
         return cls.render_response(response_data, request)
 
     @classmethod
+    @csrf_exempt
     def edit_view(cls, request, id):
         if request.method == 'GET':
             resource = cls(obj=cls.queryset.get(id=id), request=request)
