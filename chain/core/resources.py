@@ -177,6 +177,7 @@ class ApiRootResource(Resource):
 
 urls = patterns(
     '',
+    url(r'^/$', ApiRootResource.single_view, name='api-root'),
     url(r'^$', ApiRootResource.single_view, name='api-root'),
     url(r'^sites/', include(SiteResource.urls())),
     url(r'^devices/', include(DeviceResource.urls())),

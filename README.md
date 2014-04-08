@@ -618,6 +618,39 @@ and access it from your host machine's browser at
 
     http://localhost:8000/admin
 
+Setting up for Production
+-------------------------
+
+While the above steps should be fine for development, there are a few more
+things you need to do for a production machine.
+
+First install the django app to you system python install by running
+
+    ./setup.py develop
+
+This will install the app as a system package, so you don't need to hard-code
+paths.
+
+Then copy the system config files
+
+    sudo cp -R system/* /
+
+And enable the HTTP interface to supervisor by adding the following code to
+the configuration at /etc/supervisor/supervisord.conf (setting the username
+and password to whatever you want them to be)
+
+    [inet_http_server]
+    port=*:9001
+    user=username
+    password=password
+
+Now you can restart supervisord and nginx to pick up the config changes. Note
+that supervisor restart doesn't work, so it must be stopped and started
+
+sudo /etc/init.d/supervisor stop
+sudo /etc/init.d/supervisor start
+sudo /etc/init.d/nginx restart
+
 
 
 [hal]: http://stateless.co/hal_specification.html
