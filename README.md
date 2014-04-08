@@ -88,10 +88,10 @@ full flexibility of all these different related collection formats_
 
 ```json
 {
-  "_links": [
+  "_links": {
     "self": {"href": "/parents/392"},
     "children": {"href": "/parents/392/children/"}
-  ]
+  }
 }
 ```
 
@@ -99,7 +99,7 @@ which when followed gives you a full collection resource:
 
 ```json
 {
-  "_links": [
+  "_links": {
     "self": {"href": "/parents/392/children/"},
     "next": { "href": "/parents/392/children?page=2", "title": "Page 2" },
     "last": { "href": "/parents/392/children?page=5", "title": "Page 5" },
@@ -109,7 +109,7 @@ which when followed gives you a full collection resource:
       {"href": "/children/8371", "title": "Child 2"},
       {"href": "/children/716", "title": "Child 3"}
     ]
-  ]
+  }
 }
 ```
 
@@ -117,7 +117,7 @@ or a collection resource with embedded children
 
 ```json
 {
-  "_links": [
+  "_links": {
     "self": {"href": "/parents/392/children/"},
     "next": { "href": "/parents/392/children?page=2", "title": "Page 2" },
     "last": { "href": "/parents/392/children?page=5", "title": "Page 5" },
@@ -127,30 +127,30 @@ or a collection resource with embedded children
       {"href": "/children/8371", "title": "Child 2"},
       {"href": "/children/716", "title": "Child 3"}
     ]
-  ],
-  "_embedded": [
-    {
-      "_links" [
-        "self": {"href": "/children/382"}
-      ],
-      "name": "Child 1",
-      "age": 13
-    },
-    {
-      "_links" [
-        "self": {"href": "/children/8371"}
-      ],
-      "name": "Child 2",
-      "age": 16
-    },
-    {
-      "_links" [
-        "self": {"href": "/children/716"}
-      ],
-      "name": "Child 3",
-      "age": 31
-    }
-  ]
+  },
+  "_embedded": {
+    "items": [{
+       "_links" [
+         "self": {"href": "/children/382"}
+       ],
+       "name": "Child 1",
+       "age": 13
+     },
+     {
+       "_links" [
+         "self": {"href": "/children/8371"}
+       ],
+       "name": "Child 2",
+       "age": 16
+     },
+     {
+       "_links" [
+         "self": {"href": "/children/716"}
+       ],
+       "name": "Child 3",
+       "age": 31
+     }]
+  }
 }
 ```
 
@@ -161,14 +161,14 @@ metadata about the collection
 
 ```json
 {
-  "_links": [
+  "_links": {
     "self": {"href": "/parents/392"},
     "children": [
       {"href": "/children/382", "title": "Child 1"},
       {"href": "/children/8371", "title": "Child 2"},
       {"href": "/children/716", "title": "Child 3"}
     ]
-  ]
+  }
 }
 ```
 
@@ -176,13 +176,13 @@ metadata about the collection
 
 ```json
     {
-      "_links": [
+      "_links": {
         "self": {"href": "/parents/392"},
         "children": {"href": "/parents/392/children/"}
-      ],
-      "_embedded": [
+      },
+      "_embedded": {
         "children": {
-          "_links": [
+          "_links": {
             "self": {"href": "/parents/392/children/"},
             "next": { "href": "/parents/392/children?page=2", "title": "Page 2" },
             "last": { "href": "/parents/392/children?page=5", "title": "Page 5" },
@@ -192,9 +192,9 @@ metadata about the collection
               {"href": "/children/8371", "title": "Child 2"},
               {"href": "/children/716", "title": "Child 3"}
             ]
-          ]
+          }
         }
-      ]
+      }
     }
 ```
 
@@ -202,13 +202,13 @@ metadata about the collection
 
 ```json
 {
-  "_links": [
+  "_links": {
     "self": {"href": "/parents/392"},
     "children": {"href": "/parents/392/children/"}
-  ],
-  "_embedded": [
+  },
+  "_embedded": {
     "children": {
-      "_links": [
+      "_links": {
         "self": {"href": "/parents/392/children/"},
         "next": { "href": "/parents/392/children?page=2", "title": "Page 2" },
         "last": { "href": "/parents/392/children?page=5", "title": "Page 5" },
@@ -218,32 +218,34 @@ metadata about the collection
           {"href": "/children/8371", "title": "Child 2"},
           {"href": "/children/716", "title": "Child 3"}
         ],
-        "_embedded": [
-          {
-          "_links" [
-            "self": {"href": "/children/382"}
-          ],
-          "name": "Child 1",
-          "age": 13
-          },
-          {
-          "_links" [
-            "self": {"href": "/children/8371"}
-          ],
-          "name": "Child 2",
-          "age": 16
-          },
-          {
-          "_links" [
-            "self": {"href": "/children/716"}
-          ],
-          "name": "Child 3",
-          "age": 31
-          }
-        ]
-      ]
+        "_embedded": {
+          "items": [
+            {
+            "_links" {
+              "self": {"href": "/children/382"}
+            },
+            "name": "Child 1",
+            "age": 13
+            },
+            {
+            "_links" {
+              "self": {"href": "/children/8371"}
+            },
+            "name": "Child 2",
+            "age": 16
+            },
+            {
+            "_links" {
+              "self": {"href": "/children/716"}
+            },
+            "name": "Child 3",
+            "age": 31
+            }
+          ]
+        }
+      }
     }
-  ]
+  }
 }
 ```
 
@@ -369,7 +371,7 @@ will give you a link to the available sites.
       "name": "ch",
       "href": "/rels/{rel}",
       "templated": true
-    }]
+    }],
     "ch:sites": {
       "title": "Sites",
       "href": "/sites/"
