@@ -90,6 +90,30 @@ package { "gunicorn":
     ensure => present,
 }
 
+package { "chainclient":
+    provider => "pip",
+    require => Package["python-pip"],
+    ensure => present,
+}
+
+package { "pyzmq":
+    provider => "pip",
+    require => Package["python-pip"],
+    ensure => present,
+}
+
+package { "docopt":
+    provider => "pip",
+    require => Package["python-pip"],
+    ensure => present,
+}
+
+package { "coloredlogs":
+    provider => "pip",
+    require => Package["python-pip"],
+    ensure => present,
+}
+
 
 # Set up DB schema and users
 
