@@ -129,27 +129,29 @@ or a collection resource with embedded children
     ]
   },
   "_embedded": {
-    "items": [{
-       "_links" [
-         "self": {"href": "/children/382"}
-       ],
-       "name": "Child 1",
-       "age": 13
-     },
-     {
-       "_links" [
-         "self": {"href": "/children/8371"}
-       ],
-       "name": "Child 2",
-       "age": 16
-     },
-     {
-       "_links" [
-         "self": {"href": "/children/716"}
-       ],
-       "name": "Child 3",
-       "age": 31
-     }]
+    "items": [
+      {
+        "_links" {
+          "self": {"href": "/children/382"}
+        },
+        "name": "Child 1",
+        "age": 13
+      },
+      {
+        "_links" {
+          "self": {"href": "/children/8371"}
+        },
+        "name": "Child 2",
+        "age": 16
+      },
+      {
+        "_links" {
+          "self": {"href": "/children/716"}
+        },
+        "name": "Child 3",
+        "age": 31
+      }
+    ]
   }
 }
 ```
