@@ -426,9 +426,9 @@ buildings.
   },
   "name": "MIT Media Lab",
   "geoLocation": {
-    elevation: 5.8,
-    latitude: 42.360461,
-    longitude: -71.087347
+    "elevation": 5.8,
+    "latitude": 42.360461,
+    "longitude": -71.087347
   }
 }
 ```
@@ -521,7 +521,7 @@ TBD data types.
   },
   "dataType": "float",
   "value": 23.5,
-  "updated": "2014-03-12T13:37:27+00:00"
+  "updated": "2014-03-12T13:37:27+00:00",
   "metric": "temperature",
   "unit": "C"
 }
