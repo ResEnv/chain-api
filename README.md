@@ -695,7 +695,18 @@ sudo /etc/init.d/supervisor stop
 sudo /etc/init.d/supervisor start
 sudo /etc/init.d/nginx restart
 
+Deploy Hooks
+------------
 
+In the "hooks" directory you'll find a post-receive hook that should be copied
+into the .git/hooks directory of your deployed server. From your development
+machine you should now be able to set up the deployment server as a git remote
+
+    git remote add production ssh://deployuser@yourserver.com/deployed/repo/dir
+
+then whenever you have a version to push to production just:
+
+    git push production
 
 
 
