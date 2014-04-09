@@ -119,10 +119,10 @@ package { "coloredlogs":
 
 postgresql::server::role { 'chain':
     createdb => true,
-    password_hash => postgresql_password('chain', 'LBWgC8AzqFzbrEY9swmsy6vYS'),
+    password_hash => postgresql_password('chain', 'secret'),
 }
 
 postgresql::server::db { 'chain':
     user     => 'chain',
-    password => postgresql_password('chain', 'LBWgC8AzqFzbrEY9swmsy6vYS')
+    password => postgresql_password('chain', 'secret')
 }
