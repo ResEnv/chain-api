@@ -1,19 +1,18 @@
-j!/bin/sh
-
-#if [[ $GIT_DIR == "." ]]; then
-#    # we were called by git as a hook. Pop up a directory
-cd ..
-GIT_DIR=".git"
-#fi
-
-# git gives us this data on stdin
-read oldhash newhash refname
+#!/bin/sh
 
 echo "Running post-receive hook..."
 echo "Old Hash: $oldhash"
 echo "New Hash: $newhash"
 echo "Refname: $refname"
+echo "Running in $PWD"
 echo ""
+
+cd ..
+export GIT_DIR=".git"
+export GIT_WORK_TREE="."
+
+# git gives us this data on stdin. We're not currently doing anything with it.
+read oldhash newhash refname
 
 echo "*************"
 echo "* DEPLOYING *"
