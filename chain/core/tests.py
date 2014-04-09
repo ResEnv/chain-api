@@ -578,6 +578,25 @@ class ApiSensorDataTests(ChainTestCase):
         self.assertNotIn('next', datapage.links)
         self.assertNotIn('last', datapage.links)
 
+    def test_paginated_data_can_be_requested_with_only_limit(self):
+        sensor = self.get_a_sensor()
+        device = self.get_resource(sensor.links['ch:device'].href)
+        db_sensor = Sensor.objects.get(
+            metric__name=sensor.metric,
+            device__name=device.name)
+        dt = make_aware(datetime(2013, 1, 1, 0, 0, 1), utc)
+        data = []
+        for i in range(1500):
+            data.append(ScalarData(sensor=db_sensor, timestamp=dt, value=i))
+            dt += timedelta(seconds=1)
+        ScalarData.objects.bulk_create(data)
+        datapage = self.get_resource(
+            sensor.links["ch:dataHistory"].href + "&limit=20")
+        self.assertEqual(20, len(datapage.data))
+        datapage = self.get_resource(
+            sensor.links["ch:dataHistory"].href + "&limit=1000")
+        self.assertEqual(1000, len(datapage.data))
+
 
 # these tests are testing specific URL conventions within this application
 class CollectionFilteringTests(ChainTestCase):

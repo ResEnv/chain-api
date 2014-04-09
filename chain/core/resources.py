@@ -20,7 +20,7 @@ class SensorDataResource(Resource):
             if 'offset' not in kwargs or kwargs['offset'] is None:
                 # we want to default to the last page, not the first page
                 total_count = self.get_total_count()
-                self._offset = max(total_count - self.page_size, 0)
+                self._offset = max(total_count - self._limit, 0)
 
     def serialize_list(self, embed, cache):
         '''a "list" of SensorData resources is actually represented
