@@ -700,8 +700,15 @@ Deploy Hooks
 ------------
 
 In the "hooks" directory you'll find a post-receive hook that should be copied
-into the .git/hooks directory of your deployed server. From your development
-machine you should now be able to set up the deployment server as a git remote
+(or symlinked) into the .git/hooks directory of your deployed server. You'll also
+need to run
+
+    git config receive.denyCurrentBranch ignore
+
+To allow pushes to the checked-out branch.
+
+On your development machine you should now be able to set up the deployment server as a
+git remote
 
     git remote add production ssh://deployuser@yourserver.com/deployed/repo/dir
 
