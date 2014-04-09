@@ -129,6 +129,7 @@ class ScalarData(models.Model):
 
     class Meta:
         verbose_name_plural = "scalar data"
+        index_together = [['sensor', 'timestamp']]
 
     def __repr__(self):
         return 'ScalarData(timestamp=%r, value=%r, sensor=%r)' % (
