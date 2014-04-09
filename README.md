@@ -650,12 +650,22 @@ Setting up for Production
 While the above steps should be fine for development, there are a few more
 things you need to do for a production machine.
 
-First install the django app to you system python install by running
+First make sure whatever user will be deploying is in the "staff" group. This will
+allow us to autodeploy without needing root permissions.
 
+    sudo usermod -aG staff USERNAME
+
+First install the django app to your system python install by running
+
+    sudo chmod -R g+w /usr/local/bin
     ./setup.py develop
 
 This will install the app as a system package, so you don't need to hard-code
 paths.
+
+NOTE - the package is installed WITHOUT root permissions. This is
+important because if we install with root permissions the first time then we'll
+need root permission on every subsequent time.
 
 Then copy the system config files
 
@@ -670,12 +680,22 @@ and password to whatever you want them to be)
     user=username
     password=password
 
+We also need to change the permissions so that anyone in the "staff" group can
+manage supervisor tasks.
+
+    [unix_http_server]
+    file=/var/run/supervisor.sock
+    chmod=0770
+    chown=nobody:staff
+
 Now you can restart supervisord and nginx to pick up the config changes. Note
-that supervisor restart doesn't work, so it must be stopped and started
+that supervisor restart doesn't work, so it must be stopped and started.
 
 sudo /etc/init.d/supervisor stop
 sudo /etc/init.d/supervisor start
 sudo /etc/init.d/nginx restart
+
+
 
 
 
