@@ -123,8 +123,10 @@ class Sensor(models.Model):
 class ScalarData(models.Model):
     '''A data point representing scalar sensor data, such as temperature,
     humidity, etc.'''
-    sensor = models.ForeignKey(Sensor, related_name='scalar_data')
-    timestamp = models.DateTimeField(default=timezone.now, blank=True)
+    sensor = models.ForeignKey(Sensor, related_name='scalar_data',
+                               db_index=True)
+    timestamp = models.DateTimeField(default=timezone.now, blank=True,
+                                     db_index=True)
     value = models.FloatField()
 
     class Meta:
