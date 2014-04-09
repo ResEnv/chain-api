@@ -1,6 +1,10 @@
 #!/bin/sh
 
 echo "Running post-receive hook..."
+
+# git gives us this data on stdin. We're not currently doing anything with it.
+read oldhash newhash refname
+
 echo "Old Hash: $oldhash"
 echo "New Hash: $newhash"
 echo "Refname: $refname"
@@ -10,9 +14,6 @@ echo ""
 cd ..
 export GIT_DIR=".git"
 export GIT_WORK_TREE="."
-
-# git gives us this data on stdin. We're not currently doing anything with it.
-read oldhash newhash refname
 
 echo "*************"
 echo "* DEPLOYING *"
