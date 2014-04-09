@@ -14,8 +14,6 @@ class Site(models.Model):
     field will point to that resource on that server. If the site is hosted
     locally the URL can be blank'''
     name = models.CharField(max_length=255)
-    latitude = models.FloatField(null=True, blank=True)
-    longitude = models.FloatField(null=True, blank=True)
     url = models.CharField(max_length=255, default='', blank=True)
     geo_location = models.OneToOneField(GeoLocation, null=True, blank=True)
     raw_zmq_stream = models.CharField(max_length=255, default='', blank=True)

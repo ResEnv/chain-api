@@ -11,7 +11,7 @@ from chain.core.hal import HALDoc
 HTTP_STATUS_NOT_ACCEPTABLE = 406
 HTTP_STATUS_NOT_FOUND = 404
 
-BASE_API_URL = '/api/'
+BASE_API_URL = '/'
 SCALAR_DATA_URL = BASE_API_URL + 'scalar_data/'
 SITES_URL = BASE_API_URL + 'sites/'
 
