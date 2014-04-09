@@ -1,10 +1,10 @@
-#!/bin/sh
+j!/bin/sh
 
-if [[ $GIT_DIR == "." ]]; then
-    # we were called by git as a hook. Pop up a directory
-    cd ..
-    GIT_DIR=".git"
-fi
+#if [[ $GIT_DIR == "." ]]; then
+#    # we were called by git as a hook. Pop up a directory
+cd ..
+GIT_DIR=".git"
+#fi
 
 # git gives us this data on stdin
 read oldhash newhash refname
@@ -23,6 +23,13 @@ echo "Checking Out to Working Directory"
 echo "---------------------------------"
 echo ""
 git checkout -f
+git reset --hard
+
+echo ""
+echo "Running setup.py"
+echo "----------------"
+echo ""
+./setup.py develop
 
 echo ""
 echo "Syncing Database"
@@ -30,12 +37,6 @@ echo "----------------"
 echo ""
 ./manage.py syncdb
 ./manage.py migrate core
-
-echo ""
-echo "Running setup.py"
-echo "----------------"
-echo ""
-./setup.py develop
 
 echo ""
 echo "Restarting Supervisor Tasks"
