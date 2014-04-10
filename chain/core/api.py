@@ -224,12 +224,18 @@ class Resource(object):
         return field_value
 
     def get_total_count(self):
-        '''Gets the total number of objects in the queryset for this
-        request, ignoring pagination'''
+        '''Gets the total number of objects in the queryset for this request,
+        ignoring pagination. We cache the result because this query is actually
+        pretty slow.'''
+        try:
+            return self._total_count
+        except AttributeError:
+            pass
         qs = self._queryset
         if self._filters:
             qs = qs.filter(**self._filters)
-        return qs.count()
+        self._total_count = qs.count()
+        return self._total_count
 
     def get_queryset(self):
         '''Returns the queryset resulting from this request, including
