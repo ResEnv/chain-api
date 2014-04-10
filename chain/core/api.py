@@ -373,6 +373,8 @@ class Resource(object):
         return self._data
 
     def stub_object_finding(self, obj, field_name, field_value):
+        '''Looks up the matching related field, and creates it if it doesn't
+        already exist.'''
         stub_field = self.stub_fields[field_name]
         field = getattr(self.model, field_name).field
         # so now we have a model we can run queries against
@@ -435,24 +437,27 @@ class Resource(object):
         for k, v in data.iteritems():
             if k in self.model_fields:
                 setattr(self._obj, k, v)
+            elif k in self.stub_fields:
+                setattr(self._obj, k,
+                        self.stub_object_finding(self._obj, k, v))
             elif k == 'geoLocation':
                 loc = self._obj.geo_location
                 if loc is None:
                     loc = GeoLocation(elevation=v.get('elevation', None),
                                       latitude=v['latitude'],
                                       longitude=v['longitude'])
+                    loc.save()
                     self._obj.geo_location = loc
                 else:
-                    loc.update(**v)
-                loc.save()
+                    for field, value in v.iteritems():
+                        setattr(loc, field, value)
+                    loc.save()
         self._obj.save()
 
     def save(self):
         if not self._obj:
-
             # here we're using the side-effect of serialization that we save
             # the object after deserialization
-
             self.deserialize()
         self._obj.save()
 
@@ -465,6 +470,20 @@ class Resource(object):
         for field in self.model_fields:
             props[field]['default'] = self.serialize_field(
                 getattr(self._obj, field))
+        for stub in self.stub_fields.keys():
+            stub_data = getattr(self._obj, stub)
+            props[stub]['default'] = getattr(stub_data, self.stub_fields[stub])
+        geo_loc = self._obj.geo_location
+        if geo_loc is not None:
+            props['geoLocation']['properties']['latitude']['default'] = \
+                geo_loc.latitude
+            props['geoLocation']['properties']['longitude']['default'] = \
+                geo_loc.longitude
+            elevation = geo_loc.elevation
+            if elevation is not None:
+                props['geoLocation']['properties']['elevation']['default'] = \
+                    elevation
+
         return schema
 
     @classmethod

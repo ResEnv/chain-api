@@ -11,6 +11,7 @@ class SensorDataResource(Resource):
     resource_name = 'data'
     resource_type = 'data'
     model_fields = ['timestamp', 'value']
+    required_fields = ['timestamp', 'value']
     queryset = ScalarData.objects
     page_size = 500
 

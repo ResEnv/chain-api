@@ -25,6 +25,8 @@ def obj_from_filled_schema(schema):
     a form schema'''
     obj = {}
     for k, v in schema['properties'].iteritems():
+#        if k in ['type', 'required', 'title']:
+#            continue
         if v['type'] == 'object':
             subobj = obj_from_filled_schema(v)
             if subobj:
@@ -82,9 +84,9 @@ class ChainTestCase(TestCase):
     def setUp(self):
         self.unit = Unit(name='C')
         self.unit.save()
-        self.temp_metric = Metric(name='Temperature')
+        self.temp_metric = Metric(name='temperature')
         self.temp_metric.save()
-        self.setpoint_metric = Metric(name='Setpoint')
+        self.setpoint_metric = Metric(name='setpoint')
         self.setpoint_metric.save()
         self.geo_locations = [
             GeoLocation(elevation=50, latitude=42.847, longitude=72.917),
@@ -369,6 +371,11 @@ class ApiSitesTests(ChainTestCase):
                           site.name)
         self.assertEquals(edit_form['properties']['rawZMQStream']['default'],
                           site.links.rawZMQStream.href)
+        edit_loc = edit_form['properties']['geoLocation']
+        self.assertEquals(edit_loc['properties']['latitude']['default'],
+                          site.geoLocation['latitude'])
+        self.assertEquals(edit_loc['properties']['longitude']['default'],
+                          site.geoLocation['longitude'])
 
     def test_sites_should_be_editable(self):
         site = self.get_a_site()
@@ -378,11 +385,33 @@ class ApiSitesTests(ChainTestCase):
         new_site['name'] = 'Some New Name'
         new_site['rawZMQStream'] = 'tcp://newexample.com:7162'
         response = self.update_resource(edit_href, new_site)
+        reget = self.get_resource(site.links.self.href)
         self.assertEqual(response.name, new_site['name'])
         self.assertEqual(response.geoLocation['latitude'],
                          site.geoLocation['latitude'])
         self.assertEqual(response.links.rawZMQStream.href,
                          new_site['rawZMQStream'])
+        self.assertEqual(response, reget)
+
+    def test_geolocation_should_be_addable_to_site(self):
+        site = {
+            'name': 'Geolocate Add Test',
+        }
+        sites = self.get_sites()
+        site_response = self.create_resource(sites.links.createForm.href,
+                                             site)
+        edit_form = self.get_resource(site_response.links.editForm.href)
+        new_site = obj_from_filled_schema(edit_form)
+        new_site['geoLocation'] = {
+            'latitude': 42.360461,
+            'longitude': -71.087347
+        }
+        self.update_resource(site_response.links.editForm.href, new_site)
+        new_site_response = self.get_resource(site_response.links.self.href)
+        self.assertEqual(new_site_response.geoLocation['latitude'],
+                         new_site['geoLocation']['latitude'])
+        self.assertEqual(new_site_response.geoLocation['longitude'],
+                         new_site['geoLocation']['longitude'])
 
     def test_site_should_have_summary_link(self):
         device = self.get_a_site()
@@ -521,6 +550,16 @@ class ApiSensorTests(ChainTestCase):
         sensor = self.get_a_sensor()
         self.assertIn('dataType', sensor)
         self.assertEquals(sensor.dataType, 'float')
+
+    def test_sensor_should_be_editable(self):
+        sensor = self.get_a_sensor()
+        edit_href = sensor.links.editForm.href
+        edit_form = self.get_resource(edit_href)
+        new_sensor = obj_from_filled_schema(edit_form)
+        new_sensor['metric'] = 'fuzziness'
+        response = self.update_resource(edit_href, new_sensor)
+        self.assertEqual(response.metric, new_sensor['metric'])
+        self.assertEqual(response.unit, new_sensor['unit'])
 
 
 class ApiSensorDataTests(ChainTestCase):
