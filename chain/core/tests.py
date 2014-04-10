@@ -2,7 +2,7 @@ from django.test import TestCase
 from chain.core.models import ScalarData, Unit, Metric, Device, Sensor, Site
 from chain.core.models import GeoLocation
 from chain.core.resources import DeviceResource
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 from chain.core.api import HTTP_STATUS_SUCCESS, HTTP_STATUS_CREATED
 from django.utils.timezone import make_aware, utc
@@ -11,7 +11,7 @@ from chain.core.hal import HALDoc
 HTTP_STATUS_NOT_ACCEPTABLE = 406
 HTTP_STATUS_NOT_FOUND = 404
 
-BASE_API_URL = '/api/'
+BASE_API_URL = '/'
 SCALAR_DATA_URL = BASE_API_URL + 'scalar_data/'
 SITES_URL = BASE_API_URL + 'sites/'
 
@@ -591,8 +591,50 @@ class ApiSensorDataTests(ChainTestCase):
             timestamp=timestamp)
         self.assertEqual(db_data.value, data['value'])
 
-    def test_sensor_data_should_be_editable(self):
-        sensor = get_a_sensor()
+    def test_collection_links_should_not_have_page_info(self):
+        # we want to allow the server to just give the default pagination when
+        # the client is just following links around
+        sensor = self.get_a_sensor()
+        self.assertNotIn('offset', sensor.links['ch:dataHistory'].href)
+        self.assertNotIn('limit', sensor.links['ch:dataHistory'].href)
+
+    def test_paginated_data_should_start_with_most_recent(self):
+        sensor = self.get_a_sensor()
+        device = self.get_resource(sensor.links['ch:device'].href)
+        db_sensor = Sensor.objects.get(
+            metric__name=sensor.metric,
+            device__name=device.name)
+        dt = make_aware(datetime(2013, 1, 1, 0, 0, 1), utc)
+        data = []
+        for i in range(1500):
+            data.append(ScalarData(sensor=db_sensor, timestamp=dt, value=i))
+            dt += timedelta(seconds=1)
+        ScalarData.objects.bulk_create(data)
+        #import pdb; pdb.set_trace()
+        datapage = self.get_resource(sensor.links["ch:dataHistory"].href)
+        self.assertIn('previous', datapage.links)
+        self.assertIn('first', datapage.links)
+        self.assertNotIn('next', datapage.links)
+        self.assertNotIn('last', datapage.links)
+
+    def test_paginated_data_can_be_requested_with_only_limit(self):
+        sensor = self.get_a_sensor()
+        device = self.get_resource(sensor.links['ch:device'].href)
+        db_sensor = Sensor.objects.get(
+            metric__name=sensor.metric,
+            device__name=device.name)
+        dt = make_aware(datetime(2013, 1, 1, 0, 0, 1), utc)
+        data = []
+        for i in range(1500):
+            data.append(ScalarData(sensor=db_sensor, timestamp=dt, value=i))
+            dt += timedelta(seconds=1)
+        ScalarData.objects.bulk_create(data)
+        datapage = self.get_resource(
+            sensor.links["ch:dataHistory"].href + "&limit=20")
+        self.assertEqual(20, len(datapage.data))
+        datapage = self.get_resource(
+            sensor.links["ch:dataHistory"].href + "&limit=1000")
+        self.assertEqual(1000, len(datapage.data))
 
 
 # these tests are testing specific URL conventions within this application

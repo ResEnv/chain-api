@@ -255,8 +255,8 @@ class Resource(object):
         # TODO: use this for single views as well
         href = full_reverse(self.resource_name + '-list', self._request)
         query_params = self._filters.items()
-        query_params.append(('offset', self._offset))
-        query_params.append(('limit', self._limit))
+        #query_params.append(('offset', self._offset))
+        #query_params.append(('limit', self._limit))
         href += '?' + urlencode(query_params)
         return href
 

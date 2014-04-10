@@ -86,94 +86,105 @@ full flexibility of all these different related collection formats_
 
 ### A single link to the collection as a separate resource
 
-    {
-      "_links": [
-        "self": {"href": "/parents/392"},
-        "children": {"href": "/parents/392/children/"}
-      ]
-    }
+```json
+{
+  "_links": {
+    "self": {"href": "/parents/392"},
+    "children": {"href": "/parents/392/children/"}
+  }
+}
+```
 
 which when followed gives you a full collection resource:
 
-    {
-      "_links": [
-        "self": {"href": "/parents/392/children/"},
-        "next": { "href": "/parents/392/children?page=2", "title": "Page 2" },
-        "last": { "href": "/parents/392/children?page=5", "title": "Page 5" },
-        "createForm": { "href": "/parents/392/children/", "title": "Create Order"},
-        "items": [
-          {"href": "/children/382", "title": "Child 1"},
-          {"href": "/children/8371", "title": "Child 2"},
-          {"href": "/children/716", "title": "Child 3"}
-        ]
-      ]
-    }
+```json
+{
+  "_links": {
+    "self": {"href": "/parents/392/children/"},
+    "next": { "href": "/parents/392/children?page=2", "title": "Page 2" },
+    "last": { "href": "/parents/392/children?page=5", "title": "Page 5" },
+    "createForm": { "href": "/parents/392/children/", "title": "Create Order"},
+    "items": [
+      {"href": "/children/382", "title": "Child 1"},
+      {"href": "/children/8371", "title": "Child 2"},
+      {"href": "/children/716", "title": "Child 3"}
+    ]
+  }
+}
+```
 
 or a collection resource with embedded children
 
-    {
-      "_links": [
-        "self": {"href": "/parents/392/children/"},
-        "next": { "href": "/parents/392/children?page=2", "title": "Page 2" },
-        "last": { "href": "/parents/392/children?page=5", "title": "Page 5" },
-        "createForm": { "href": "/parents/392/children/", "title": "Create Order"},
-        "items": [
-          {"href": "/children/382", "title": "Child 1"},
-          {"href": "/children/8371", "title": "Child 2"},
-          {"href": "/children/716", "title": "Child 3"}
-        ]
-      ],
-      "_embedded": [
-        {
-          "_links" [
-            "self": {"href": "/children/382"}
-          ],
-          "name": "Child 1",
-          "age": 13
+```json
+{
+  "_links": {
+    "self": {"href": "/parents/392/children/"},
+    "next": { "href": "/parents/392/children?page=2", "title": "Page 2" },
+    "last": { "href": "/parents/392/children?page=5", "title": "Page 5" },
+    "createForm": { "href": "/parents/392/children/", "title": "Create Order"},
+    "items": [
+      {"href": "/children/382", "title": "Child 1"},
+      {"href": "/children/8371", "title": "Child 2"},
+      {"href": "/children/716", "title": "Child 3"}
+    ]
+  },
+  "_embedded": {
+    "items": [
+      {
+        "_links" {
+          "self": {"href": "/children/382"}
         },
-        {
-          "_links" [
-            "self": {"href": "/children/8371"}
-          ],
-          "name": "Child 2",
-          "age": 16
+        "name": "Child 1",
+        "age": 13
+      },
+      {
+        "_links" {
+          "self": {"href": "/children/8371"}
         },
-        {
-          "_links" [
-            "self": {"href": "/children/716"}
-          ],
-          "name": "Child 3",
-          "age": 31
-        }
-      ]
-    }
+        "name": "Child 2",
+        "age": 16
+      },
+      {
+        "_links" {
+          "self": {"href": "/children/716"}
+        },
+        "name": "Child 3",
+        "age": 31
+      }
+    ]
+  }
+}
+```
 
 ### Direct links to each child
 
 This seems fine for small related lists, but doesn't allow pagination links or
 metadata about the collection
 
-    {
-      "_links": [
-        "self": {"href": "/parents/392"},
-        "children": [
-          {"href": "/children/382", "title": "Child 1"},
-          {"href": "/children/8371", "title": "Child 2"},
-          {"href": "/children/716", "title": "Child 3"}
-        ]
-      ]
-    }
+```json
+{
+  "_links": {
+    "self": {"href": "/parents/392"},
+    "children": [
+      {"href": "/children/382", "title": "Child 1"},
+      {"href": "/children/8371", "title": "Child 2"},
+      {"href": "/children/716", "title": "Child 3"}
+    ]
+  }
+}
+```
 
 ### An embedded collection resource with links
 
+```json
     {
-      "_links": [
+      "_links": {
         "self": {"href": "/parents/392"},
         "children": {"href": "/parents/392/children/"}
-      ],
-      "_embedded": [
+      },
+      "_embedded": {
         "children": {
-          "_links": [
+          "_links": {
             "self": {"href": "/parents/392/children/"},
             "next": { "href": "/parents/392/children?page=2", "title": "Page 2" },
             "last": { "href": "/parents/392/children?page=5", "title": "Page 5" },
@@ -183,57 +194,62 @@ metadata about the collection
               {"href": "/children/8371", "title": "Child 2"},
               {"href": "/children/716", "title": "Child 3"}
             ]
-          ]
+          }
         }
-      ]
+      }
     }
+```
 
 ### An embedded collection with embedded items
 
-    {
-      "_links": [
-        "self": {"href": "/parents/392"},
-        "children": {"href": "/parents/392/children/"}
-      ],
-      "_embedded": [
-        "children": {
-          "_links": [
-            "self": {"href": "/parents/392/children/"},
-            "next": { "href": "/parents/392/children?page=2", "title": "Page 2" },
-            "last": { "href": "/parents/392/children?page=5", "title": "Page 5" },
-            "createForm": { "href": "/parents/392/children/", "title": "Create Order"},
-            "items": [
-              {"href": "/children/382", "title": "Child 1"},
-              {"href": "/children/8371", "title": "Child 2"},
-              {"href": "/children/716", "title": "Child 3"}
-            ],
-            "_embedded": [
-              {
-              "_links" [
-                "self": {"href": "/children/382"}
-              ],
-              "name": "Child 1",
-              "age": 13
-              },
-              {
-              "_links" [
-                "self": {"href": "/children/8371"}
-              ],
-              "name": "Child 2",
-              "age": 16
-              },
-              {
-              "_links" [
-                "self": {"href": "/children/716"}
-              ],
-              "name": "Child 3",
-              "age": 31
-              }
-            ]
+```json
+{
+  "_links": {
+    "self": {"href": "/parents/392"},
+    "children": {"href": "/parents/392/children/"}
+  },
+  "_embedded": {
+    "children": {
+      "_links": {
+        "self": {"href": "/parents/392/children/"},
+        "next": { "href": "/parents/392/children?page=2", "title": "Page 2" },
+        "last": { "href": "/parents/392/children?page=5", "title": "Page 5" },
+        "createForm": { "href": "/parents/392/children/", "title": "Create Order"},
+        "items": [
+          {"href": "/children/382", "title": "Child 1"},
+          {"href": "/children/8371", "title": "Child 2"},
+          {"href": "/children/716", "title": "Child 3"}
+        ],
+        "_embedded": {
+          "items": [
+            {
+            "_links" {
+              "self": {"href": "/children/382"}
+            },
+            "name": "Child 1",
+            "age": 13
+            },
+            {
+            "_links" {
+              "self": {"href": "/children/8371"}
+            },
+            "name": "Child 2",
+            "age": 16
+            },
+            {
+            "_links" {
+              "self": {"href": "/children/716"}
+            },
+            "name": "Child 3",
+            "age": 31
+            }
           ]
         }
-      ]
+      }
     }
+  }
+}
+```
 
 
 hal+json Example
@@ -349,20 +365,22 @@ Entry Point
 The API entry point is at `http://tidmarsh.media.mit.edu/api/`. A `GET` request
 will give you a link to the available sites.
 
-    {
-      "_links": {
-        "self": { "href": "/api" },
-        "curies": [{
-          "name": "ch",
-          "href": "/rels/{rel}",
-          "templated": true
-        }]
-        "ch:sites": {
-          "title": "Sites",
-          "href": "/sites/"
-        }
-      }
+```json
+{
+  "_links": {
+    "self": { "href": "/api" },
+    "curies": [{
+      "name": "ch",
+      "href": "/rels/{rel}",
+      "templated": true
+    }],
+    "ch:sites": {
+      "title": "Sites",
+      "href": "/sites/"
     }
+  }
+}
+```
 
 Currently the only top-level resource available is the collection of Sites.
 The client first selects which site they are interested in and can navigate
@@ -392,26 +410,28 @@ buildings.
 
 ### Example
 
-    {
-      "_links": {
-          "curies": [{
-              "name": "ch",
-              "href": "/rels/{rel}",
-              "templated": true
-          }],
-          "self": { "href": "/api/sites/92" },
-          "ch:devices": {
-              "title": "Devices",
-              "href": "/api/sites/758/devices"
-          }
-      },
-      "name": "MIT Media Lab",
-      "geoLocation": {
-        elevation: 5.8,
-        latitude: 42.360461,
-        longitude: -71.087347
+```json
+{
+  "_links": {
+      "curies": [{
+          "name": "ch",
+          "href": "/rels/{rel}",
+          "templated": true
+      }],
+      "self": { "href": "/api/sites/92" },
+      "ch:devices": {
+          "title": "Devices",
+          "href": "/api/sites/758/devices"
       }
-    }
+  },
+  "name": "MIT Media Lab",
+  "geoLocation": {
+    "elevation": 5.8,
+    "latitude": 42.360461,
+    "longitude": -71.087347
+  }
+}
+```
 
 Device
 ------
@@ -432,29 +452,31 @@ A device that may contain several sensor channels.
 
 ### Example
 
-    {
-      "_links": {
-          "curies": [{
-              "name": "ch",
-              "href": "/rels/{rel}",
-              "templated": true
-          }],
-          "self": { "href": "/api/devices/929" },
-          "ch:sensors": {
-              "title": "Sensors",
-              "href": "/api/devices/929/sensors"
-          },
-          "ch:site": {
-              "title": "Summer Cabin"
-              "href": "/api/sites/928",
-          },
+```json
+{
+  "_links": {
+      "curies": [{
+          "name": "ch",
+          "href": "/rels/{rel}",
+          "templated": true
+      }],
+      "self": { "href": "/api/devices/929" },
+      "ch:sensors": {
+          "title": "Sensors",
+          "href": "/api/devices/929/sensors"
       },
-      "name": "Bathroom Thermostat",
-      "description": "Thermostat in the pool house bathroom",
-      "building": "Pool House",
-      "floor": "2",
-      "room": "Bathroom",
-    }
+      "ch:site": {
+          "title": "Summer Cabin"
+          "href": "/api/sites/928",
+      },
+  },
+  "name": "Bathroom Thermostat",
+  "description": "Thermostat in the pool house bathroom",
+  "building": "Pool House",
+  "floor": "2",
+  "room": "Bathroom",
+}
+```
 
 Sensor
 ------
@@ -479,29 +501,31 @@ TBD data types.
 
 ### Example
 
-    {
-      "_links": {
-          "curies": [{
-            "name": "ch",
-            "href": "/rels/{rel}",
-            "templated": true
-          }],
-          "self": { "href": "/api/sensors/929" },
-          "ch:dataHistory": {
-            "title": "History",
-            "href": "/api/sensors/929/history"
-          },
-          "ch:device": {
-            "title": "Bathroom Thermostat",
-            "href": "/api/devices/928",
-          },
+```json
+{
+  "_links": {
+      "curies": [{
+        "name": "ch",
+        "href": "/rels/{rel}",
+        "templated": true
+      }],
+      "self": { "href": "/api/sensors/929" },
+      "ch:dataHistory": {
+        "title": "History",
+        "href": "/api/sensors/929/history"
       },
-      "dataType": "float",
-      "value": 23.5,
-      "updated": "2014-03-12T13:37:27+00:00"
-      "metric": "temperature",
-      "unit": "C"
-    }
+      "ch:device": {
+        "title": "Bathroom Thermostat",
+        "href": "/api/devices/928",
+      },
+  },
+  "dataType": "float",
+  "value": 23.5,
+  "updated": "2014-03-12T13:37:27+00:00",
+  "metric": "temperature",
+  "unit": "C"
+}
+```
 
 Sensor Data
 -----------
@@ -522,28 +546,30 @@ URL to post data to this data set.
 
 ### Example
 
-    {
-      "_links": {
-          "self": {"href": "/api/scalar_data/?device=9382"},
-          "curies": [{
-              "name": "ch",
-              "href": "/rels/{rel}",
-              "templated": true
-          }],
-          "createForm": {
-              "href": "/api/scalar_data/?device=9382",
-              "title": "Add Data"
-          }
-      },
-      "dataType": "float",
-      "data": [
-        {"value": 23.5, "timestamp": "2014-03-12T13:37:27+00:00"},
-        {"value": 23.3, "timestamp": "2014-03-12T13:38:81+00:00"},
-        {"value": 22.9, "timestamp": "2014-03-12T13:39:75+00:00"},
-        {"value": 22.4, "timestamp": "2014-03-12T13:40:98+00:00"}
-      ],
-      "totalCount": 4
-    }
+```json
+{
+  "_links": {
+      "self": {"href": "/api/scalar_data/?device=9382"},
+      "curies": [{
+          "name": "ch",
+          "href": "/rels/{rel}",
+          "templated": true
+      }],
+      "createForm": {
+          "href": "/api/scalar_data/?device=9382",
+          "title": "Add Data"
+      }
+  },
+  "dataType": "float",
+  "data": [
+    {"value": 23.5, "timestamp": "2014-03-12T13:37:27+00:00"},
+    {"value": 23.3, "timestamp": "2014-03-12T13:38:81+00:00"},
+    {"value": 22.9, "timestamp": "2014-03-12T13:39:75+00:00"},
+    {"value": 22.4, "timestamp": "2014-03-12T13:40:98+00:00"}
+  ],
+  "totalCount": 4
+}
+```
 
 Dev Server Initial Setup
 ========================
@@ -571,9 +597,11 @@ there you can follow the below instructions on setting up a Chain API server.
 Chain API Server Setup Instructions
 ===================================
 
+Currently Chain API is supported on Ubuntu Precise (12.04 LTS)
 Install puppet and the proper puppet modules with
 
-    sudo apt-get install puppet
+    sudo apt-get install rubygems
+    sudo gem install puppet -v3.4.3 --no-rdoc --no-ri
     (or on Arch use yaourt -S puppet)
     sudo puppet module install puppetlabs/postgresql -v3.2.0
 
@@ -590,13 +618,18 @@ END OF ARCH-SPECIFIC NOTE
 
 edit manifest.pp and change the database username and password.
 
-Edit settings.py and set the username and password, as well as the
-`SECRET_KEY` setting.
+Copy `localsettings_template.py` into a new file called `localsettings.py`, setting
+the username and password, as well as the `SECRET_KEY`. You can generate an
+appropriate secret key in python with:
+
+    import random
+    ''.join([random.SystemRandom().
+        choice('abcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*(-_=+)')
+        for i in range(50)])
 
 Then set up the server with
 
     sudo puppet apply manifest.pp
-
 
 Now you can initialize your django environment
 
@@ -611,6 +644,77 @@ and access it from your host machine's browser at
 
     http://localhost:8000/admin
 
+Setting up for Production
+-------------------------
+
+While the above steps should be fine for development, there are a few more
+things you need to do for a production machine.
+
+First make sure whatever user will be deploying is in the "staff" group. This will
+allow us to autodeploy without needing root permissions.
+
+    sudo usermod -aG staff USERNAME
+    sudo chown -R root:staff /usr/local
+    sudo chmod -R g+w /usr/local
+
+First install the django app to your system python install by running
+
+    ./setup.py develop
+
+This will install the app as a system package, so you don't need to hard-code
+paths.
+
+NOTE - the package is installed WITHOUT root permissions. This is
+important because if we install with root permissions the first time then we'll
+need root permission on every subsequent time.
+
+Then copy the system config files
+
+    sudo cp -R system/* /
+
+And enable the HTTP interface to supervisor by adding the following code to
+the configuration at /etc/supervisor/supervisord.conf (setting the username
+and password to whatever you want them to be)
+
+    [inet_http_server]
+    port=*:9001
+    user=username
+    password=password
+
+We also need to change the permissions so that anyone in the "staff" group can
+manage supervisor tasks.
+
+    [unix_http_server]
+    file=/var/run/supervisor.sock
+    chmod=0770
+    chown=nobody:staff
+
+Now you can restart supervisord and nginx to pick up the config changes. Note
+that supervisor restart doesn't work, so it must be stopped and started.
+
+sudo /etc/init.d/supervisor stop
+sudo /etc/init.d/supervisor start
+sudo /etc/init.d/nginx restart
+
+Deploy Hooks
+------------
+
+In the "hooks" directory you'll find a post-receive hook that should be copied
+(or symlinked) into the .git/hooks directory of your deployed server. You'll also
+need to run
+
+    git config receive.denyCurrentBranch ignore
+
+To allow pushes to the checked-out branch.
+
+On your development machine you should now be able to set up the deployment server as a
+git remote
+
+    git remote add production ssh://deployuser@yourserver.com/deployed/repo/dir
+
+then whenever you have a version to push to production just:
+
+    git push production
 
 
 

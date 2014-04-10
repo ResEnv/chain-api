@@ -1,0 +1,51 @@
+#!/bin/sh
+
+echo "Running post-receive hook..."
+
+# git gives us this data on stdin. We're not currently doing anything with it.
+read oldhash newhash refname
+
+echo "Old Hash: $oldhash"
+echo "New Hash: $newhash"
+echo "Refname: $refname"
+echo "Running in $PWD"
+echo ""
+
+cd ..
+export GIT_DIR=".git"
+export GIT_WORK_TREE="."
+
+echo "*************"
+echo "* DEPLOYING *"
+echo "*************"
+echo ""
+echo "Checking Out to Working Directory"
+echo "---------------------------------"
+echo ""
+git checkout -f
+git reset --hard
+
+echo ""
+echo "Running setup.py"
+echo "----------------"
+echo ""
+./setup.py develop
+
+echo ""
+echo "Syncing Database"
+echo "----------------"
+echo ""
+./manage.py syncdb
+./manage.py migrate core
+
+echo ""
+echo "Restarting Supervisor Tasks"
+echo "---------------------------"
+echo ""
+supervisorctl restart chain_webserver
+supervisorctl restart medialab_tidpost
+supervisorctl restart tidmarsh_tidpost
+
+echo ""
+echo "Deployment Complete!"
+echo ""

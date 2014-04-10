@@ -1,25 +1,5 @@
 # Django settings for chain-api project.
 
-DEBUG = True
-TEMPLATE_DEBUG = DEBUG
-
-ADMINS = (
-    ('Spencer Russell', 'sfr@mit.edu'),
-)
-
-MANAGERS = ADMINS
-
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        'NAME': 'doppellab',
-        'USER': 'doppellab',
-        'PASSWORD': 'secret',
-        'HOST': 'localhost',  # use domain socket (127.0.0.1 for TCP)
-        'PORT': '',
-    }
-}
-
 # when we resolve absolute URIs and we're behind a proxy, we need to check
 # the forwarded host so we generate the correct URIs
 USE_X_FORWARDED_HOST = True
@@ -27,16 +7,6 @@ USE_X_FORWARDED_HOST = True
 # Hosts/domain names that are valid for this site; required if DEBUG is False
 # See https://docs.djangoproject.com/en/1.5/ref/settings/#allowed-hosts
 ALLOWED_HOSTS = []
-
-# Local time zone for this installation. Choices can be found here:
-# http://en.wikipedia.org/wiki/List_of_tz_zones_by_name
-# although not all choices may be available on all operating systems.
-# In a Windows environment this must be set to your system time zone.
-TIME_ZONE = 'America/New_York'
-
-# Language code for this installation. All choices can be found here:
-# http://www.i18nguy.com/unicode/language-identifiers.html
-LANGUAGE_CODE = 'en-us'
 
 SITE_ID = 1
 
@@ -64,7 +34,7 @@ MEDIA_URL = ''
 # Don't put anything in this directory yourself; store your static files
 # in apps' "static/" subdirectories and in STATICFILES_DIRS.
 # Example: "/var/www/example.com/static/"
-STATIC_ROOT = ''
+STATIC_ROOT = '/srv/chain/static/'
 
 # URL prefix for static files.
 # Example: "http://example.com/static/", "http://static.example.com/"
@@ -84,9 +54,6 @@ STATICFILES_FINDERS = (
     'django.contrib.staticfiles.finders.AppDirectoriesFinder',
     # 'django.contrib.staticfiles.finders.DefaultStorageFinder',
 )
-
-# Make this unique, and don't share it with anybody.
-SECRET_KEY = '+gc(#gc_ot5ac_485fh&dsakm+f4kfjux2@w4(!&*938_(0iwg'
 
 # List of callables that know how to import templates from various sources.
 TEMPLATE_LOADERS = (
@@ -160,3 +127,6 @@ LOGGING = {
         },
     }
 }
+
+# import this at the end so we can override default settings
+from localsettings import *

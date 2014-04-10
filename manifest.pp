@@ -22,6 +22,16 @@ package { "python-pip":
 #    require => Exec["apt-update"],
 }
 
+package { "nginx":
+    ensure  => present,
+#    require => Exec["apt-update"],
+}
+
+package { "supervisor":
+    ensure  => present,
+#    require => Exec["apt-update"],
+}
+
 # Pip packages
 
 package { "psycopg2":
@@ -32,11 +42,11 @@ package { "psycopg2":
     ensure => present,
 }
 
-package { "supervisor":
-    provider => "pip",
-    require => Package["python-pip"],
-    ensure => present,
-}
+#package { "supervisor":
+#    provider => "pip",
+#    require => Package["python-pip"],
+#    ensure => present,
+#}
 
 package { "django":
     provider => "pip",
@@ -74,15 +84,45 @@ package { "django-debug-toolbar":
     ensure => present,
 }
 
+package { "gunicorn":
+    provider => "pip",
+    require => Package["python-pip"],
+    ensure => present,
+}
+
+package { "chainclient":
+    provider => "pip",
+    require => Package["python-pip"],
+    ensure => present,
+}
+
+package { "pyzmq":
+    provider => "pip",
+    require => Package["python-pip"],
+    ensure => present,
+}
+
+package { "docopt":
+    provider => "pip",
+    require => Package["python-pip"],
+    ensure => present,
+}
+
+package { "coloredlogs":
+    provider => "pip",
+    require => Package["python-pip"],
+    ensure => present,
+}
+
 
 # Set up DB schema and users
 
-postgresql::server::role { 'doppellab':
+postgresql::server::role { 'chain':
     createdb => true,
-    password_hash => postgresql_password('doppellab', 'secret'),
+    password_hash => postgresql_password('chain', 'secret'),
 }
 
-postgresql::server::db { 'doppellab':
-    user     => 'doppellab',
-    password => postgresql_password('doppellab', 'secret')
+postgresql::server::db { 'chain':
+    user     => 'chain',
+    password => postgresql_password('chain', 'secret')
 }

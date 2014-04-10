@@ -6,7 +6,7 @@ admin.autodiscover()
 
 urlpatterns = patterns(
     '',
-    url(r'^api/', include(resources.urls)),
+    url(r'^', include(resources.urls)),
     # Examples:
     # url(r'^$', 'chain.views.home', name='home'),
     # url(r'^chain/', include('chain.foo.urls')),

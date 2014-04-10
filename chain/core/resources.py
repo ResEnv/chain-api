@@ -5,10 +5,6 @@ from chain.core.models import Site, Device, Sensor, ScalarData
 from django.conf.urls import include, patterns, url
 
 
-def capitalize(word):
-    return word[0].upper() + word[1:]
-
-
 class SensorDataResource(Resource):
     model = ScalarData
     display_field = 'timestamp'
@@ -17,7 +13,15 @@ class SensorDataResource(Resource):
     model_fields = ['timestamp', 'value']
     required_fields = ['timestamp', 'value']
     queryset = ScalarData.objects
-    page_size = 4000
+    page_size = 500
+
+    def __init__(self, *args, **kwargs):
+        super(SensorDataResource, self).__init__(*args, **kwargs)
+        if 'queryset' in kwargs:
+            if 'offset' not in kwargs or kwargs['offset'] is None:
+                # we want to default to the last page, not the first page
+                total_count = self.get_total_count()
+                self._offset = max(total_count - self._limit, 0)
 
     def serialize_list(self, embed, cache):
         '''a "list" of SensorData resources is actually represented
@@ -177,6 +181,7 @@ class ApiRootResource(Resource):
 
 urls = patterns(
     '',
+    url(r'^/$', ApiRootResource.single_view, name='api-root'),
     url(r'^$', ApiRootResource.single_view, name='api-root'),
     url(r'^sites/', include(SiteResource.urls())),
     url(r'^devices/', include(DeviceResource.urls())),
