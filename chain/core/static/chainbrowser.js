@@ -55,14 +55,23 @@
 */
 
 function render_chart(raw_data, element) {
-    $("#chart-header").removeClass("hidden")
+    $("#chart-header").removeClass("hidden");
 
-    data = []
+    // we don't actually want the minval to be above 0 or the maxval to be below
+    var maxVal = 0;
+    var minVal = 0;
+    var data = [];
     for(i = 0; i < raw_data.length; i++) {
-        new_point = {
+        if(raw_data[i].value > maxVal) {
+            maxVal = raw_data[i].value;
+        };
+        if(raw_data[i].value < minVal) {
+            minVal = raw_data[i].value;
+        };
+        var new_point = {
             x: Date.parse(raw_data[i].timestamp) / 1000,
             y: raw_data[i].value
-        }
+        };
         data.push(new_point)
     };
 
@@ -72,6 +81,8 @@ function render_chart(raw_data, element) {
         element: document.querySelector("#data-chart"),
         // width: 580,
         height: 250,
+        min: minVal - 0.1 * (maxVal - minVal),
+        max: maxVal + 0.1 * (maxVal - minVal),
         series: [ {
             name: 'Value',
             color: 'steelblue',
