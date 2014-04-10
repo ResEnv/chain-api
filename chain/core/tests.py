@@ -384,6 +384,10 @@ class ApiSitesTests(ChainTestCase):
         self.assertEqual(response.links.rawZMQStream.href,
                          new_site['rawZMQStream'])
 
+    def test_site_should_have_summary_link(self):
+        device = self.get_a_site()
+        self.assertIn('ch:siteSummary', device.links)
+
 
 class ApiDeviceTests(ChainTestCase):
     def test_device_should_have_sensors_link(self):

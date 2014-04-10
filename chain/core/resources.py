@@ -122,6 +122,11 @@ class SiteResource(Resource):
                 data['_links']['rawZMQStream'] = {
                     'href': stream,
                     'title': 'Raw ZMQ Stream'}
+            data['_links']['ch:siteSummary'] = {
+                'title': 'Summary',
+                'href': full_reverse('site-summary', self._request,
+                                     args=(self._obj.id,))
+            }
         return data
 
     def get_filled_schema(self):
@@ -151,6 +156,17 @@ class SiteResource(Resource):
             'title': 'rawZMQStream'
         }
         return schema
+
+    @classmethod
+    def site_summary_view(cls, request, id):
+        pass
+
+    @classmethod
+    def urls(cls):
+        base_patterns = super(SiteResource, cls).urls()
+        base_patterns.append(
+            url(r'^(\d+)/summary$', cls.edit_view, name='site-summary'))
+        return base_patterns
 
 
 class ApiRootResource(Resource):
