@@ -15,6 +15,7 @@ class SensorDataResource(Resource):
     resource_name = 'data'
     resource_type = 'data'
     model_fields = ['timestamp', 'value']
+    required_fields = ['timestamp', 'value']
     queryset = ScalarData.objects
     page_size = 4000
 
@@ -140,7 +141,6 @@ class SiteResource(Resource):
 
     @classmethod
     def get_schema(cls):
-        #import pdb; pdb.set_trace()
         schema = super(SiteResource, cls).get_schema()
         schema['properties']['rawZMQStream'] = {
             'type': 'string',

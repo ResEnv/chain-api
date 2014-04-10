@@ -1395,9 +1395,16 @@ JSONEditor.AbstractEditor = Class.extend({
     this.watch_listener();
     // by default remove non-required properties. There's probably a better way
     // to do this
-    if(!this.isRequired() && this.getDefault() == null) {
+    if(this.startRemoved()) {
         this.removeProperty();
     }
+  },
+  startRemoved: function() {
+    if(!this.isRequired() &&
+            this.getDefault() == null) {
+        return true;
+    }
+    return false;
   },
   getButton: function(text, icon, title) {
     if(!this.iconlib) icon = null;
@@ -2020,6 +2027,21 @@ JSONEditor.defaults.editors.integer = JSONEditor.defaults.editors.number.extend(
 JSONEditor.defaults.editors.object = JSONEditor.AbstractEditor.extend({
   getDefault: function() {
     return this.schema.default || null;
+  },
+  startRemoved: function() {
+    if(this.getPath() == "root") {
+        return false;
+    }
+    children = this.getChildEditors();
+    for(var child in children) {
+      if(children.hasOwnProperty(child)) {
+        // yeah, this won't work recursively.
+        if(children[child].getDefault() != null) {
+          return false;
+        }
+      }
+    }
+    return true;
   },
   getChildEditors: function() {
     return this.editors;
