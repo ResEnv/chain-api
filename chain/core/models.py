@@ -123,12 +123,15 @@ class Sensor(models.Model):
 class ScalarData(models.Model):
     '''A data point representing scalar sensor data, such as temperature,
     humidity, etc.'''
+    # Django automatically creates indices on foreign keys
     sensor = models.ForeignKey(Sensor, related_name='scalar_data')
-    timestamp = models.DateTimeField(default=timezone.now, blank=True)
+    timestamp = models.DateTimeField(default=timezone.now, blank=True,
+                                     db_index=True)
     value = models.FloatField()
 
     class Meta:
         verbose_name_plural = "scalar data"
+        index_together = [['sensor', 'timestamp']]
 
     def __repr__(self):
         return 'ScalarData(timestamp=%r, value=%r, sensor=%r)' % (
