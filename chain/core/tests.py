@@ -170,7 +170,8 @@ class ChainTestCase(TestCase):
     def get_resource(self, url, mime_type='application/hal+json'):
         accept_header = mime_type + ',' + ACCEPT_TAIL
         response = self.client.get(url,
-                                   HTTP_ACCEPT=accept_header)
+                                   HTTP_ACCEPT=accept_header,
+                                   HTTP_HOST='localhost')
         self.assertEqual(response.status_code, HTTP_STATUS_SUCCESS)
         self.assertEqual(response['Content-Type'], mime_type)
         if mime_type == 'application/hal+json':
@@ -191,7 +192,8 @@ class ChainTestCase(TestCase):
         accept_header = mime_type + ',' + ACCEPT_TAIL
         response = self.client.post(url, json.dumps(resource),
                                     content_type=mime_type,
-                                    HTTP_ACCEPT=accept_header)
+                                    HTTP_ACCEPT=accept_header,
+                                    HTTP_HOST='localhost')
         self.assertEqual(response.status_code, expected_status)
         self.assertEqual(response['Content-Type'], mime_type)
         if mime_type == 'application/hal+json':
@@ -560,6 +562,26 @@ class ApiDeviceTests(ChainTestCase):
             'required': ['latitude', 'longitude']
         })
 
+    def test_posting_device_should_send_zmq_msgs(self):
+        fake_zmq_socket.clear()
+
+        site = self.get_a_site()
+        devices = self.get_resource(site.links['ch:devices'].href)
+        dev_url = devices.links.createForm.href
+        new_device = {"name": "Unit Test Thermostat 42"}
+        self.create_resource(dev_url, new_device)
+        db_device = Device.objects.get(name=new_device['name'])
+
+        # make sure that a message got sent to all the appropriate tags
+        stream_tags = [
+            'site-%d' % db_device.site_id,
+            'device-%d' % db_device.id
+        ]
+        for tag in stream_tags:
+            self.assertEqual(1, len(fake_zmq_socket.sent_msgs[tag]))
+            self.assertEqual(new_device['name'],
+                             fake_zmq_socket.sent_msgs[tag][0]['name'])
+
 
 class ApiSensorTests(ChainTestCase):
     def test_sensors_should_be_postable_to_existing_device(self):
@@ -661,18 +683,6 @@ class ApiSensorDataTests(ChainTestCase):
             sensor__device__name=device.name,
             timestamp=timestamp)
         self.assertEqual(db_data.value, data['value'])
-
-    def test_create_link_should_have_tag_param(self):
-        sensor = self.get_a_sensor()
-        device = self.get_resource(
-            sensor.links['ch:device'].href)
-        db_sensor = Sensor.objects.get(
-            metric__name=sensor.metric,
-            device__name=device.name)
-        sensor_data = self.get_resource(
-            sensor.links['ch:dataHistory'].href)
-        self.assertIn('tag=sensor-%d' % db_sensor.id,
-                      sensor_data.links['createForm'].href)
 
     def test_posting_data_should_send_zmq_msgs(self):
         fake_zmq_socket.clear()

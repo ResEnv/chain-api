@@ -6,10 +6,10 @@ import sys
 try:
     tag = sys.argv[1]
 except IndexError:
-    print('usage: %s <TAGNAME>' % sys.argv[0])
+    print('usage: %s <STREAM_URL>' % sys.argv[0])
     sys.exit(1)
 
-stream_url = "ws://localhost:8000/%s" % sys.argv[1]
+stream_url = sys.argv[1]
 print('Connecting to %s' % stream_url)
 ws = create_connection(stream_url)
 while True:

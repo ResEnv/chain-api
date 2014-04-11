@@ -272,7 +272,12 @@ class Resource(object):
     def get_websocket_href(self):
         '''Gives the URL for the websockets stream that provides updates
         on this resource as well as nested resources.'''
-        hostname = WEBSOCKET_HOST or self._request.META['HTTP_HOST']
+        try:
+            hostname = WEBSOCKET_HOST or self._request.META['HTTP_HOST']
+        except KeyError:
+            # TODO: raise an error that gets handled and returns a 400 response
+            raise
+
         return "ws://%s/%s%s-%d" % (hostname,
                                     WEBSOCKET_PATH,
                                     self.resource_type, self._obj.id)
@@ -289,19 +294,14 @@ class Resource(object):
     def get_create_href(self):
         href = full_reverse(self.resource_name + '-create', self._request)
         query_params = self._filters.items()
-        tags = self.get_tags()
-        if tags:
-            for tag in tags:
-                query_params.append(('tag', tag))
         if query_params:
             href += '?' + urlencode(query_params)
         return href
 
     def get_tags(self):
         '''Returns a list of tags applicable to this instance of the resource.
-        These are used as stream topics that can be subscribed to. This could
-        be called either on a single instance (with self._obj defined) or a
-        list instance (with self._queryset defined)'''
+        this gets called on a resource after POSTing (either creating a new one
+        or editing an existing one'''
         return []
 
     def add_page_links(self, data, href):
@@ -635,11 +635,11 @@ class Resource(object):
             data = json.loads(request.body)
             resource.update(data)
             response_data = resource.serialize()
-            # if the post came in with any tags, push to the appropriate
-            # streams
-            if 'tag' in request.POST.dict():
-                for tag in request.POST.getlist('tag'):
-                    zmq_socket.send(tag + ' ' + json.dumps(response_data))
+            # push to the appropriate streams
+            tags = resource.get_tags()
+            for tag in tags:
+                zmq_socket.send_string(
+                    tag + ' ' + json.dumps(response_data))
             return cls.render_response(response_data, request)
 
     @classmethod
@@ -652,17 +652,13 @@ class Resource(object):
         elif request.method == 'POST':
             data = json.loads(request.body)
             obj_params = request.GET.dict()
-            if 'tag' in obj_params:
-                del obj_params['tag']
             new_resource = cls(data=data, request=request, filters=obj_params)
             new_resource.save()
             response_data = new_resource.serialize()
-            # if the post came in with any tags, push to the appropriate
-            # streams
-            if 'tag' in request.GET.dict():
-                stream_data = json.dumps(new_resource.serialize_stream())
-                for tag in request.GET.getlist('tag'):
-                    zmq_socket.send_string(tag + ' ' + stream_data)
+            tags = new_resource.get_tags()
+            for tag in tags:
+                zmq_socket.send_string(
+                    tag + ' ' + json.dumps(response_data))
             return cls.render_response(response_data, request,
                                        status=HTTP_STATUS_CREATED)
 

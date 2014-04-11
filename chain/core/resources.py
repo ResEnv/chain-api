@@ -66,15 +66,14 @@ class SensorDataResource(Resource):
         return data
 
     def get_tags(self):
-        if 'sensor_id' in self._filters:
-            sensor_id = int(self._filters['sensor_id'])
-            db_sensor = Sensor.objects.select_related('device').get(
-                id=sensor_id)
-            return ['sensor-%d' % sensor_id,
-                    'device-%d' % db_sensor.device_id,
-                    'site-%d' % db_sensor.device.site_id]
-        else:
-            return []
+        if not self._obj:
+            raise ValueError(
+                'Tried to called get_tags on a resource without an object')
+        db_sensor = Sensor.objects.select_related('device').get(
+            id=self._obj.sensor_id)
+        return ['sensor-%d' % db_sensor.id,
+                'device-%d' % db_sensor.device_id,
+                'site-%d' % db_sensor.device.site_id]
 
 
 class SensorResource(Resource):
@@ -107,11 +106,10 @@ class SensorResource(Resource):
                 data['updated'] = last_data[0].timestamp.isoformat()
         return data
 
-    #def get_tags(self):
-    #    return ['sensor-%d' % self._obj.id,
-    #            'device-%d' % self._obj.device_id,
-    #            'site-%d' % self._obj.device.site_id,
-    #            self._obj.metric.name]
+    def get_tags(self):
+        return ['sensor-%s' % self._obj.id,
+                'device-%s' % self._obj.device_id,
+                'site-%s' % self._obj.device.site_id]
 
 
 class DeviceResource(Resource):
@@ -129,9 +127,10 @@ class DeviceResource(Resource):
     }
     queryset = Device.objects
 
-    #def get_tags(self):
-    #    return ['device-%d' % self._obj.id,
-    #            'site-%d' % self._obj.site_id]
+    def get_tags(self):
+        # sometimes the site_id field is unicode? weird
+        return ['device-%d' % self._obj.id,
+                'site-%s' % self._obj.site_id]
 
 
 class SiteResource(Resource):
@@ -183,8 +182,8 @@ class SiteResource(Resource):
             self._obj.raw_zmq_stream = data['rawZMQStream']
         self._obj.save()
 
-    #def get_tags(self):
-    #    return ['site-%d' % self._obj.id]
+    def get_tags(self):
+        return ['site-%d' % self._obj.id]
 
     @classmethod
     def get_schema(cls):
