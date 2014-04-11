@@ -621,6 +621,18 @@ class ApiSensorDataTests(ChainTestCase):
             timestamp=timestamp)
         self.assertEqual(db_data.value, data['value'])
 
+    def test_create_link_should_have_tag_param(self):
+        sensor = self.get_a_sensor()
+        device = self.get_resource(
+            sensor.links['ch:device'].href)
+        db_sensor = Sensor.objects.get(
+            metric__name=sensor.metric,
+            device__name=device.name)
+        sensor_data = self.get_resource(
+            sensor.links['ch:dataHistory'].href)
+        self.assertIn('tag=sensor-%d' % db_sensor.id,
+                      sensor_data.links['createForm'].href)
+
     def test_collection_links_should_not_have_page_info(self):
         # we want to allow the server to just give the default pagination when
         # the client is just following links around

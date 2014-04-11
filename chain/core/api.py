@@ -12,6 +12,7 @@ from jinja2 import Environment, PackageLoader
 from urlparse import urlparse, urlunparse, parse_qs
 from urllib import urlencode
 from chain.core.models import GeoLocation
+import zmq
 
 
 def capitalize(word):
@@ -45,6 +46,11 @@ HTTP_STATUS_NOT_FOUND = 404
 HTTP_STATUS_NOT_ACCEPTABLE = 406
 
 jinja_env = Environment(loader=PackageLoader('chain.core', 'templates'))
+
+# Set up ZMQ feed for realtime clients
+zmq_ctx = zmq.Context()
+zmq_socket = zmq_ctx.socket(zmq.PUB)
+zmq_socket.bind('tcp://127.0.0.1:31416')
 
 
 def full_reverse(view_name, request, *args, **kwargs):
@@ -155,7 +161,7 @@ class Resource(object):
     page_size = 30
 
     def __init__(self, obj=None, queryset=None, data=None, request=None,
-                 filters=None, limit=None, offset=None):
+                 filters=None, tags=None, limit=None, offset=None):
         if len([arg for arg in [obj, queryset, data] if arg]) != 1:
             logging.error(
                 'Exactly 1 object, queryset, or primitive data is required')
@@ -163,11 +169,12 @@ class Resource(object):
         self._data = data
         self._obj = obj
         self._filters = filters or {}
+        self._tags = tags or []
         self._request = request
         self._limit = limit or self.page_size
         self._offset = offset or 0
 
-    def serialize_single(self, embed, cache, rels=True):
+    def serialize_single(self, embed=True, cache=None, rels=True):
         '''Serializes this object, assuming that there is a single instance to
         be serialized. Note that this only gets called from the top-level
         serialize() method, which handles checking whether we're in the
@@ -263,17 +270,26 @@ class Resource(object):
         # TODO: use this for single views as well
         href = full_reverse(self.resource_name + '-list', self._request)
         query_params = self._filters.items()
-        #query_params.append(('offset', self._offset))
-        #query_params.append(('limit', self._limit))
         href += '?' + urlencode(query_params)
         return href
 
     def get_create_href(self):
         href = full_reverse(self.resource_name + '-create', self._request)
         query_params = self._filters.items()
+        tags = self.get_tags()
+        if tags:
+            for tag in tags:
+                query_params.append(('tag', tag))
         if query_params:
             href += '?' + urlencode(query_params)
         return href
+
+    def get_tags(self):
+        '''Returns a list of tags applicable to this instance of the resource.
+        These are used as stream topics that can be subscribed to. This could
+        be called either on a single instance (with self._obj defined) or a
+        list instance (with self._queryset defined)'''
+        return []
 
     def add_page_links(self, data, href):
         offset = self._offset
@@ -605,7 +621,13 @@ class Resource(object):
             resource = cls(obj=cls.queryset.get(id=id), request=request)
             data = json.loads(request.body)
             resource.update(data)
-            return cls.render_response(resource.serialize(), request)
+            response_data = resource.serialize()
+            # if the post came in with any tags, push to the appropriate
+            # streams
+            if 'tag' in request.POST.dict():
+                for tag in request.POST.getlist('tag'):
+                    zmq_socket.send(tag + ' ' + json.dumps(response_data))
+            return cls.render_response(response_data, request)
 
     @classmethod
     @csrf_exempt
@@ -617,9 +639,17 @@ class Resource(object):
         elif request.method == 'POST':
             data = json.loads(request.body)
             obj_params = request.GET.dict()
+            if 'tag' in obj_params:
+                del obj_params['tag']
             new_resource = cls(data=data, request=request, filters=obj_params)
             new_resource.save()
             response_data = new_resource.serialize()
+            stream_data = json.dumps(new_resource.serialize_stream())
+            # if the post came in with any tags, push to the appropriate
+            # streams
+            if 'tag' in request.GET.dict():
+                for tag in request.GET.getlist('tag'):
+                    zmq_socket.send_string(tag + ' ' + stream_data)
             return cls.render_response(response_data, request,
                                        status=HTTP_STATUS_CREATED)
 

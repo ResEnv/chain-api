@@ -13,7 +13,7 @@ class SensorDataResource(Resource):
     resource_name = 'data'
     resource_type = 'data'
     model_fields = ['timestamp', 'value']
-    required_fields = ['timestamp', 'value']
+    required_fields = ['value']
     queryset = ScalarData.objects
     page_size = 500
 
@@ -54,6 +54,23 @@ class SensorDataResource(Resource):
         serialized_data = self.add_page_links(serialized_data, href)
         return serialized_data
 
+    def serialize_stream(self):
+        '''Serialize this resource for a stream'''
+        data = self.serialize_single(rels=False)
+        data['_links'] = {
+            'self': {'href': self.get_single_href()},
+            'ch:sensor': {'href': full_reverse(
+                'sensors-single', self._request,
+                args=(self._filters['sensor_id'],))}
+        }
+        return data
+
+    def get_tags(self):
+        if 'sensor_id' in self._filters:
+            return ['sensor-%s' % self._filters['sensor_id']]
+        else:
+            return []
+
 
 class SensorResource(Resource):
 
@@ -85,6 +102,12 @@ class SensorResource(Resource):
                 data['updated'] = last_data[0].timestamp.isoformat()
         return data
 
+    #def get_tags(self):
+    #    return ['sensor-%d' % self._obj.id,
+    #            'device-%d' % self._obj.device_id,
+    #            'site-%d' % self._obj.device.site_id,
+    #            self._obj.metric.name]
+
 
 class DeviceResource(Resource):
 
@@ -100,6 +123,10 @@ class DeviceResource(Resource):
         'ch:site': ResourceField('chain.core.resources.SiteResource', 'site')
     }
     queryset = Device.objects
+
+    #def get_tags(self):
+    #    return ['device-%d' % self._obj.id,
+    #            'site-%d' % self._obj.site_id]
 
 
 class SiteResource(Resource):
@@ -150,6 +177,9 @@ class SiteResource(Resource):
         if 'rawZMQStream' in data:
             self._obj.raw_zmq_stream = data['rawZMQStream']
         self._obj.save()
+
+    #def get_tags(self):
+    #    return ['site-%d' % self._obj.id]
 
     @classmethod
     def get_schema(cls):
