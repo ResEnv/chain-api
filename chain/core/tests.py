@@ -5,7 +5,7 @@ from chain.core.resources import DeviceResource
 from datetime import datetime, timedelta
 import json
 from chain.core.api import HTTP_STATUS_SUCCESS, HTTP_STATUS_CREATED
-from django.utils.timezone import make_aware, utc
+from django.utils.timezone import make_aware, utc, now
 from chain.core.hal import HALDoc
 
 HTTP_STATUS_NOT_ACCEPTABLE = 406
@@ -122,11 +122,11 @@ class ChainTestCase(TestCase):
             sensor.save()
             self.scalar_data.append(ScalarData(
                 sensor=sensor,
-                timestamp=make_aware(datetime(2013, 1, 1, 0, 0, 1), utc),
+                timestamp=now() - timedelta(minutes=2),
                 value=22.0))
             self.scalar_data.append(ScalarData(
                 sensor=sensor,
-                timestamp=make_aware(datetime(2013, 1, 1, 0, 0, 2), utc),
+                timestamp=now() - timedelta(minutes=1),
                 value=23.0))
         for data in self.scalar_data:
             data.save()
@@ -414,8 +414,34 @@ class ApiSitesTests(ChainTestCase):
                          new_site['geoLocation']['longitude'])
 
     def test_site_should_have_summary_link(self):
-        device = self.get_a_site()
-        self.assertIn('ch:siteSummary', device.links)
+        site = self.get_a_site()
+        self.assertIn('ch:siteSummary', site.links)
+
+    def test_site_summary_should_have_devices(self):
+        site = self.get_a_site()
+        device = self.get_a_device()
+        summary = self.get_resource(site.links['ch:siteSummary'].href)
+        self.assertIn(device.name, [dev['name'] for dev in
+                                    summary.devices])
+
+    def test_site_summary_devices_should_not_have_rels(self):
+        site = self.get_a_site()
+        summary = self.get_resource(site.links['ch:siteSummary'].href)
+        summary_dev = summary.devices[0]
+        self.assertNotIn('_links', summary_dev)
+        self.assertNotIn('_embedded', summary_dev)
+
+    def test_site_summary_should_have_sensors(self):
+        site = self.get_a_site()
+        summary = self.get_resource(site.links['ch:siteSummary'].href)
+        summary_dev = summary.devices[0]
+        self.assertIn('metric', summary_dev['sensors'][0])
+
+    def test_site_summary_should_have_data(self):
+        site = self.get_a_site()
+        summary = self.get_resource(site.links['ch:siteSummary'].href)
+        summary_dev = summary.devices[0]
+        self.assertIn('value', summary_dev['sensors'][0]['data'][0])
 
 
 class ApiDeviceTests(ChainTestCase):

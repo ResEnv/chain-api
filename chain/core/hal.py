@@ -29,6 +29,7 @@ class HALDoc(AttrDict):
         treated as a standard dict to access the raw data'''
         AttrDict.__init__(self, *args)
         self.links = AttrDict()
+        self.embedded = AttrDict()
 
         if '_links' in self:
             for rel, link in self['_links'].iteritems():
@@ -38,3 +39,11 @@ class HALDoc(AttrDict):
                         self.links[rel].append(HALLink(link_item))
                 else:
                     self.links[rel] = HALLink(link)
+        if '_embedded' in self:
+            for rel, resource in self['_embedded'].iteritems():
+                if isinstance(resource, list):
+                    self.embedded[rel] = []
+                    for resource_item in resource:
+                        self.embedded[rel].append(HALDoc(resource_item))
+                else:
+                    self.embedded[rel] = HALDoc(resource)

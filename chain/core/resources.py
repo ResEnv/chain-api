@@ -3,6 +3,8 @@ from chain.core.api import full_reverse
 from chain.core.api import CHAIN_CURIES
 from chain.core.models import Site, Device, Sensor, ScalarData
 from django.conf.urls import include, patterns, url
+from django.utils import timezone
+from datetime import timedelta
 
 
 class SensorDataResource(Resource):
@@ -71,8 +73,9 @@ class SensorResource(Resource):
                                    'device')
     }
 
-    def serialize_single(self, embed, cache):
-        data = super(SensorResource, self).serialize_single(embed, cache)
+    def serialize_single(self, embed, cache, *args, **kwargs):
+        data = super(SensorResource, self).serialize_single(embed, cache,
+                                                            *args, **kwargs)
         if embed:
             data['dataType'] = 'float'
             last_data = self._obj.scalar_data.order_by(
@@ -160,13 +163,46 @@ class SiteResource(Resource):
 
     @classmethod
     def site_summary_view(cls, request, id):
-        pass
+        time_begin = timezone.now() - timedelta(hours=24)
+        #filters = request.GET.dict()
+        devices = Device.objects.filter(site_id=id).select_related(
+            'sensors',
+            'sensors__metric',
+            'sensors__unit')
+        sensor_data = ScalarData.objects.filter(sensor__device__site_id=id,
+                                                timestamp__gt=time_begin)
+        response = {
+            '_links': {
+                'self': {'href': full_reverse('site-summary', request,
+                                              args=(id,))},
+            },
+            'devices': []
+        }
+        sensor_hash = {}
+        for device in devices:
+            dev_resource = DeviceResource(
+                obj=device, request=request).serialize(rels=False)
+            response['devices'].append(dev_resource)
+            dev_resource['sensors'] = []
+            for sensor in device.sensors.all():
+                sensor_resource = SensorResource(
+                    obj=sensor, request=request).serialize(rels=False)
+                dev_resource['sensors'].append(sensor_resource)
+                sensor_resource['data'] = []
+                sensor_hash[sensor.id] = sensor_resource
+
+        for data in sensor_data:
+            data_resource = SensorDataResource(
+                obj=data, request=request).serialize(rels=False)
+            sensor_hash[data.sensor_id]['data'].append(data_resource)
+        return cls.render_response(response, request)
 
     @classmethod
     def urls(cls):
         base_patterns = super(SiteResource, cls).urls()
         base_patterns.append(
-            url(r'^(\d+)/summary$', cls.edit_view, name='site-summary'))
+            url(r'^(\d+)/summary$', cls.site_summary_view,
+                name='site-summary'))
         return base_patterns
 
 

@@ -167,7 +167,7 @@ class Resource(object):
         self._limit = limit or self.page_size
         self._offset = offset or 0
 
-    def serialize_single(self, embed, cache):
+    def serialize_single(self, embed, cache, rels=True):
         '''Serializes this object, assuming that there is a single instance to
         be serialized. Note that this only gets called from the top-level
         serialize() method, which handles checking whether we're in the
@@ -186,23 +186,25 @@ class Resource(object):
                 raise NotImplementedError(
                     'display_field must be a model field or stub field')
             return data
-        data['_links'] = {
-            'self': {
-                'href': self.get_single_href(),
-            },
-            'editForm': {
-                'href': self.get_edit_href(),
-                'title': 'Edit %s' % capitalize(self.resource_type)
-            },
-            'curies': CHAIN_CURIES
-        }
+        if rels:
+            data['_links'] = {
+                'self': {
+                    'href': self.get_single_href(),
+                },
+                'editForm': {
+                    'href': self.get_edit_href(),
+                    'title': 'Edit %s' % capitalize(self.resource_type)
+                },
+                'curies': CHAIN_CURIES
+            }
+            for field_name, collection in self.related_fields.items():
+                # collection is a CollectionField or ResourceField here
+                data['_links'][field_name] = collection.serialize(
+                    self, self._request, cache)
+
         for field_name in self.model_fields:
             data[field_name] = self.serialize_field(
                 getattr(self._obj, field_name))
-        for field_name, collection in self.related_fields.items():
-            # collection is a CollectionField or ResourceField here
-            data['_links'][field_name] = collection.serialize(
-                self, self._request, cache)
         for stub in self.stub_fields.keys():
             stub_data = getattr(self._obj, stub)
             data[stub] = getattr(stub_data, self.stub_fields[stub])
@@ -348,7 +350,7 @@ class Resource(object):
         serialized_data = self.add_page_links(serialized_data, href)
         return serialized_data
 
-    def serialize(self, embed=True, cache=None):
+    def serialize(self, embed=True, cache=None, *args, **kwargs):
         '''Serializes this instance into a dictionary that can be rendered'''
         if cache is None:
             cache = {}
@@ -361,13 +363,15 @@ class Resource(object):
 
         if self._queryset:
             # we don't currently handle cacheing whole collection lists.
-            self._data = self.serialize_list(embed, cache)
+            self._data = self.serialize_list(embed, cache,
+                                             *args, **kwargs)
 
         elif self._obj:
             if (self._obj.__class__, self._obj.id, embed) in cache:
                 return cache[(self._obj.__class__, self._obj.id, embed)]
             else:
-                self._data = self.serialize_single(embed, cache)
+                self._data = self.serialize_single(embed, cache,
+                                                   *args, **kwargs)
                 cache[(self._obj.__class__, self._obj.id, embed)] = self._data
 
         return self._data
