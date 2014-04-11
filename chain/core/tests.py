@@ -307,6 +307,11 @@ class ApiSitesTests(ChainTestCase):
         site = self.get_a_site()
         self.assertIn('href', site.links.self)
 
+    def test_site_should_have_stream_href(self):
+        site = self.get_a_site()
+        stream_href = site.links['ch:websocketStream'].href
+        self.assertIn('ws://', stream_href)
+
     def test_site_should_have_name(self):
         site = self.get_a_site()
         self.assertIn(site.name, [s.name for s in self.sites])

@@ -31,3 +31,13 @@ TIME_ZONE = 'America/New_York'
 # Language code for this installation. All choices can be found here:
 # http://www.i18nguy.com/unicode/language-identifiers.html
 LANGUAGE_CODE = 'en-us'
+
+ZMQ_PUB_URL = 'tcp://127.0.0.1:31416'
+
+# leave the websocket host as None if it is the same as the Django host
+WEBSOCKET_HOST = None
+
+# this is the path the user will see in stream links, so it needs to match your
+# front end webserver (e.g. nginx) configuration. Note this configuration has
+# the trailing but not leading slash
+WEBSOCKET_PATH = 'ws/'

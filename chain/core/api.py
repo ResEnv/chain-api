@@ -12,6 +12,7 @@ from jinja2 import Environment, PackageLoader
 from urlparse import urlparse, urlunparse, parse_qs
 from urllib import urlencode
 from chain.core.models import GeoLocation
+from chain.settings import ZMQ_PUB_URL, WEBSOCKET_PATH, WEBSOCKET_HOST
 import zmq
 
 
@@ -50,7 +51,7 @@ jinja_env = Environment(loader=PackageLoader('chain.core', 'templates'))
 # Set up ZMQ feed for realtime clients
 zmq_ctx = zmq.Context()
 zmq_socket = zmq_ctx.socket(zmq.PUB)
-zmq_socket.bind('tcp://127.0.0.1:31416')
+zmq_socket.bind(ZMQ_PUB_URL)
 
 
 def full_reverse(view_name, request, *args, **kwargs):
@@ -202,6 +203,10 @@ class Resource(object):
                     'href': self.get_edit_href(),
                     'title': 'Edit %s' % capitalize(self.resource_type)
                 },
+                'ch:websocketStream': {
+                    'href': self.get_websocket_href(),
+                    'title': 'Websocket Stream'
+                },
                 'curies': CHAIN_CURIES
             }
             for field_name, collection in self.related_fields.items():
@@ -263,6 +268,14 @@ class Resource(object):
         object'''
         return full_reverse(self.resource_name + '-edit',
                             self._request, args=(self._obj.id,))
+
+    def get_websocket_href(self):
+        '''Gives the URL for the websockets stream that provides updates
+        on this resource as well as nested resources.'''
+        hostname = WEBSOCKET_HOST or self._request.META['HTTP_HOST']
+        return "ws://%s/%s%s-%d" % (hostname,
+                                    WEBSOCKET_PATH,
+                                    self.resource_type, self._obj.id)
 
     def get_list_href(self):
         '''Gives the URL for this resource, including any filtering

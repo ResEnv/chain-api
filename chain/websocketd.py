@@ -8,20 +8,19 @@ import zmq.green as zmq
 from flask import Flask
 from flask_sockets import Sockets
 from geventwebsocket import WebSocketError
+from chain.settings import ZMQ_PUB_URL
 
 app = Flask(__name__)
 app.debug = True
 zmq_ctx = zmq.Context()
 websockets = Sockets(app)
 
-ZMQ_ADDR = 'tcp://127.0.0.1:31416'
-
 
 @websockets.route('/<tag>')
 def site_socket(ws, tag):
     print('ws client connected for tag "%s"' % tag)
     zmq_sock = zmq_ctx.socket(zmq.SUB)
-    zmq_sock.connect(ZMQ_ADDR)
+    zmq_sock.connect(ZMQ_PUB_URL)
     # note that flask gives us tag as a unicode string
     zmq_sock.setsockopt_string(zmq.SUBSCRIBE, tag)
     while True:
@@ -35,4 +34,4 @@ def site_socket(ws, tag):
         except WebSocketError as e:
             print('Caught WebSocketError: %s' % e)
             break
-    zmq_sock.disconnect(ZMQ_ADDR)
+    zmq_sock.disconnect(ZMQ_PUB_URL)
