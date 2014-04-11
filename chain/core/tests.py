@@ -18,20 +18,22 @@ class FakeZMQContext(object):
 class FakeZMQSocket(object):
     def __init__(self, socket_type):
         self._type = socket_type
-        self.sent_msgs = []
+        self.sent_msgs = {}
 
     def bind(self, *args, **kwargs):
         pass
 
     def send(self, msg):
         topic, _, msg = msg.partition(' ')
-        self.sent_msgs.append((topic, json.loads(msg)))
+        if topic not in self.sent_msgs:
+            self.sent_msgs[topic] = []
+        self.sent_msgs[topic].append(json.loads(msg))
 
     def send_string(self, msg):
         self.send(msg)
 
     def clear(self):
-        self.sent_msgs = []
+        self.sent_msgs = {}
 
 # monkey patch so we can check what messages the API is sending
 zmq.Context = FakeZMQContext
@@ -667,17 +669,30 @@ class ApiSensorDataTests(ChainTestCase):
         self.assertIn('tag=sensor-%d' % db_sensor.id,
                       sensor_data.links['createForm'].href)
 
-    def test_posting_should_send_zmq_msg(self):
+    def test_posting_data_should_send_zmq_msgs(self):
         fake_zmq_socket.clear()
         sensor = self.get_a_sensor()
+        device = self.get_resource(
+            sensor.links['ch:device'].href)
+        db_sensor = Sensor.objects.get(
+            metric__name=sensor.metric,
+            device__name=device.name)
         sensor_data = self.get_resource(
             sensor.links['ch:dataHistory'].href)
         data_url = sensor_data.links.createForm.href
         data = {'value': 23}
         self.create_resource(data_url, data)
-        self.assertEqual(1, len(fake_zmq_socket.sent_msgs))
-        self.assertEqual(data['value'],
-                         fake_zmq_socket.sent_msgs[0][1]['value'])
+
+        # make sure that a message got sent to all the appropriate tags
+        stream_tags = [
+            'site-%d' % db_sensor.device.site_id,
+            'device-%d' % db_sensor.device_id,
+            'sensor-%d' % db_sensor.id
+        ]
+        for tag in stream_tags:
+            self.assertEqual(1, len(fake_zmq_socket.sent_msgs[tag]))
+            self.assertEqual(data['value'],
+                             fake_zmq_socket.sent_msgs[tag][0]['value'])
 
     def test_collection_links_should_not_have_page_info(self):
         # we want to allow the server to just give the default pagination when

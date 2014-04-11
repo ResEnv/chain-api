@@ -67,7 +67,12 @@ class SensorDataResource(Resource):
 
     def get_tags(self):
         if 'sensor_id' in self._filters:
-            return ['sensor-%s' % self._filters['sensor_id']]
+            sensor_id = int(self._filters['sensor_id'])
+            db_sensor = Sensor.objects.select_related('device').get(
+                id=sensor_id)
+            return ['sensor-%d' % sensor_id,
+                    'device-%d' % db_sensor.device_id,
+                    'site-%d' % db_sensor.device.site_id]
         else:
             return []
 
