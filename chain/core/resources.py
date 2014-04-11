@@ -163,7 +163,7 @@ class SiteResource(Resource):
 
     @classmethod
     def site_summary_view(cls, request, id):
-        time_begin = timezone.now() - timedelta(hours=24)
+        time_begin = timezone.now() - timedelta(hours=2)
         #filters = request.GET.dict()
         devices = Device.objects.filter(site_id=id).select_related(
             'sensors',
