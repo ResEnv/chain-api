@@ -1,11 +1,45 @@
 from django.test import TestCase
+from datetime import datetime, timedelta
+import json
+import zmq
+from django.utils.timezone import make_aware, utc, now
+
+
+fake_zmq_socket = None
+
+
+class FakeZMQContext(object):
+    def socket(self, socket_type):
+        global fake_zmq_socket
+        fake_zmq_socket = FakeZMQSocket(socket_type)
+        return fake_zmq_socket
+
+
+class FakeZMQSocket(object):
+    def __init__(self, socket_type):
+        self._type = socket_type
+        self.sent_msgs = []
+
+    def bind(self, *args, **kwargs):
+        pass
+
+    def send(self, msg):
+        topic, _, msg = msg.partition(' ')
+        self.sent_msgs.append((topic, json.loads(msg)))
+
+    def send_string(self, msg):
+        self.send(msg)
+
+    def clear(self):
+        self.sent_msgs = []
+
+# monkey patch so we can check what messages the API is sending
+zmq.Context = FakeZMQContext
+
 from chain.core.models import ScalarData, Unit, Metric, Device, Sensor, Site
 from chain.core.models import GeoLocation
 from chain.core.resources import DeviceResource
-from datetime import datetime, timedelta
-import json
 from chain.core.api import HTTP_STATUS_SUCCESS, HTTP_STATUS_CREATED
-from django.utils.timezone import make_aware, utc, now
 from chain.core.hal import HALDoc
 
 HTTP_STATUS_NOT_ACCEPTABLE = 406
@@ -632,6 +666,18 @@ class ApiSensorDataTests(ChainTestCase):
             sensor.links['ch:dataHistory'].href)
         self.assertIn('tag=sensor-%d' % db_sensor.id,
                       sensor_data.links['createForm'].href)
+
+    def test_posting_should_send_zmq_msg(self):
+        fake_zmq_socket.clear()
+        sensor = self.get_a_sensor()
+        sensor_data = self.get_resource(
+            sensor.links['ch:dataHistory'].href)
+        data_url = sensor_data.links.createForm.href
+        data = {'value': 23}
+        self.create_resource(data_url, data)
+        self.assertEqual(1, len(fake_zmq_socket.sent_msgs))
+        self.assertEqual(data['value'],
+                         fake_zmq_socket.sent_msgs[0][1]['value'])
 
     def test_collection_links_should_not_have_page_info(self):
         # we want to allow the server to just give the default pagination when

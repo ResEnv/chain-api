@@ -644,10 +644,10 @@ class Resource(object):
             new_resource = cls(data=data, request=request, filters=obj_params)
             new_resource.save()
             response_data = new_resource.serialize()
-            stream_data = json.dumps(new_resource.serialize_stream())
             # if the post came in with any tags, push to the appropriate
             # streams
             if 'tag' in request.GET.dict():
+                stream_data = json.dumps(new_resource.serialize_stream())
                 for tag in request.GET.getlist('tag'):
                     zmq_socket.send_string(tag + ' ' + stream_data)
             return cls.render_response(response_data, request,
