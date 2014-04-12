@@ -25,7 +25,7 @@ common themes and design principles driving the API.
 Entry Point
 -----------
 
-The API entry point is at `http://tidmarsh.media.mit.edu/api/`. A `GET` request
+The API entry point is at http://chain-api.media.mit.edu. A `GET` request
 will give you a link to the available sites.
 
 ```json
