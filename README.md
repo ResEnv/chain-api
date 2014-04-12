@@ -31,15 +31,19 @@ will give you a link to the available sites.
 ```json
 {
   "_links": {
-    "self": { "href": "/api" },
-    "curies": [{
-      "name": "ch",
-      "href": "/rels/{rel}",
-      "templated": true
-    }],
+    "curies": [
+      {
+        "href": "http://chain-api.media.mit.edu/rels/{rel}",
+        "name": "ch",
+        "templated": true
+      }
+    ],
+    "self": {
+      "href": "http://chain-api.media.mit.edu/"
+    },
     "ch:sites": {
-      "title": "Sites",
-      "href": "/sites/"
+      "href": "http://chain-api.media.mit.edu/sites/",
+      "title": "Sites"
     }
   }
 }
@@ -75,24 +79,44 @@ buildings.
 
 ```json
 {
-  "_links": {
-      "curies": [{
-          "name": "ch",
-          "href": "/rels/{rel}",
-          "templated": true
-      }],
-      "self": { "href": "/api/sites/92" },
-      "ch:devices": {
-          "title": "Devices",
-          "href": "/api/sites/758/devices"
-      }
-  },
-  "name": "MIT Media Lab",
   "geoLocation": {
-    "elevation": 5.8,
-    "latitude": 42.360461,
-    "longitude": -71.087347
-  }
+    "latitude": 42.360624,
+    "elevation": null,
+    "longitude": -71.087577
+  },
+  "_links": {
+    "ch:siteSummary": {
+      "href": "http://chain-api.media.mit.edu/sites/5/summary",
+      "title": "Summary"
+    },
+    "rawZMQStream": {
+      "href": "tcp://tidmarsh.media.mit.edu:1305",
+      "title": "Raw ZMQ Stream"
+    },
+    "ch:devices": {
+      "href": "http://chain-api.media.mit.edu/devices/?site_id=5",
+      "title": "Devices"
+    },
+    "curies": [
+      {
+        "href": "http://chain-api.media.mit.edu/rels/{rel}",
+        "name": "ch",
+        "templated": true
+      }
+    ],
+    "self": {
+      "href": "http://chain-api.media.mit.edu/sites/5"
+    },
+    "ch:websocketStream": {
+      "href": "ws://chain-api.media.mit.edu/ws/site-5",
+      "title": "Websocket Stream"
+    },
+    "editForm": {
+      "href": "http://chain-api.media.mit.edu/sites/5/edit",
+      "title": "Edit Site"
+    }
+  },
+  "name": "MIT Media Lab"
 }
 ```
 
@@ -117,27 +141,39 @@ A device that may contain several sensor channels.
 
 ```json
 {
+  "building": "E14",
+  "room": "Cafe",
+  "floor": "5",
+  "description": "CityFarm Greenhouse (North)",
   "_links": {
-      "curies": [{
-          "name": "ch",
-          "href": "/rels/{rel}",
-          "templated": true
-      }],
-      "self": { "href": "/api/devices/929" },
-      "ch:sensors": {
-          "title": "Sensors",
-          "href": "/api/devices/929/sensors"
-      },
-      "ch:site": {
-          "title": "Summer Cabin"
-          "href": "/api/sites/928",
-      },
+    "ch:site": {
+      "href": "http://chain-api.media.mit.edu/sites/5",
+      "title": "MIT Media Lab"
+    },
+    "curies": [
+      {
+        "href": "http://chain-api.media.mit.edu/rels/{rel}",
+        "name": "ch",
+        "templated": true
+      }
+    ],
+    "self": {
+      "href": "http://chain-api.media.mit.edu/devices/32"
+    },
+    "ch:websocketStream": {
+      "href": "ws://chain-api.media.mit.edu/ws/device-32",
+      "title": "Websocket Stream"
+    },
+    "ch:sensors": {
+      "href": "http://chain-api.media.mit.edu/sensors/?device_id=32",
+      "title": "Sensors"
+    },
+    "editForm": {
+      "href": "http://chain-api.media.mit.edu/devices/32/edit",
+      "title": "Edit Device"
+    }
   },
-  "name": "Bathroom Thermostat",
-  "description": "Thermostat in the pool house bathroom",
-  "building": "Pool House",
-  "floor": "2",
-  "room": "Bathroom",
+  "name": "0x8123"
 }
 ```
 
@@ -166,27 +202,39 @@ TBD data types.
 
 ```json
 {
-  "_links": {
-      "curies": [{
-        "name": "ch",
-        "href": "/rels/{rel}",
-        "templated": true
-      }],
-      "self": { "href": "/api/sensors/929" },
-      "ch:dataHistory": {
-        "title": "History",
-        "href": "/api/sensors/929/history"
-      },
-      "ch:device": {
-        "title": "Bathroom Thermostat",
-        "href": "/api/devices/928",
-      },
-  },
+  "updated": "2014-04-12T20:47:15.291305+00:00",
   "dataType": "float",
-  "value": 23.5,
-  "updated": "2014-03-12T13:37:27+00:00",
   "metric": "temperature",
-  "unit": "C"
+  "value": 22.32,
+  "_links": {
+    "ch:dataHistory": {
+      "href": "http://chain-api.media.mit.edu/sensordata/?sensor_id=263",
+      "title": "Data"
+    },
+    "curies": [
+      {
+        "href": "http://chain-api.media.mit.edu/rels/{rel}",
+        "name": "ch",
+        "templated": true
+      }
+    ],
+    "self": {
+      "href": "http://chain-api.media.mit.edu/sensors/263"
+    },
+    "ch:device": {
+      "href": "http://chain-api.media.mit.edu/devices/32",
+      "title": "0x8123"
+    },
+    "ch:websocketStream": {
+      "href": "ws://chain-api.media.mit.edu/ws/sensor-263",
+      "title": "Websocket Stream"
+    },
+    "editForm": {
+      "href": "http://chain-api.media.mit.edu/sensors/263/edit",
+      "title": "Edit Sensor"
+    }
+  },
+  "unit": "celsius"
 }
 ```
 
@@ -211,26 +259,42 @@ URL to post data to this data set.
 
 ```json
 {
-  "_links": {
-      "self": {"href": "/api/scalar_data/?device=9382"},
-      "curies": [{
-          "name": "ch",
-          "href": "/rels/{rel}",
-          "templated": true
-      }],
-      "createForm": {
-          "href": "/api/scalar_data/?device=9382",
-          "title": "Add Data"
-      }
-  },
   "dataType": "float",
+  "totalCount": 69148,
+  "_links": {
+    "curies": [
+      {
+        "href": "http://chain-api.media.mit.edu/rels/{rel}",
+        "name": "ch",
+        "templated": true
+      }
+    ],
+    "self": {
+      "href": "http://chain-api.media.mit.edu/sensordata/?sensor_id=263"
+    },
+    "first": {
+      "href": "http://chain-api.media.mit.edu/sensordata/?sensor_id=263&limit=500&offset=0",
+      "title": "0 through 499"
+    },
+    "createForm": {
+      "href": "http://chain-api.media.mit.edu/sensordata/create?sensor_id=263",
+      "title": "Add Data"
+    },
+    "previous": {
+      "href": "http://chain-api.media.mit.edu/sensordata/?sensor_id=263&limit=500&offset=68148",
+      "title": "68148 through 68647"
+    }
+  },
   "data": [
-    {"value": 23.5, "timestamp": "2014-03-12T13:37:27+00:00"},
-    {"value": 23.3, "timestamp": "2014-03-12T13:38:81+00:00"},
-    {"value": 22.9, "timestamp": "2014-03-12T13:39:75+00:00"},
-    {"value": 22.4, "timestamp": "2014-03-12T13:40:98+00:00"}
-  ],
-  "totalCount": 4
+    {
+      "timestamp": "2014-04-12T15:00:04.202361+00:00",
+      "value": 29.81
+    },
+    {
+      "timestamp": "2014-04-12T15:00:25.232755+00:00",
+      "value": 29.82
+    }
+  ]
 }
 ```
 
