@@ -547,82 +547,75 @@ metadata about the collection
 hal+json Example
 ----------------
 
-    GET /orders HTTP/1.1
-    Host: example.org
-    Accept: application/hal+json
+Issuing a GET to /orders might illicit the response:
 
-    HTTP/1.1 200 OK
-    Content-Type: application/hal+json
-
-    {
-      "_links": {
-        "self": { "href": "/orders/" },
-        "next": { "href": "/orders?page=2", "title": "Page 2" },
-        "last": { "href": "/orders?page=5", "title": "Page 5" },
-        "createForm": { "href": "/orders/", "title": "Create Order"},
-        "curies": [{
-            "name": "rel",
-            "href": "http://docs.example.com/rels/{rel}",
-            "templated": true
-        }],
-        "items": [
-            {"href": "/orders/123", title="Christmas Order"},
-            {"href": "/orders/124", title="Birthday Order"},
-        ]
-      },
-      "_embedded": {
-        "items": [
-        {
-          "_links": {
-            "self": { "href": "/orders/123" },
-            "rel:basket": { "href": "/baskets/98712" },
-            "rel:customer": { "href": "/customers/7809" }
-          },
-          "name": "Christmas Order",
-          "total": 30.00,
-          "currency": "USD",
-          "status": "shipped",
-        },
-        {
-          "_links": {
-            "self": { "href": "/orders/124" },
-            "rel:basket": { "href": "/baskets/97213" },
-            "rel:customer": { "href": "/customers/12369" }
-          },
-          "name": "Birthday Order",
-          "total": 20.00,
-          "currency": "USD",
-          "status": "processing"
-        }]
-      },
-      "currentlyProcessing": 14,
-      "shippedToday": 20
-    }
-
-Sending a GET to the URI for a specific resource will return only that
-resource, e.g.
-
-    GET /orders/123 HTTP/1.1
-    Host: example.org
-    Accept: application/hal+json
-
-    HTTP/1.1 200 OK
-    Content-Type: application/hal+json
+```json
+{
+  "_links": {
+    "self": { "href": "/orders/" },
+    "next": { "href": "/orders?page=2", "title": "Page 2" },
+    "last": { "href": "/orders?page=5", "title": "Page 5" },
+    "createForm": { "href": "/orders/", "title": "Create Order"},
+    "curies": [{
+        "name": "rel",
+        "href": "http://docs.example.com/rels/{rel}",
+        "templated": true
+    }],
+    "items": [
+        {"href": "/orders/123", title="Christmas Order"},
+        {"href": "/orders/124", title="Birthday Order"},
+    ]
+  },
+  "_embedded": {
+    "items": [
     {
       "_links": {
         "self": { "href": "/orders/123" },
         "rel:basket": { "href": "/baskets/98712" },
         "rel:customer": { "href": "/customers/7809" }
-        "curies": [{
-            "name": "rel",
-            "href": "http://docs.example.org/rels/{rel}",
-            "templated": true
-        }]
       },
-      "rel:total": 30.00,
-      "rel:currency": "USD",
-      "rel:status": "shipped",
-    }
+      "name": "Christmas Order",
+      "total": 30.00,
+      "currency": "USD",
+      "status": "shipped",
+    },
+    {
+      "_links": {
+        "self": { "href": "/orders/124" },
+        "rel:basket": { "href": "/baskets/97213" },
+        "rel:customer": { "href": "/customers/12369" }
+      },
+      "name": "Birthday Order",
+      "total": 20.00,
+      "currency": "USD",
+      "status": "processing"
+    }]
+  },
+  "currentlyProcessing": 14,
+  "shippedToday": 20
+}
+```
+
+Sending a GET to the URI for a specific resource will return only that
+resource, e.g. GET /orders/123 might return:
+
+```json
+{
+  "_links": {
+    "self": { "href": "/orders/123" },
+    "rel:basket": { "href": "/baskets/98712" },
+    "rel:customer": { "href": "/customers/7809" }
+    "curies": [{
+        "name": "rel",
+        "href": "http://docs.example.org/rels/{rel}",
+        "templated": true
+    }]
+  },
+  "rel:total": 30.00,
+  "rel:currency": "USD",
+  "rel:status": "shipped",
+}
+```
 
 Posting Data
 ------------
