@@ -562,8 +562,8 @@ Issuing a GET to /orders might illicit the response:
         "templated": true
     }],
     "items": [
-        {"href": "/orders/123", title="Christmas Order"},
-        {"href": "/orders/124", title="Birthday Order"},
+        {"href": "/orders/123", "title": "Christmas Order"},
+        {"href": "/orders/124", "title": "Birthday Order"},
     ]
   },
   "_embedded": {
