@@ -356,6 +356,25 @@ Details on the `createForm` and `editForm` rels can be found in
 easier on clients, we have modified the standard hyphonated rel names to
 camelCase.
 
+Websockets Streaming API
+------------------------
+
+Many applications are interested in the latest data as it comes in. For these
+applications constantly polling is a drain on both the client and server, so
+this API implements a streaming interface via [Websockets][websockets]. For
+many resources you will find a `ch:websocketStream` link that you can follow
+with any websocket-capable browser or client application. Once the websocket
+connection is established the server will send HAL+JSON-formatted updates that
+typically are the same as what you would receive in a GET response. Streams for
+some resources will also include "contained" resources. For instance,
+subscribing to the stream for a Site resource might also include all the
+devices in that site, and even all the sensors in those devices.
+
+Typically clients will start by synching their current state using the HTTP
+API, and maintain a hash that maps resource URLs to the client's internal
+representation. After subscribing to a stream, clients can match incoming
+resource descriptions by using the `self` link as the key into the hash.
+
 The Chain API
 =============
 
@@ -736,3 +755,4 @@ then whenever you have a version to push to production just:
 [rels-iana]: http://www.iana.org/assignments/link-relations/link-relations.xhtml
 [qudt]: http://www.qudt.org/qudt/owl/1.0.0/unit/Instances.html
 [json-schema]: http://json-schema.org/examples.html
+[websockets]: http://en.wikipedia.org/wiki/WebSocket
