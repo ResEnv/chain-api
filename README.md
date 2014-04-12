@@ -654,8 +654,8 @@ First make sure whatever user will be deploying is in the "staff" group. This wi
 allow us to autodeploy without needing root permissions.
 
     sudo usermod -aG staff USERNAME
-    sudo chown -R root:staff /usr/local
-    sudo chmod -R g+w /usr/local
+    sudo chown -R root:staff /usr/local /srv
+    sudo chmod -R g+w /usr/local /srv
 
 First install the django app to your system python install by running
 

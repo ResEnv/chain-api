@@ -14,7 +14,6 @@ setup(
     license='MIT',
     install_requires=[
         'psycopg2',
-        'supervisor',
         'django',
         'django-extensions',
         'south',

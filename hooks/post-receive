@@ -39,6 +39,12 @@ echo ""
 ./manage.py migrate core
 
 echo ""
+echo "Deploying Static Files"
+echo "----------------------"
+echo ""
+./manage.py collectstatic --noinput
+
+echo ""
 echo "Restarting Supervisor Tasks"
 echo "---------------------------"
 echo ""

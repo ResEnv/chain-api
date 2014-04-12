@@ -1,5 +1,5 @@
 # run with
-#   gunicorn -k flask_sockets.worker zmq-ws:app
+#   gunicorn -k flask_sockets.worker chain.websocketd:app
 # make sure you've run setup.py to install flask_sockets
 
 from __future__ import print_function
