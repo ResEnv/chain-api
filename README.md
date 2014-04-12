@@ -605,6 +605,14 @@ Install puppet and the proper puppet modules with
     (or on Arch use yaourt -S puppet)
     sudo puppet module install puppetlabs/postgresql -v3.2.0
 
+Unfortunately Ubuntu Precise has an old nginx package that doesn't support
+websocket proxying. Add `deb http://nginx.org/packages/ubuntu/ precise nginx`
+to your `/etc/apt/sources.list` and run
+
+    sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys ABF5BD827BD9BF62
+    sudo apt-get update
+
+
 NOTE FOR ARCH:
 
 The puppet manifest doesn't work well on Arch, so just install the python
