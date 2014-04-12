@@ -162,7 +162,7 @@ class Resource(object):
     page_size = 30
 
     def __init__(self, obj=None, queryset=None, data=None, request=None,
-                 filters=None, tags=None, limit=None, offset=None):
+                 filters=None, limit=None, offset=None):
         if len([arg for arg in [obj, queryset, data] if arg]) != 1:
             logging.error(
                 'Exactly 1 object, queryset, or primitive data is required')
@@ -170,7 +170,6 @@ class Resource(object):
         self._data = data
         self._obj = obj
         self._filters = filters or {}
-        self._tags = tags or []
         self._request = request
         self._limit = limit or self.page_size
         self._offset = offset or 0
@@ -229,6 +228,12 @@ class Resource(object):
             # guess this model doesn't support geo_location
             pass
         return data
+
+    def serialize_stream(self):
+        '''By default resources are serialized for streams in their normal
+        format. Resource subclasses can override this if they want a different
+        representation for streaming'''
+        return self.serialize()
 
     def serialize_field(self, field_value):
         '''some fields require special handling to be serialized. Handle
@@ -637,9 +642,10 @@ class Resource(object):
             response_data = resource.serialize()
             # push to the appropriate streams
             tags = resource.get_tags()
+            if tags:
+                stream_data = json.dumps(resource.serialize_stream())
             for tag in tags:
-                zmq_socket.send_string(
-                    tag + ' ' + json.dumps(response_data))
+                zmq_socket.send_string(tag + ' ' + stream_data)
             return cls.render_response(response_data, request)
 
     @classmethod
@@ -656,9 +662,10 @@ class Resource(object):
             new_resource.save()
             response_data = new_resource.serialize()
             tags = new_resource.get_tags()
+            if tags:
+                stream_data = json.dumps(new_resource.serialize_stream())
             for tag in tags:
-                zmq_socket.send_string(
-                    tag + ' ' + json.dumps(response_data))
+                zmq_socket.send_string(tag + ' ' + stream_data)
             return cls.render_response(response_data, request,
                                        status=HTTP_STATUS_CREATED)
 
