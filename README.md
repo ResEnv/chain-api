@@ -1,5 +1,15 @@
-General API Concept Overview
-============================
+Chain API
+=========
+
+Chain API is a hypermedia HTTP API for working with sensor data. It includes an
+HTTP interface supporting request/response interactions, as well as a
+Websockets streaming API for realtime "push" updates.
+
+This project is led by [Spencer Russell][ssfrr], in the
+[Responsive Environments][resenv] group at the [MIT Media Lab][medialab]. It is
+still relatively early stage and in development, and certainly not yet intended
+for real production use. It is currently in use for the
+[Tidmarsh Living Observatory][tidmarsh] project.
 
 The Chain API is built on top of the [Hypertext Application Language][hal],
 or HAL. Currently it only implements the application/hal+json MIME type.
@@ -8,6 +18,224 @@ responses as regular JSON data. There are also various libraries that can
 take advantage of the hal+json conventions to abstract some of the details
 away. For a more thorough spec of hal+json see [this IETF draft][hal-spec].
 
+We'll start by describing the basic JSON payloads you should expect, but also
+be sure to check out the API Concept Overview for more information on the
+common themes and design principles driving the API.
+
+Entry Point
+-----------
+
+The API entry point is at `http://tidmarsh.media.mit.edu/api/`. A `GET` request
+will give you a link to the available sites.
+
+```json
+{
+  "_links": {
+    "self": { "href": "/api" },
+    "curies": [{
+      "name": "ch",
+      "href": "/rels/{rel}",
+      "templated": true
+    }],
+    "ch:sites": {
+      "title": "Sites",
+      "href": "/sites/"
+    }
+  }
+}
+```
+
+Currently the only top-level resource available is the collection of Sites.
+The client first selects which site they are interested in and can navigate
+from there to explore that site. Clients should not assume hard-coded URIs, but
+should instead get the proper URI from the API entry point.
+
+Base Resource Types
+===================
+
+NOTE: At some point this information should be moved into the docstrings of
+the resources themselves, so we can generate the documentation as well as the
+information at the rel URLs from the same info.
+
+Site
+----
+
+An installation of Chain API, usually on the scale of several or many
+buildings.
+
+### Resource Fields
+
+* `name` (string) - Name of this site
+* `geoLocation` (elevation, latitude, longitude) - The geographic location of
+  the site. All measurements are in meters.
+* `ch:devices` (related resource) - A collection of all the devices in this
+  site.  New devices can be POSTed to this collection to add them to this site.
+
+### Example
+
+```json
+{
+  "_links": {
+      "curies": [{
+          "name": "ch",
+          "href": "/rels/{rel}",
+          "templated": true
+      }],
+      "self": { "href": "/api/sites/92" },
+      "ch:devices": {
+          "title": "Devices",
+          "href": "/api/sites/758/devices"
+      }
+  },
+  "name": "MIT Media Lab",
+  "geoLocation": {
+    "elevation": 5.8,
+    "latitude": 42.360461,
+    "longitude": -71.087347
+  }
+}
+```
+
+Device
+------
+
+A device that may contain several sensor channels.
+
+### Resource Fields
+
+* `name` (string) - Name of this device
+* `ch:site` (related resource) - The site this device is a part of
+* `description` (string) - A longer description of this device
+* `building` (string) - The building the device is in
+* `floor` (string) - The floor of the building
+* `room` (string) - The room containing the device
+* `ch:sensors` (related resource) - A collection of all the sensors in this
+  device. New sensors can be POSTed to this collection to add them to this
+  device.
+
+### Example
+
+```json
+{
+  "_links": {
+      "curies": [{
+          "name": "ch",
+          "href": "/rels/{rel}",
+          "templated": true
+      }],
+      "self": { "href": "/api/devices/929" },
+      "ch:sensors": {
+          "title": "Sensors",
+          "href": "/api/devices/929/sensors"
+      },
+      "ch:site": {
+          "title": "Summer Cabin"
+          "href": "/api/sites/928",
+      },
+  },
+  "name": "Bathroom Thermostat",
+  "description": "Thermostat in the pool house bathroom",
+  "building": "Pool House",
+  "floor": "2",
+  "room": "Bathroom",
+}
+```
+
+Sensor
+------
+
+A sensor captures a single channel of data. There may be multiple sensors on a
+single device. Issuing a GET request for a Sensor resource also includes the
+current value for that sensor. The value could be a scalar value or some other
+TBD data types.
+
+### Resource Fields
+
+* `ch:device` (related resource) - The device this sensor is part of
+* `ch:dataHistory` (related resource) - Collection of data from this sensor
+* `metric` (string) - What the sensor is measuring (e.g. "temperature")
+* `unit` (string) - The unit the data is in, e.g. "kW-hr". This should be an
+  abbreviation from the [QUDT unit list][qudt].
+* `dataType` (string) - Data type of this sensor. Currently there's only `float`
+* `updated` (ISO8601 timestamp) - Timestamp of the most recent update
+* `value` (various) - The most recent reading from this sensor. Currently only
+  floating point sensors are supported, but in the future this could be an xyz
+  position, GPS coordinate, image, etc.
+
+### Example
+
+```json
+{
+  "_links": {
+      "curies": [{
+        "name": "ch",
+        "href": "/rels/{rel}",
+        "templated": true
+      }],
+      "self": { "href": "/api/sensors/929" },
+      "ch:dataHistory": {
+        "title": "History",
+        "href": "/api/sensors/929/history"
+      },
+      "ch:device": {
+        "title": "Bathroom Thermostat",
+        "href": "/api/devices/928",
+      },
+  },
+  "dataType": "float",
+  "value": 23.5,
+  "updated": "2014-03-12T13:37:27+00:00",
+  "metric": "temperature",
+  "unit": "C"
+}
+```
+
+Sensor Data
+-----------
+
+Sensor Data is the raw data captured by the sensors. The `data` field is a list
+containing the actual data points. If necessary there are pagination links just
+like collection resources. There is also a `createForm` link which gives the
+URL to post data to this data set.
+
+### Resource Fields
+
+* `dataType` (string) - The type of the data, currently always "float"
+* `data` (list) - List of data, each of which is a JSON object with at least
+  a `value` key and a `timestamp` key. The type of the `value` key is determined
+  by the `datatype` attribute
+* `totalCount` (int) - The total number of data points in the collection. If the
+  total count is too large a single response may only have one page of data
+
+### Example
+
+```json
+{
+  "_links": {
+      "self": {"href": "/api/scalar_data/?device=9382"},
+      "curies": [{
+          "name": "ch",
+          "href": "/rels/{rel}",
+          "templated": true
+      }],
+      "createForm": {
+          "href": "/api/scalar_data/?device=9382",
+          "title": "Add Data"
+      }
+  },
+  "dataType": "float",
+  "data": [
+    {"value": 23.5, "timestamp": "2014-03-12T13:37:27+00:00"},
+    {"value": 23.3, "timestamp": "2014-03-12T13:38:81+00:00"},
+    {"value": 22.9, "timestamp": "2014-03-12T13:39:75+00:00"},
+    {"value": 22.4, "timestamp": "2014-03-12T13:40:98+00:00"}
+  ],
+  "totalCount": 4
+}
+```
+
+General API Concept Overview
+============================
 
 Link Relations
 --------------
@@ -375,220 +603,6 @@ API, and maintain a hash that maps resource URLs to the client's internal
 representation. After subscribing to a stream, clients can match incoming
 resource descriptions by using the `self` link as the key into the hash.
 
-The Chain API
-=============
-
-Entry Point
------------
-
-The API entry point is at `http://tidmarsh.media.mit.edu/api/`. A `GET` request
-will give you a link to the available sites.
-
-```json
-{
-  "_links": {
-    "self": { "href": "/api" },
-    "curies": [{
-      "name": "ch",
-      "href": "/rels/{rel}",
-      "templated": true
-    }],
-    "ch:sites": {
-      "title": "Sites",
-      "href": "/sites/"
-    }
-  }
-}
-```
-
-Currently the only top-level resource available is the collection of Sites.
-The client first selects which site they are interested in and can navigate
-from there to explore that site. Clients should not assume hard-coded URIs, but
-should instead get the proper URI from the API entry point.
-
-Base Resource Types
-===================
-
-NOTE: At some point this information should be moved into the docstrings of
-the resources themselves, so we can generate the documentation as well as the
-information at the rel URLs from the same info.
-
-Site
-----
-
-An installation of Chain API, usually on the scale of several or many
-buildings.
-
-### Resource Fields
-
-* `name` (string) - Name of this site
-* `geoLocation` (elevation, latitude, longitude) - The geographic location of
-  the site. All measurements are in meters.
-* `ch:devices` (related resource) - A collection of all the devices in this
-  site.  New devices can be POSTed to this collection to add them to this site.
-
-### Example
-
-```json
-{
-  "_links": {
-      "curies": [{
-          "name": "ch",
-          "href": "/rels/{rel}",
-          "templated": true
-      }],
-      "self": { "href": "/api/sites/92" },
-      "ch:devices": {
-          "title": "Devices",
-          "href": "/api/sites/758/devices"
-      }
-  },
-  "name": "MIT Media Lab",
-  "geoLocation": {
-    "elevation": 5.8,
-    "latitude": 42.360461,
-    "longitude": -71.087347
-  }
-}
-```
-
-Device
-------
-
-A device that may contain several sensor channels.
-
-### Resource Fields
-
-* `name` (string) - Name of this device
-* `ch:site` (related resource) - The site this device is a part of
-* `description` (string) - A longer description of this device
-* `building` (string) - The building the device is in
-* `floor` (string) - The floor of the building
-* `room` (string) - The room containing the device
-* `ch:sensors` (related resource) - A collection of all the sensors in this
-  device. New sensors can be POSTed to this collection to add them to this
-  device.
-
-### Example
-
-```json
-{
-  "_links": {
-      "curies": [{
-          "name": "ch",
-          "href": "/rels/{rel}",
-          "templated": true
-      }],
-      "self": { "href": "/api/devices/929" },
-      "ch:sensors": {
-          "title": "Sensors",
-          "href": "/api/devices/929/sensors"
-      },
-      "ch:site": {
-          "title": "Summer Cabin"
-          "href": "/api/sites/928",
-      },
-  },
-  "name": "Bathroom Thermostat",
-  "description": "Thermostat in the pool house bathroom",
-  "building": "Pool House",
-  "floor": "2",
-  "room": "Bathroom",
-}
-```
-
-Sensor
-------
-
-A sensor captures a single channel of data. There may be multiple sensors on a
-single device. Issuing a GET request for a Sensor resource also includes the
-current value for that sensor. The value could be a scalar value or some other
-TBD data types.
-
-### Resource Fields
-
-* `ch:device` (related resource) - The device this sensor is part of
-* `ch:dataHistory` (related resource) - Collection of data from this sensor
-* `metric` (string) - What the sensor is measuring (e.g. "temperature")
-* `unit` (string) - The unit the data is in, e.g. "kW-hr". This should be an
-  abbreviation from the [QUDT unit list][qudt].
-* `dataType` (string) - Data type of this sensor. Currently there's only `float`
-* `updated` (ISO8601 timestamp) - Timestamp of the most recent update
-* `value` (various) - The most recent reading from this sensor. Currently only
-  floating point sensors are supported, but in the future this could be an xyz
-  position, GPS coordinate, image, etc.
-
-### Example
-
-```json
-{
-  "_links": {
-      "curies": [{
-        "name": "ch",
-        "href": "/rels/{rel}",
-        "templated": true
-      }],
-      "self": { "href": "/api/sensors/929" },
-      "ch:dataHistory": {
-        "title": "History",
-        "href": "/api/sensors/929/history"
-      },
-      "ch:device": {
-        "title": "Bathroom Thermostat",
-        "href": "/api/devices/928",
-      },
-  },
-  "dataType": "float",
-  "value": 23.5,
-  "updated": "2014-03-12T13:37:27+00:00",
-  "metric": "temperature",
-  "unit": "C"
-}
-```
-
-Sensor Data
------------
-
-Sensor Data is the raw data captured by the sensors. The `data` field is a list
-containing the actual data points. If necessary there are pagination links just
-like collection resources. There is also a `createForm` link which gives the
-URL to post data to this data set.
-
-### Resource Fields
-
-* `dataType` (string) - The type of the data, currently always "float"
-* `data` (list) - List of data, each of which is a JSON object with at least
-  a `value` key and a `timestamp` key. The type of the `value` key is determined
-  by the `datatype` attribute
-* `totalCount` (int) - The total number of data points in the collection. If the
-  total count is too large a single response may only have one page of data
-
-### Example
-
-```json
-{
-  "_links": {
-      "self": {"href": "/api/scalar_data/?device=9382"},
-      "curies": [{
-          "name": "ch",
-          "href": "/rels/{rel}",
-          "templated": true
-      }],
-      "createForm": {
-          "href": "/api/scalar_data/?device=9382",
-          "title": "Add Data"
-      }
-  },
-  "dataType": "float",
-  "data": [
-    {"value": 23.5, "timestamp": "2014-03-12T13:37:27+00:00"},
-    {"value": 23.3, "timestamp": "2014-03-12T13:38:81+00:00"},
-    {"value": 22.9, "timestamp": "2014-03-12T13:39:75+00:00"},
-    {"value": 22.4, "timestamp": "2014-03-12T13:40:98+00:00"}
-  ],
-  "totalCount": 4
-}
-```
 
 Dev Server Initial Setup
 ========================
@@ -745,6 +759,10 @@ then whenever you have a version to push to production just:
 
 
 
+[ssfrr]: http://ssfrr.com
+[resenv]: http://resenv.media.mit.edu
+[medialab]: http://media.mit.edu
+[tidmarsh]: http://tidmarsh.media.mit.edu
 [hal]: http://stateless.co/hal_specification.html
 [hal-spec]: http://tools.ietf.org/html/draft-kelly-json-hal-06
 [rfc6861]: http://tools.ietf.org/html/rfc6861
