@@ -541,6 +541,8 @@ class Resource(object):
     @classmethod
     def render_response(cls, data, request, status=None):
         # TODO: there's got to be a more robust library to parse accept headers
+        if 'HTTP_ACCEPT' not in request.META:
+            request.META['HTTP_ACCEPT'] = 'application/hal_json'
         for accept in request.META['HTTP_ACCEPT'].split(','):
             accept = accept.strip()
             # first handle possible wildcards
