@@ -25,7 +25,7 @@ STAT_BASE_URL = \
 TEMP_UNIT = 'celsius'
 
 logger = logging.getLogger(__name__)
-coloredlogs.install(level=logging.DEBUG)
+coloredlogs.install(level=logging.INFO)
 # disable debug logging in the requests module, it's a bit noisy
 logging.getLogger('requests').setLevel(logging.WARNING)
 
