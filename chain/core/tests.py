@@ -709,6 +709,17 @@ class ApiSensorDataTests(ChainTestCase):
             self.assertEqual(data['value'],
                              fake_zmq_socket.sent_msgs[tag][0]['value'])
 
+    def test_posting_data_should_sanitize_args_for_response(self):
+        fake_zmq_socket.clear()
+        sensor = self.get_a_sensor()
+        sensor_data = self.get_resource(
+            sensor.links['ch:dataHistory'].href)
+        data_url = sensor_data.links.createForm.href
+        data = {'value': "23"}
+        response = self.create_resource(data_url, data)
+        self.assertEqual(response.value, 23.0)
+        self.assertEqual(type(response.value), float)
+
     def test_collection_links_should_not_have_page_info(self):
         # we want to allow the server to just give the default pagination when
         # the client is just following links around
@@ -819,7 +830,7 @@ class ErrorTests(TestCase):
 
     def test_bad_url_returns_404(self):
         response = self.client.get('/foobar/',
-                                   HTTP_ACCEPT='application/hal+json')
+                                   HTTP_ACCEPT='application/json')
         self.assertEqual(response.status_code, HTTP_STATUS_NOT_FOUND)
-        self.assertEqual(response['Content-Type'], 'application/hal+json')
+        self.assertEqual(response['Content-Type'], 'application/json')
         self.assertIn('message', json.loads(response.content))

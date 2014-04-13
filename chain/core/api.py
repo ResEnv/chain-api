@@ -439,6 +439,17 @@ class Resource(object):
         except models.FieldDoesNotExist:
             return False
 
+    @classmethod
+    def sanitize_field_value(cls, field_name, value):
+        '''Converts the given value to the correct python type, for instance if
+        the field is supposed to be a float field and the string "23" is given,
+        it will be converted to 23.0
+
+        NOTE - this currently only works for vanilla model fields, which serves
+        our purposes for now'''
+        field = cls.model._meta.get_field_by_name(field_name)[0]
+        return field.to_python(value)
+
     def deserialize(self):
         '''Deserializes this instance and returns the object representation'''
 
@@ -450,7 +461,9 @@ class Resource(object):
 
             for field_name in [f for f in self.model_fields
                                if f in self._data]:
-                new_obj_data[field_name] = self._data[field_name]
+                value = self.sanitize_field_value(field_name,
+                                                  self._data[field_name])
+                new_obj_data[field_name] = value
 
             for stub_field_name in self.stub_fields.keys():
                 new_obj_data[stub_field_name] = self.stub_object_finding(
@@ -710,6 +723,7 @@ def handle500(request):
         500,
         "I'm sorry, you broke the server. Those responsible have been sacked.",
         request)
+
 
 def handle404(request):
     return render_error(HTTP_STATUS_NOT_FOUND, 'Resource not found', request)
