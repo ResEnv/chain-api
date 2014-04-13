@@ -48,9 +48,7 @@ echo ""
 echo "Restarting Supervisor Tasks"
 echo "---------------------------"
 echo ""
-supervisorctl restart chain_webserver
-supervisorctl restart medialab_tidpost
-supervisorctl restart tidmarsh_tidpost
+supervisorctl restart all
 
 echo ""
 echo "Deployment Complete!"
