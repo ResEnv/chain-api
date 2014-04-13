@@ -22,7 +22,7 @@ setup(
         'mimeparse',
         'django-debug-toolbar',
         'gunicorn',
-        'chainclient',
+        'chainclient>=0.1',
         'pyzmq',
         'docopt',
         'coloredlogs',
