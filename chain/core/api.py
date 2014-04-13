@@ -7,6 +7,7 @@ import json
 from django.http import HttpResponse
 from django.core.urlresolvers import reverse
 from django.views.decorators.csrf import csrf_exempt
+from django.db import IntegrityError
 from datetime import datetime
 from jinja2 import Environment, PackageLoader
 from urlparse import urlparse, urlunparse, parse_qs
@@ -638,7 +639,13 @@ class Resource(object):
         elif request.method == 'POST':
             resource = cls(obj=cls.queryset.get(id=id), request=request)
             data = json.loads(request.body)
-            resource.update(data)
+            try:
+                resource.update(data)
+            except IntegrityError:
+                return render_error(
+                    400, 'Error storing object. Either required fields are '
+                    'missing data or a matching object already exists',
+                    request)
             response_data = resource.serialize()
             # push to the appropriate streams
             tags = resource.get_tags()
@@ -659,7 +666,13 @@ class Resource(object):
             data = json.loads(request.body)
             obj_params = request.GET.dict()
             new_resource = cls(data=data, request=request, filters=obj_params)
-            new_resource.save()
+            try:
+                new_resource.save()
+            except IntegrityError:
+                return render_error(
+                    400, 'Error storing object. Either required fields are '
+                    'missing data or a matching object already exists',
+                    request)
             response_data = new_resource.serialize()
             tags = new_resource.get_tags()
             if tags:
@@ -683,9 +696,20 @@ class Resource(object):
                             cls.create_view, name=base_name + '-create'))
 
 
-def handle404(request):
+def render_error(status, msg, request):
     err_data = {
-        'message': "Resource not found",
+        'status': status,
+        'message': msg,
     }
-    return HttpResponse(json.dumps(err_data), status=HTTP_STATUS_NOT_FOUND,
-                        content_type="application/hal+json")
+    return HttpResponse(json.dumps(err_data), status=status,
+                        content_type="application/json")
+
+
+def handle500(request):
+    return render_error(
+        500,
+        "I'm sorry, you broke the server. Those responsible have been sacked.",
+        request)
+
+def handle404(request):
+    return render_error(HTTP_STATUS_NOT_FOUND, 'Resource not found', request)

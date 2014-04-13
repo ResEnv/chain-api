@@ -1,0 +1,125 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
+'''thermpost
+
+Periodically reuqests thermostat state from the Schneider Electric
+server and posts it to the Chain API
+
+Usage:
+    thermpost <chain_url>
+
+    <chain_url>: URL for the site to post to
+    '''
+
+from docopt import docopt
+import chainclient
+import datetime
+from time import sleep
+import requests
+import logging
+import coloredlogs
+
+STAT_BASE_URL = \
+    'http://tac.mit.edu/E14_displays/get_controller_data.aspx?floor='
+TEMP_UNIT = 'celsius'
+
+logger = logging.getLogger(__name__)
+coloredlogs.install(level=logging.DEBUG)
+# disable debug logging in the requests module, it's a bit noisy
+logging.getLogger('requests').setLevel(logging.WARNING)
+
+# Strategy:
+# get a list of devices/sensors from chain api
+# get a list of readings from tac.mit.edu
+# store the timestamp
+# for reading in readings:
+#   if the device from the reading isn't in chain api:
+#       build the JSON for the device (including sensors) and post it
+#   if the device doesn't have the right sensors:
+#       create the sensors on the device (post)
+#   add the timestamped sensor data to the sensor
+
+
+def main():
+    opts = docopt(__doc__)
+    site_url = opts['<chain_url>']
+
+    logger.info('Getting site info from %s' % site_url)
+    site = chainclient.get(site_url)
+    devices_coll = site.rels['ch:devices']
+    existing_devices = {dev.name: dev for dev in devices_coll.rels['items']}
+
+    while True:
+        for floor in range(1, 7):
+            logger.info('Pulling thermostat info on floor %d' % floor)
+            therm_data = requests.get(STAT_BASE_URL + '%d' % floor).json()
+            logger.debug("Received: %s" % therm_data)
+            now = datetime.datetime.now()
+            for therm in therm_data:
+                try:
+                    dev = existing_devices[therm['name']]
+                except KeyError:
+                    logger.info("Creating device %s" % therm['name'])
+                    # names come in as e.g. "E14_Rm638_2"
+                    building, _, room = therm['name'].partition('_')
+                    room = room[2:]
+                    dev = devices_coll.create({
+                        'name': therm['name'],
+                        'floor': therm['floor'],
+                        'building': building,
+                        'room': room
+                    })
+                    existing_devices[therm['name']] = dev
+                post_sensor_data(therm, dev, now)
+            sleep(30)
+
+
+def post_sensor_data(report_data, device, timestamp):
+    # report data looks like:
+    # {
+    #     "name": "E14_Rm638_1",
+    #     "floor": "6",
+    #     "temp": "69.23",
+    #     "setpoint": "68.5062"
+    # }
+
+    sensor_data = {
+        # add the "+00:00" to mark the time as UTC
+        'timestamp': timestamp.isoformat() + "+00:00",
+        'unit': TEMP_UNIT
+    }
+
+    # though the data names the field "temp" we want it in the server as
+    # "temperature"
+    metric_map = {
+        'temp': 'temperature',
+        'setpoint': 'setpoint'
+    }
+
+    sensors_coll = device.rels['ch:sensors']
+    for data_metric, server_metric in metric_map.items():
+        try:
+            sensor = find_sensor_by_metric(sensors_coll.rels['items'],
+                                           server_metric)
+        except KeyError:
+            sensor = sensors_coll.create(
+                {'metric': server_metric, 'unit': TEMP_UNIT})
+        history = sensor.rels['ch:dataHistory']
+
+        sensor_data['value'] = report_data[data_metric]
+        logger.info("Posting %s data: %s" % (server_metric, sensor_data))
+        history.create(sensor_data)
+
+
+def find_sensor_by_metric(sensor_list, metric):
+    '''Finds the matching sensor in a device's sensor list. Throws KeyError if
+    there is no matching sensor'''
+    for sensor in sensor_list:
+        if sensor['metric'] == metric:
+            return sensor
+    raise KeyError('"%s" not found' % metric)
+
+
+if __name__ == '__main__':
+    main()

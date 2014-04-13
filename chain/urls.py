@@ -19,3 +19,4 @@ urlpatterns = patterns(
 )
 
 handler404 = 'chain.core.api.handle404'
+handler500 = 'chain.core.api.handle500'

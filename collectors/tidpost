@@ -1,15 +1,15 @@
 #!/usr/bin/env python
 
-'''tidmarsh_post
+'''tidpost
 
 Listens to all tidmarsh data and posts it to the given site URL using the
 chain-api REST protocol. The ZMQ address is retreived from the server's
 representation in the chain API.
 
 Usage:
-    tidmarsh_post <chain_url>
+    tidpost <chain_url>
 
-    chain_url: URL for the site to post to
+    <chain_url>: URL for the site to post to
 '''
 
 from docopt import docopt
