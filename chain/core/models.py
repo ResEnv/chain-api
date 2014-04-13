@@ -19,8 +19,7 @@ class Site(models.Model):
     raw_zmq_stream = models.CharField(max_length=255, default='', blank=True)
 
     def __repr__(self):
-        return 'Site(name=%r, latitude=%r, longitude=%r, url=%r)' % (
-            self.name, self.latitude, self.longitude, self.url)
+        return 'Site(name=%r)' % (self.name)
 
     def __str__(self):
         return self.name
