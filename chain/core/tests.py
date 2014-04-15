@@ -486,6 +486,13 @@ class ApiSitesTests(ChainTestCase):
         summary_dev = summary.devices[0]
         self.assertIn('value', summary_dev['sensors'][0]['data'][0])
 
+    def test_site_summary_resources_should_have_href(self):
+        site = self.get_a_site()
+        summary = self.get_resource(site.links['ch:siteSummary'].href)
+        summary_dev = summary.devices[0]
+        self.assertIn('href', summary_dev)
+        self.assertIn('href', summary_dev['sensors'][0])
+
 
 class ApiDeviceTests(ChainTestCase):
     def test_device_should_have_sensors_link(self):

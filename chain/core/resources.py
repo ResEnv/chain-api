@@ -203,8 +203,8 @@ class SiteResource(Resource):
             'sensors',
             'sensors__metric',
             'sensors__unit')
-        sensor_data = ScalarData.objects.filter(sensor__device__site_id=id,
-                                                timestamp__gt=time_begin)
+        db_sensor_data = ScalarData.objects.filter(sensor__device__site_id=id,
+                                                   timestamp__gt=time_begin)
         response = {
             '_links': {
                 'self': {'href': full_reverse('site-summary', request,
@@ -214,21 +214,24 @@ class SiteResource(Resource):
         }
         sensor_hash = {}
         for device in devices:
-            dev_resource = DeviceResource(
-                obj=device, request=request).serialize(rels=False)
-            response['devices'].append(dev_resource)
-            dev_resource['sensors'] = []
+            dev_resource = DeviceResource(obj=device, request=request)
+            dev_data = dev_resource.serialize(rels=False)
+            dev_data['href'] = dev_resource.get_single_href()
+            response['devices'].append(dev_data)
+            dev_data['sensors'] = []
             for sensor in device.sensors.all():
-                sensor_resource = SensorResource(
-                    obj=sensor, request=request).serialize(rels=False)
-                dev_resource['sensors'].append(sensor_resource)
-                sensor_resource['data'] = []
-                sensor_hash[sensor.id] = sensor_resource
+                sensor_resource = SensorResource(obj=sensor, request=request)
+                sensor_data = sensor_resource.serialize(rels=False)
+                sensor_data['href'] = sensor_resource.get_single_href()
+                dev_data['sensors'].append(sensor_data)
+                sensor_data['data'] = []
+                sensor_hash[sensor.id] = sensor_data
 
-        for data in sensor_data:
-            data_resource = SensorDataResource(
+        #import pdb; pdb.set_trace()
+        for data in db_sensor_data:
+            data_data = SensorDataResource(
                 obj=data, request=request).serialize(rels=False)
-            sensor_hash[data.sensor_id]['data'].append(data_resource)
+            sensor_hash[data.sensor_id]['data'].append(data_data)
         return cls.render_response(response, request)
 
     @classmethod
