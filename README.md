@@ -1,6 +1,9 @@
 Chain API
 =========
 
+Update: Slides from my recent workshop at the MIT Media Lab are available here:
+http://ssfrr.github.io/ChainDinnerSpring2014/workshop_slides.html
+
 Chain API is a hypermedia HTTP API for working with sensor data. It includes an
 HTTP interface supporting request/response interactions, as well as a
 Websockets streaming API for realtime "push" updates.
