@@ -734,43 +734,18 @@ class ApiSensorDataTests(ChainTestCase):
         self.assertNotIn('offset', sensor.links['ch:dataHistory'].href)
         self.assertNotIn('limit', sensor.links['ch:dataHistory'].href)
 
-    def test_paginated_data_should_start_with_most_recent(self):
-        sensor = self.get_a_sensor()
-        device = self.get_resource(sensor.links['ch:device'].href)
-        db_sensor = Sensor.objects.get(
-            metric__name=sensor.metric,
-            device__name=device.name)
-        dt = make_aware(datetime(2013, 1, 1, 0, 0, 1), utc)
-        data = []
-        for i in range(1500):
-            data.append(ScalarData(sensor=db_sensor, timestamp=dt, value=i))
-            dt += timedelta(seconds=1)
-        ScalarData.objects.bulk_create(data)
-        #import pdb; pdb.set_trace()
-        datapage = self.get_resource(sensor.links["ch:dataHistory"].href)
-        self.assertIn('previous', datapage.links)
-        self.assertIn('first', datapage.links)
-        self.assertNotIn('next', datapage.links)
-        self.assertNotIn('last', datapage.links)
-
     def test_paginated_data_can_be_requested_with_only_limit(self):
-        sensor = self.get_a_sensor()
-        device = self.get_resource(sensor.links['ch:device'].href)
-        db_sensor = Sensor.objects.get(
-            metric__name=sensor.metric,
-            device__name=device.name)
-        dt = make_aware(datetime(2013, 1, 1, 0, 0, 1), utc)
-        data = []
-        for i in range(1500):
-            data.append(ScalarData(sensor=db_sensor, timestamp=dt, value=i))
-            dt += timedelta(seconds=1)
-        ScalarData.objects.bulk_create(data)
+        site = self.get_a_site()
+        db_site = Site.objects.get(name=site.name)
+        Device.objects.bulk_create(
+            [Device(name="Test Sensor %d" % i, site=db_site)
+             for i in range(1500)])
         datapage = self.get_resource(
-            sensor.links["ch:dataHistory"].href + "&limit=20")
-        self.assertEqual(20, len(datapage.data))
+            site.links["ch:devices"].href + "&limit=20")
+        self.assertEqual(20, len(datapage.links['items']))
         datapage = self.get_resource(
-            sensor.links["ch:dataHistory"].href + "&limit=1000")
-        self.assertEqual(1000, len(datapage.data))
+            site.links["ch:devices"].href + "&limit=1000")
+        self.assertEqual(1000, len(datapage.links['items']))
 
 
 # these tests are testing specific URL conventions within this application

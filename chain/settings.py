@@ -90,6 +90,7 @@ INSTALLED_APPS = (
     'django.contrib.sites',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'debug_toolbar',
     'chain.core',
     'south',
     'django_extensions',
@@ -98,6 +99,9 @@ INSTALLED_APPS = (
     # Uncomment the next line to enable admin documentation:
     # 'django.contrib.admindocs',
 )
+
+# used to decide whether to display the debug toolbar
+INTERNAL_IPS = ['127.0.0.1', '18.85.58.156']
 
 # A sample logging configuration. The only tangible logging
 # performed by this configuration is to send an email to

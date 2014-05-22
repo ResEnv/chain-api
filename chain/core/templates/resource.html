@@ -78,7 +78,7 @@
         }
         if(resource_data.hasOwnProperty("data") &&
                 resource_data.dataType == "float" &&
-                resource_data.totalCount > 0) {
+                resource_data.data.length > 0) {
             render_chart(resource_data.data, $("#chart-container"));
         }
     </script>

@@ -89,18 +89,6 @@ def unlazy(given):
     return given
 
 
-def update_href(href, **kwargs):
-    '''Takes a link href as a string, and updates the query string with the
-    given offset and limit'''
-    scheme, netloc, path, params, query, fragment = urlparse(href)
-    # Note that values from parse_qs are actually lists in order to accomodate
-    # possible duplicate keys. make sure you encode with doseq=True
-    query_params = parse_qs(query)
-    query_params.update(kwargs)
-    query = urlencode(query_params, doseq=True)
-    return urlunparse((scheme, netloc, path, params, query, fragment))
-
-
 class CollectionField(object):
     '''A Collection field is a field on a resource that points to a child
     collection, e.g. an Author resource might have a 'books' field that is a
@@ -275,6 +263,18 @@ class Resource(object):
         return full_reverse(self.resource_name + '-edit',
                             self._request, args=(self._obj.id,))
 
+    def update_href(self, href, **kwargs):
+        '''Takes a link href as a string, and updates the query string with the
+        given query parameters'''
+        scheme, netloc, path, params, query, fragment = urlparse(href)
+        # Note that values from parse_qs are actually lists in order to
+        # accomodate possible duplicate keys. make sure you encode with
+        # doseq=True
+        query_params = parse_qs(query)
+        query_params.update(kwargs)
+        query = urlencode(query_params, doseq=True)
+        return urlunparse((scheme, netloc, path, params, query, fragment))
+
     def get_websocket_href(self):
         '''Gives the URL for the websockets stream that provides updates
         on this resource as well as nested resources.'''
@@ -318,13 +318,14 @@ class Resource(object):
             # make previous link
             prev_offset = offset - limit if offset - limit > 0 else 0
             data['_links']['previous'] = {
-                'href': update_href(href, offset=prev_offset, limit=limit),
+                'href': self.update_href(href,
+                                         offset=prev_offset, limit=limit),
                 'title': '%d through %d' % (
                     prev_offset, prev_offset + limit - 1),
             }
             # make first link
             data['_links']['first'] = {
-                'href': update_href(href, offset=0, limit=limit),
+                'href': self.update_href(href, offset=0, limit=limit),
                 'title': '0 through %d' % (limit - 1),
             }
 
@@ -335,17 +336,17 @@ class Resource(object):
             else:
                 next_page_end = total_count
             data['_links']['next'] = {
-                'href': update_href(href,
-                                    offset=(offset + limit),
-                                    limit=limit),
+                'href': self.update_href(href,
+                                         offset=(offset + limit),
+                                         limit=limit),
                 'title': '%d through %d' % (
                     offset + limit, next_page_end - 1),
             }
             last_page_start = int(total_count / limit) * limit
             data['_links']['last'] = {
-                'href': update_href(href,
-                                    offset=last_page_start,
-                                    limit=limit),
+                'href': self.update_href(href,
+                                         offset=last_page_start,
+                                         limit=limit),
                 'title': '%d through %d' % (
                     last_page_start, total_count - 1),
             }

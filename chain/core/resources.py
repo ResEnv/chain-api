@@ -4,7 +4,8 @@ from chain.core.api import CHAIN_CURIES
 from chain.core.models import Site, Device, Sensor, ScalarData
 from django.conf.urls import include, patterns, url
 from django.utils import timezone
-from datetime import timedelta
+from datetime import timedelta, datetime
+import calendar
 
 
 class SensorDataResource(Resource):
@@ -15,15 +16,13 @@ class SensorDataResource(Resource):
     model_fields = ['timestamp', 'value']
     required_fields = ['value']
     queryset = ScalarData.objects
-    page_size = 500
+    default_timespan = timedelta(hours=6)
 
     def __init__(self, *args, **kwargs):
         super(SensorDataResource, self).__init__(*args, **kwargs)
         if 'queryset' in kwargs:
-            if 'offset' not in kwargs or kwargs['offset'] is None:
-                # we want to default to the last page, not the first page
-                total_count = self.get_total_count()
-                self._offset = max(total_count - self._limit, 0)
+            # we want to default to the last page, not the first page
+            pass
 
     def serialize_list(self, embed, cache):
         '''a "list" of SensorData resources is actually represented
@@ -35,24 +34,67 @@ class SensorDataResource(Resource):
 
         serialized_data = {
             '_links': {
-                'self': {'href': href},
                 'curies': CHAIN_CURIES,
                 'createForm': {
                     'href': self.get_create_href(),
                     'title': 'Add Data'
                 }
             },
-            'totalCount': self.get_total_count(),
             'dataType': 'float'
         }
+        request_time = timezone.now()
+
+        # if the time filters aren't given then use the most recent timespan,
+        # if they are given, then we need to convert them from unix time to use
+        # in the queryset filter
+        if 'timestamp__gte' in self._filters:
+            page_start = datetime.utcfromtimestamp(
+                float(self._filters['timestamp__gte']))
+        else:
+            page_start = request_time - self.default_timespan
+
+        if 'timestamp__lt' in self._filters:
+            page_end = datetime.utcfromtimestamp(
+                float(self._filters['timestamp__lt']))
+        else:
+            page_end = request_time
+
+        self._filters['timestamp__gte'] = page_start
+        self._filters['timestamp__lt'] = page_end
+
         objs = self._queryset.filter(**self._filters).order_by('timestamp')
-        objs = objs[self._offset:self._offset + self._limit]
+
+        serialized_data = self.add_page_links(serialized_data, href,
+                                              page_start, page_end)
         serialized_data['data'] = [{
             'value': obj.value,
             'timestamp': obj.timestamp.isoformat()}
             for obj in objs]
-        serialized_data = self.add_page_links(serialized_data, href)
         return serialized_data
+
+    def format_time(self, timestamp):
+        return calendar.timegm(timestamp.timetuple())
+
+    def add_page_links(self, data, href, page_start, page_end):
+        timespan = page_end - page_start
+        data['_links']['previous'] = {
+            'href': self.update_href(
+                href, timestamp__gte=self.format_time(page_start - timespan),
+                timestamp__lt=self.format_time(page_start)),
+            'title': '%s to %s' % (page_start - timespan, page_start),
+        }
+        data['_links']['self'] = {
+            'href': self.update_href(
+                href, timestamp__gte=self.format_time(page_start),
+                timestamp__lt=self.format_time(page_end)),
+        }
+        data['_links']['next'] = {
+            'href': self.update_href(
+                href, timestamp__gte=self.format_time(page_end),
+                timestamp__lt=self.format_time(page_end + timespan)),
+            'title': '%s to %s' % (page_end, page_end + timespan),
+        }
+        return data
 
     def serialize_stream(self):
         '''Serialize this resource for a stream'''

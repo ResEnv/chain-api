@@ -30,5 +30,6 @@ setup(
         'gevent-websocket',
         'flask',
         'websocket-client',
+        'python-dateutil',
     ]
 )
