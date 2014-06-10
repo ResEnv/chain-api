@@ -15,6 +15,7 @@ DATABASES = {
         'PASSWORD': 'secret',
         'HOST': 'localhost',  # use domain socket (127.0.0.1 for TCP)
         'PORT': '',
+        'CONN_MAX_AGE': 600, # keep connections open up to 10 minutes
     }
 }
 
