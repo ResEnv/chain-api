@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset='utf-8'>
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <link href='https://fonts.googleapis.com/css?family=Architects+Daughter' rel='stylesheet' type='text/css'>
+    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen" />
+    <link rel="stylesheet" type="text/css" href="stylesheets/pygment_trac.css" media="screen" />
+    <link rel="stylesheet" type="text/css" href="stylesheets/print.css" media="print" />
+
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+
+    <title>Chain-api by ssfrr</title>
+  </head>
+
+  <body>
+    <header>
+      <div class="inner">
+        <h1>Chain-api</h1>
+        <h2>RESTful sensor API</h2>
+        <a href="https://github.com/ssfrr/chain-api" class="button"><small>View project on</small>GitHub</a>
+      </div>
+    </header>
+
+    <div id="content-wrapper">
+      <div class="inner clearfix">
+        <section id="main-content">
+          <h1>
+<a name="chain-api" class="anchor" href="#chain-api"><span class="octicon octicon-link"></span></a>Chain API</h1>
+
+<p>Update: Slides from my recent workshop at the MIT Media Lab are available here:
+<a href="http://ssfrr.github.io/ChainDinnerSpring2014/workshop_slides.html">http://ssfrr.github.io/ChainDinnerSpring2014/workshop_slides.html</a></p>
+
+<p>Chain API is a hypermedia HTTP API for working with sensor data. It includes an
+HTTP interface supporting request/response interactions, as well as a
+Websockets streaming API for realtime "push" updates.</p>
+
+<p>This project is led by <a href="http://ssfrr.com">Spencer Russell</a>, in the
+<a href="http://resenv.media.mit.edu">Responsive Environments</a> group at the <a href="http://media.mit.edu">MIT Media Lab</a>. It is
+still relatively early stage and in development, and certainly not yet intended
+for real production use. It is currently in use for the
+<a href="http://tidmarsh.media.mit.edu">Tidmarsh Living Observatory</a> project.</p>
+
+<p>The Chain API is built on top of the <a href="http://stateless.co/hal_specification.html">Hypertext Application Language</a>,
+or HAL. Currently it only implements the application/hal+json MIME type.
+hal+json is relatively simple, and clients are free to ignore HAL and treat the
+responses as regular JSON data. There are also various libraries that can
+take advantage of the hal+json conventions to abstract some of the details
+away. For a more thorough spec of hal+json see <a href="http://tools.ietf.org/html/draft-kelly-json-hal-06">this IETF draft</a>.</p>
+
+<p>We'll start by describing the basic JSON payloads you should expect, but also
+be sure to check out the API Concept Overview for more information on the
+common themes and design principles driving the API.</p>
+
+<h2>
+<a name="entry-point" class="anchor" href="#entry-point"><span class="octicon octicon-link"></span></a>Entry Point</h2>
+
+<p>The API entry point is at <a href="http://chain-api.media.mit.edu">http://chain-api.media.mit.edu</a>. A <code>GET</code> request
+will give you a link to the available sites.</p>
+
+<div class="highlight highlight-json"><pre><span class="p">{</span>
+  <span class="nt">"_links"</span><span class="p">:</span> <span class="p">{</span>
+    <span class="nt">"curies"</span><span class="p">:</span> <span class="p">[</span>
+      <span class="p">{</span>
+        <span class="nt">"href"</span><span class="p">:</span> <span class="s2">"http://chain-api.media.mit.edu/rels/{rel}"</span><span class="p">,</span>
+        <span class="nt">"name"</span><span class="p">:</span> <span class="s2">"ch"</span><span class="p">,</span>
+        <span class="nt">"templated"</span><span class="p">:</span> <span class="kc">true</span>
+      <span class="p">}</span>
+    <span class="p">],</span>
+    <span class="nt">"self"</span><span class="p">:</span> <span class="p">{</span>
+      <span class="nt">"href"</span><span class="p">:</span> <span class="s2">"http://chain-api.media.mit.edu/"</span>
+    <span class="p">},</span>
+    <span class="nt">"ch:sites"</span><span class="p">:</span> <span class="p">{</span>
+      <span class="nt">"href"</span><span class="p">:</span> <span class="s2">"http://chain-api.media.mit.edu/sites/"</span><span class="p">,</span>
+      <span class="nt">"title"</span><span class="p">:</span> <span class="s2">"Sites"</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>Currently the only top-level resource available is the collection of Sites.
+The client first selects which site they are interested in and can navigate
+from there to explore that site. Clients should not assume hard-coded URIs, but
+should instead get the proper URI from the API entry point.</p>
+
+<h1>
+<a name="base-resource-types" class="anchor" href="#base-resource-types"><span class="octicon octicon-link"></span></a>Base Resource Types</h1>
+
+<p>NOTE: At some point this information should be moved into the docstrings of
+the resources themselves, so we can generate the documentation as well as the
+information at the rel URLs from the same info.</p>
+
+<h2>
+<a name="site" class="anchor" href="#site"><span class="octicon octicon-link"></span></a>Site</h2>
+
+<p>An installation of Chain API, usually on the scale of several or many
+buildings.</p>
+
+<h3>
+<a name="resource-fields" class="anchor" href="#resource-fields"><span class="octicon octicon-link"></span></a>Resource Fields</h3>
+
+<ul>
+<li>
+<code>name</code> (string) - Name of this site</li>
+<li>
+<code>geoLocation</code> (elevation, latitude, longitude) - The geographic location of
+the site. All measurements are in meters.</li>
+<li>
+<code>ch:devices</code> (related resource) - A collection of all the devices in this
+site.  New devices can be POSTed to this collection to add them to this site.</li>
+</ul><h3>
+<a name="example" class="anchor" href="#example"><span class="octicon octicon-link"></span></a>Example</h3>
+
+<div class="highlight highlight-json"><pre><span class="p">{</span>
+  <span class="nt">"geoLocation"</span><span class="p">:</span> <span class="p">{</span>
+    <span class="nt">"latitude"</span><span class="p">:</span> <span class="mf">42.360624</span><span class="p">,</span>
+    <span class="nt">"elevation"</span><span class="p">:</span> <span class="kc">null</span><span class="p">,</span>
+    <span class="nt">"longitude"</span><span class="p">:</span> <span class="mf">-71.087577</span>
+  <span class="p">},</span>
+  <span class="nt">"_links"</span><span class="p">:</span> <span class="p">{</span>
+    <span class="nt">"ch:siteSummary"</span><span class="p">:</span> <span class="p">{</span>
+      <span class="nt">"href"</span><span class="p">:</span> <span class="s2">"http://chain-api.media.mit.edu/sites/5/summary"</span><span class="p">,</span>
+      <span class="nt">"title"</span><span class="p">:</span> <span class="s2">"Summary"</span>
+    <span class="p">},</span>
+    <span class="nt">"rawZMQStream"</span><span class="p">:</span> <span class="p">{</span>
+      <span class="nt">"href"</span><span class="p">:</span> <span class="s2">"tcp://tidmarsh.media.mit.edu:1305"</span><span class="p">,</span>
+      <span class="nt">"title"</span><span class="p">:</span> <span class="s2">"Raw ZMQ Stream"</span>
+    <span class="p">},</span>
+    <span class="nt">"ch:devices"</span><span class="p">:</span> <span class="p">{</span>
+      <span class="nt">"href"</span><span class="p">:</span> <span class="s2">"http://chain-api.media.mit.edu/devices/?site_id=5"</span><span class="p">,</span>
+      <span class="nt">"title"</span><span class="p">:</span> <span class="s2">"Devices"</span>
+    <span class="p">},</span>
+    <span class="nt">"curies"</span><span class="p">:</span> <span class="p">[</span>
+      <span class="p">{</span>
+        <span class="nt">"href"</span><span class="p">:</span> <span class="s2">"http://chain-api.media.mit.edu/rels/{rel}"</span><span class="p">,</span>
+        <span class="nt">"name"</span><span class="p">:</span> <span class="s2">"ch"</span><span class="p">,</span>
+        <span class="nt">"templated"</span><span class="p">:</span> <span class="kc">true</span>
+      <span class="p">}</span>
+    <span class="p">],</span>
+    <span class="nt">"self"</span><span class="p">:</span> <span class="p">{</span>
+      <span class="nt">"href"</span><span class="p">:</span> <span class="s2">"http://chain-api.media.mit.edu/sites/5"</span>
+    <span class="p">},</span>
+    <span class="nt">"ch:websocketStream"</span><span class="p">:</span> <span class="p">{</span>
+      <span class="nt">"href"</span><span class="p">:</span> <span class="s2">"ws://chain-api.media.mit.edu/ws/site-5"</span><span class="p">,</span>
+      <span class="nt">"title"</span><span class="p">:</span> <span class="s2">"Websocket Stream"</span>
+    <span class="p">},</span>
+    <span class="nt">"editForm"</span><span class="p">:</span> <span class="p">{</span>
+      <span class="nt">"href"</span><span class="p">:</span> <span class="s2">"http://chain-api.media.mit.edu/sites/5/edit"</span><span class="p">,</span>
+      <span class="nt">"title"</span><span class="p">:</span> <span class="s2">"Edit Site"</span>
+    <span class="p">}</span>
+  <span class="p">},</span>
+  <span class="nt">"name"</span><span class="p">:</span> <span class="s2">"MIT Media Lab"</span>
+<span class="p">}</span>
+</pre></div>
+
+<h2>
+<a name="device" class="anchor" href="#device"><span class="octicon octicon-link"></span></a>Device</h2>
+
+<p>A device that may contain several sensor channels.</p>
+
+<h3>
+<a name="resource-fields-1" class="anchor" href="#resource-fields-1"><span class="octicon octicon-link"></span></a>Resource Fields</h3>
+
+<ul>
+<li>
+<code>name</code> (string) - Name of this device</li>
+<li>
+<code>ch:site</code> (related resource) - The site this device is a part of</li>
+<li>
+<code>description</code> (string) - A longer description of this device</li>
+<li>
+<code>building</code> (string) - The building the device is in</li>
+<li>
+<code>floor</code> (string) - The floor of the building</li>
+<li>
+<code>room</code> (string) - The room containing the device</li>
+<li>
+<code>ch:sensors</code> (related resource) - A collection of all the sensors in this
+device. New sensors can be POSTed to this collection to add them to this
+device.</li>
+</ul><h3>
+<a name="example-1" class="anchor" href="#example-1"><span class="octicon octicon-link"></span></a>Example</h3>
+
+<div class="highlight highlight-json"><pre><span class="p">{</span>
+  <span class="nt">"building"</span><span class="p">:</span> <span class="s2">"E14"</span><span class="p">,</span>
+  <span class="nt">"room"</span><span class="p">:</span> <span class="s2">"Cafe"</span><span class="p">,</span>
+  <span class="nt">"floor"</span><span class="p">:</span> <span class="s2">"5"</span><span class="p">,</span>
+  <span class="nt">"description"</span><span class="p">:</span> <span class="s2">"CityFarm Greenhouse (North)"</span><span class="p">,</span>
+  <span class="nt">"_links"</span><span class="p">:</span> <span class="p">{</span>
+    <span class="nt">"ch:site"</span><span class="p">:</span> <span class="p">{</span>
+      <span class="nt">"href"</span><span class="p">:</span> <span class="s2">"http://chain-api.media.mit.edu/sites/5"</span><span class="p">,</span>
+      <span class="nt">"title"</span><span class="p">:</span> <span class="s2">"MIT Media Lab"</span>
+    <span class="p">},</span>
+    <span class="nt">"curies"</span><span class="p">:</span> <span class="p">[</span>
+      <span class="p">{</span>
+        <span class="nt">"href"</span><span class="p">:</span> <span class="s2">"http://chain-api.media.mit.edu/rels/{rel}"</span><span class="p">,</span>
+        <span class="nt">"name"</span><span class="p">:</span> <span class="s2">"ch"</span><span class="p">,</span>
+        <span class="nt">"templated"</span><span class="p">:</span> <span class="kc">true</span>
+      <span class="p">}</span>
+    <span class="p">],</span>
+    <span class="nt">"self"</span><span class="p">:</span> <span class="p">{</span>
+      <span class="nt">"href"</span><span class="p">:</span> <span class="s2">"http://chain-api.media.mit.edu/devices/32"</span>
+    <span class="p">},</span>
+    <span class="nt">"ch:websocketStream"</span><span class="p">:</span> <span class="p">{</span>
+      <span class="nt">"href"</span><span class="p">:</span> <span class="s2">"ws://chain-api.media.mit.edu/ws/device-32"</span><span class="p">,</span>
+      <span class="nt">"title"</span><span class="p">:</span> <span class="s2">"Websocket Stream"</span>
+    <span class="p">},</span>
+    <span class="nt">"ch:sensors"</span><span class="p">:</span> <span class="p">{</span>
+      <span class="nt">"href"</span><span class="p">:</span> <span class="s2">"http://chain-api.media.mit.edu/sensors/?device_id=32"</span><span class="p">,</span>
+      <span class="nt">"title"</span><span class="p">:</span> <span class="s2">"Sensors"</span>
+    <span class="p">},</span>
+    <span class="nt">"editForm"</span><span class="p">:</span> <span class="p">{</span>
+      <span class="nt">"href"</span><span class="p">:</span> <span class="s2">"http://chain-api.media.mit.edu/devices/32/edit"</span><span class="p">,</span>
+      <span class="nt">"title"</span><span class="p">:</span> <span class="s2">"Edit Device"</span>
+    <span class="p">}</span>
+  <span class="p">},</span>
+  <span class="nt">"name"</span><span class="p">:</span> <span class="s2">"0x8123"</span>
+<span class="p">}</span>
+</pre></div>
+
+<h2>
+<a name="sensor" class="anchor" href="#sensor"><span class="octicon octicon-link"></span></a>Sensor</h2>
+
+<p>A sensor captures a single channel of data. There may be multiple sensors on a
+single device. Issuing a GET request for a Sensor resource also includes the
+current value for that sensor. The value could be a scalar value or some other
+TBD data types.</p>
+
+<h3>
+<a name="resource-fields-2" class="anchor" href="#resource-fields-2"><span class="octicon octicon-link"></span></a>Resource Fields</h3>
+
+<ul>
+<li>
+<code>ch:device</code> (related resource) - The device this sensor is part of</li>
+<li>
+<code>ch:dataHistory</code> (related resource) - Collection of data from this sensor</li>
+<li>
+<code>metric</code> (string) - What the sensor is measuring (e.g. "temperature")</li>
+<li>
+<code>unit</code> (string) - The unit the data is in, e.g. "kW-hr". This should be an
+abbreviation from the <a href="http://www.qudt.org/qudt/owl/1.0.0/unit/Instances.html">QUDT unit list</a>.</li>
+<li>
+<code>dataType</code> (string) - Data type of this sensor. Currently there's only <code>float</code>
+</li>
+<li>
+<code>updated</code> (ISO8601 timestamp) - Timestamp of the most recent update</li>
+<li>
+<code>value</code> (various) - The most recent reading from this sensor. Currently only
+floating point sensors are supported, but in the future this could be an xyz
+position, GPS coordinate, image, etc.</li>
+</ul><h3>
+<a name="example-2" class="anchor" href="#example-2"><span class="octicon octicon-link"></span></a>Example</h3>
+
+<div class="highlight highlight-json"><pre><span class="p">{</span>
+  <span class="nt">"updated"</span><span class="p">:</span> <span class="s2">"2014-04-12T20:47:15.291305+00:00"</span><span class="p">,</span>
+  <span class="nt">"dataType"</span><span class="p">:</span> <span class="s2">"float"</span><span class="p">,</span>
+  <span class="nt">"metric"</span><span class="p">:</span> <span class="s2">"temperature"</span><span class="p">,</span>
+  <span class="nt">"value"</span><span class="p">:</span> <span class="mf">22.32</span><span class="p">,</span>
+  <span class="nt">"_links"</span><span class="p">:</span> <span class="p">{</span>
+    <span class="nt">"ch:dataHistory"</span><span class="p">:</span> <span class="p">{</span>
+      <span class="nt">"href"</span><span class="p">:</span> <span class="s2">"http://chain-api.media.mit.edu/sensordata/?sensor_id=263"</span><span class="p">,</span>
+      <span class="nt">"title"</span><span class="p">:</span> <span class="s2">"Data"</span>
+    <span class="p">},</span>
+    <span class="nt">"curies"</span><span class="p">:</span> <span class="p">[</span>
+      <span class="p">{</span>
+        <span class="nt">"href"</span><span class="p">:</span> <span class="s2">"http://chain-api.media.mit.edu/rels/{rel}"</span><span class="p">,</span>
+        <span class="nt">"name"</span><span class="p">:</span> <span class="s2">"ch"</span><span class="p">,</span>
+        <span class="nt">"templated"</span><span class="p">:</span> <span class="kc">true</span>
+      <span class="p">}</span>
+    <span class="p">],</span>
+    <span class="nt">"self"</span><span class="p">:</span> <span class="p">{</span>
+      <span class="nt">"href"</span><span class="p">:</span> <span class="s2">"http://chain-api.media.mit.edu/sensors/263"</span>
+    <span class="p">},</span>
+    <span class="nt">"ch:device"</span><span class="p">:</span> <span class="p">{</span>
+      <span class="nt">"href"</span><span class="p">:</span> <span class="s2">"http://chain-api.media.mit.edu/devices/32"</span><span class="p">,</span>
+      <span class="nt">"title"</span><span class="p">:</span> <span class="s2">"0x8123"</span>
+    <span class="p">},</span>
+    <span class="nt">"ch:websocketStream"</span><span class="p">:</span> <span class="p">{</span>
+      <span class="nt">"href"</span><span class="p">:</span> <span class="s2">"ws://chain-api.media.mit.edu/ws/sensor-263"</span><span class="p">,</span>
+      <span class="nt">"title"</span><span class="p">:</span> <span class="s2">"Websocket Stream"</span>
+    <span class="p">},</span>
+    <span class="nt">"editForm"</span><span class="p">:</span> <span class="p">{</span>
+      <span class="nt">"href"</span><span class="p">:</span> <span class="s2">"http://chain-api.media.mit.edu/sensors/263/edit"</span><span class="p">,</span>
+      <span class="nt">"title"</span><span class="p">:</span> <span class="s2">"Edit Sensor"</span>
+    <span class="p">}</span>
+  <span class="p">},</span>
+  <span class="nt">"unit"</span><span class="p">:</span> <span class="s2">"celsius"</span>
+<span class="p">}</span>
+</pre></div>
+
+<h2>
+<a name="sensor-data" class="anchor" href="#sensor-data"><span class="octicon octicon-link"></span></a>Sensor Data</h2>
+
+<p>Sensor Data is the raw data captured by the sensors. The <code>data</code> field is a list
+containing the actual data points. If necessary there are pagination links just
+like collection resources. There is also a <code>createForm</code> link which gives the
+URL to post data to this data set.</p>
+
+<h3>
+<a name="resource-fields-3" class="anchor" href="#resource-fields-3"><span class="octicon octicon-link"></span></a>Resource Fields</h3>
+
+<ul>
+<li>
+<code>dataType</code> (string) - The type of the data, currently always "float"</li>
+<li>
+<code>data</code> (list) - List of data, each of which is a JSON object with at least
+a <code>value</code> key and a <code>timestamp</code> key. The type of the <code>value</code> key is determined
+by the <code>datatype</code> attribute</li>
+<li>
+<code>totalCount</code> (int) - The total number of data points in the collection. If the
+total count is too large a single response may only have one page of data</li>
+</ul><h3>
+<a name="example-3" class="anchor" href="#example-3"><span class="octicon octicon-link"></span></a>Example</h3>
+
+<div class="highlight highlight-json"><pre><span class="p">{</span>
+  <span class="nt">"dataType"</span><span class="p">:</span> <span class="s2">"float"</span><span class="p">,</span>
+  <span class="nt">"totalCount"</span><span class="p">:</span> <span class="mi">69148</span><span class="p">,</span>
+  <span class="nt">"_links"</span><span class="p">:</span> <span class="p">{</span>
+    <span class="nt">"curies"</span><span class="p">:</span> <span class="p">[</span>
+      <span class="p">{</span>
+        <span class="nt">"href"</span><span class="p">:</span> <span class="s2">"http://chain-api.media.mit.edu/rels/{rel}"</span><span class="p">,</span>
+        <span class="nt">"name"</span><span class="p">:</span> <span class="s2">"ch"</span><span class="p">,</span>
+        <span class="nt">"templated"</span><span class="p">:</span> <span class="kc">true</span>
+      <span class="p">}</span>
+    <span class="p">],</span>
+    <span class="nt">"self"</span><span class="p">:</span> <span class="p">{</span>
+      <span class="nt">"href"</span><span class="p">:</span> <span class="s2">"http://chain-api.media.mit.edu/sensordata/?sensor_id=263"</span>
+    <span class="p">},</span>
+    <span class="nt">"first"</span><span class="p">:</span> <span class="p">{</span>
+      <span class="nt">"href"</span><span class="p">:</span> <span class="s2">"http://chain-api.media.mit.edu/sensordata/?sensor_id=263&amp;limit=500&amp;offset=0"</span><span class="p">,</span>
+      <span class="nt">"title"</span><span class="p">:</span> <span class="s2">"0 through 499"</span>
+    <span class="p">},</span>
+    <span class="nt">"createForm"</span><span class="p">:</span> <span class="p">{</span>
+      <span class="nt">"href"</span><span class="p">:</span> <span class="s2">"http://chain-api.media.mit.edu/sensordata/create?sensor_id=263"</span><span class="p">,</span>
+      <span class="nt">"title"</span><span class="p">:</span> <span class="s2">"Add Data"</span>
+    <span class="p">},</span>
+    <span class="nt">"previous"</span><span class="p">:</span> <span class="p">{</span>
+      <span class="nt">"href"</span><span class="p">:</span> <span class="s2">"http://chain-api.media.mit.edu/sensordata/?sensor_id=263&amp;limit=500&amp;offset=68148"</span><span class="p">,</span>
+      <span class="nt">"title"</span><span class="p">:</span> <span class="s2">"68148 through 68647"</span>
+    <span class="p">}</span>
+  <span class="p">},</span>
+  <span class="nt">"data"</span><span class="p">:</span> <span class="p">[</span>
+    <span class="p">{</span>
+      <span class="nt">"timestamp"</span><span class="p">:</span> <span class="s2">"2014-04-12T15:00:04.202361+00:00"</span><span class="p">,</span>
+      <span class="nt">"value"</span><span class="p">:</span> <span class="mf">29.81</span>
+    <span class="p">},</span>
+    <span class="p">{</span>
+      <span class="nt">"timestamp"</span><span class="p">:</span> <span class="s2">"2014-04-12T15:00:25.232755+00:00"</span><span class="p">,</span>
+      <span class="nt">"value"</span><span class="p">:</span> <span class="mf">29.82</span>
+    <span class="p">}</span>
+  <span class="p">]</span>
+<span class="p">}</span>
+</pre></div>
+
+<h1>
+<a name="general-api-concept-overview" class="anchor" href="#general-api-concept-overview"><span class="octicon octicon-link"></span></a>General API Concept Overview</h1>
+
+<h2>
+<a name="link-relations" class="anchor" href="#link-relations"><span class="octicon octicon-link"></span></a>Link Relations</h2>
+
+<p>Given a link from one resource to another, clients generally need to know what
+sort of relationship that link is modeling. Is it a link from a child to a
+parent? From a device to a list of contained sensors? These relations (often
+shortened to "rels") are central to the architecture of the Chain API, and
+hypermedia in general.</p>
+
+<p>Note that the <code>href</code> field in links will be a URL, which should be parsed
+as per <a href="http://tools.ietf.org/html/rfc1808">RFC1808</a>. Basically this means that URLs might be absolute
+(<code>http://example.com/things/392</code>) or relative to the domain (<code>/things/392</code>).
+RFC1808 also allows URLs to be expressed relative to the current resource
+(<code>../things/392</code>), but the Chain API does not use these.</p>
+
+<p>Following along with standard hal+json, most rels are self-documenting, and the
+rel itself actually serve as a link(URI) to the human-readable documentation
+that describes what that relationship actually means. This rel URI should also
+be used by clients as a unique, persistant identifier. This gives flexibility
+to server implementers as they can add new relation types, or even new versions
+of existing relation types, to existing resources without breaking older
+clients. As long as the new rels have unique URIs, old clients will simply
+ignore them.</p>
+
+<p>Some relations are specific to the Chain API, in which case they are documented
+on the Chain API site (currently chain-api.media.mit.edu). Where possible, the
+API uses <a href="http://www.iana.org/assignments/link-relations/link-relations.xhtml">standard link rel names</a> in which case the rel names are
+not qualified with a URI. See <a href="http://tools.ietf.org/html/rfc5988">RFC5988</a> for more info on link
+relations.</p>
+
+<p>In the Chain API attributes can also be considered relations, except the
+related object is simple data, instead of a linked or embedded resource. As
+such, attributes use the same self-documenting mechanism as resource relations.</p>
+
+<h2>
+<a name="curies" class="anchor" href="#curies"><span class="octicon octicon-link"></span></a>CURIES</h2>
+
+<p>Using URIs as relation names has the benefit of providing a stable and unique
+identifier for relation names, but using a full URI as a json dictionary key is
+cumbersome and duplicates lots of data in a typicaly payload. To alleviate this
+issue hal+json supports Compact URIs or "CURIEs". The
+<a href="http://en.wikipedia.org/wiki/CURIE">wikipedia page</a> shows an example of a CURIE used as an XML
+namespace, and the <a href="http://www.w3.org/TR/curie/">w3c spec</a> has a much more detailed description.
+In the context of hal+json CURIEs are simply a URI template that can be used
+for each rel that references it.</p>
+
+<h2>
+<a name="embedded-relations" class="anchor" href="#embedded-relations"><span class="octicon octicon-link"></span></a>Embedded Relations</h2>
+
+<p>While links are the primary way to describe relationships between resources, it
+is sometimes cumbersome and inefficient to always request them separately. As
+an optimization, Chain API will sometimes embed the full related resource in
+addition to the link. In this case you will find the embedded resource in the
+<code>_embedded</code> section of the response, which is a hal+json standard. Note that in
+this case the resource will still be linked in the <code>_links</code> section with the
+same rel name, so clients can ignore the <code>_embedded</code> objects if they choose.</p>
+
+<h2>
+<a name="collection-resources" class="anchor" href="#collection-resources"><span class="octicon octicon-link"></span></a>Collection Resources</h2>
+
+<p>Sending an HTTP GET request to a Collection Resource will return a response
+with the requested resources as well as metadata about the response, such as
+the total number of resources represented by this collection.  If there are
+more resources than will fit into a single response, there may also be links to
+the first, last, previous, and next pages.</p>
+
+<h2>
+<a name="related-collections" class="anchor" href="#related-collections"><span class="octicon octicon-link"></span></a>Related Collections</h2>
+
+<p>When a resource has a related collection (e.g. a parent resource has a
+"children" relation), there are several possible ways to represent it.</p>
+
+<p><em>Note - this section is pretty speculative, and we probably won't allow the
+full flexibility of all these different related collection formats</em></p>
+
+<h3>
+<a name="a-single-link-to-the-collection-as-a-separate-resource" class="anchor" href="#a-single-link-to-the-collection-as-a-separate-resource"><span class="octicon octicon-link"></span></a>A single link to the collection as a separate resource</h3>
+
+<div class="highlight highlight-json"><pre><span class="p">{</span>
+  <span class="nt">"_links"</span><span class="p">:</span> <span class="p">{</span>
+    <span class="nt">"self"</span><span class="p">:</span> <span class="p">{</span><span class="nt">"href"</span><span class="p">:</span> <span class="s2">"/parents/392"</span><span class="p">},</span>
+    <span class="nt">"children"</span><span class="p">:</span> <span class="p">{</span><span class="nt">"href"</span><span class="p">:</span> <span class="s2">"/parents/392/children/"</span><span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>which when followed gives you a full collection resource:</p>
+
+<div class="highlight highlight-json"><pre><span class="p">{</span>
+  <span class="nt">"_links"</span><span class="p">:</span> <span class="p">{</span>
+    <span class="nt">"self"</span><span class="p">:</span> <span class="p">{</span><span class="nt">"href"</span><span class="p">:</span> <span class="s2">"/parents/392/children/"</span><span class="p">},</span>
+    <span class="nt">"next"</span><span class="p">:</span> <span class="p">{</span> <span class="nt">"href"</span><span class="p">:</span> <span class="s2">"/parents/392/children?page=2"</span><span class="p">,</span> <span class="nt">"title"</span><span class="p">:</span> <span class="s2">"Page 2"</span> <span class="p">},</span>
+    <span class="nt">"last"</span><span class="p">:</span> <span class="p">{</span> <span class="nt">"href"</span><span class="p">:</span> <span class="s2">"/parents/392/children?page=5"</span><span class="p">,</span> <span class="nt">"title"</span><span class="p">:</span> <span class="s2">"Page 5"</span> <span class="p">},</span>
+    <span class="nt">"createForm"</span><span class="p">:</span> <span class="p">{</span> <span class="nt">"href"</span><span class="p">:</span> <span class="s2">"/parents/392/children/"</span><span class="p">,</span> <span class="nt">"title"</span><span class="p">:</span> <span class="s2">"Create Order"</span><span class="p">},</span>
+    <span class="nt">"items"</span><span class="p">:</span> <span class="p">[</span>
+      <span class="p">{</span><span class="nt">"href"</span><span class="p">:</span> <span class="s2">"/children/382"</span><span class="p">,</span> <span class="nt">"title"</span><span class="p">:</span> <span class="s2">"Child 1"</span><span class="p">},</span>
+      <span class="p">{</span><span class="nt">"href"</span><span class="p">:</span> <span class="s2">"/children/8371"</span><span class="p">,</span> <span class="nt">"title"</span><span class="p">:</span> <span class="s2">"Child 2"</span><span class="p">},</span>
+      <span class="p">{</span><span class="nt">"href"</span><span class="p">:</span> <span class="s2">"/children/716"</span><span class="p">,</span> <span class="nt">"title"</span><span class="p">:</span> <span class="s2">"Child 3"</span><span class="p">}</span>
+    <span class="p">]</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>or a collection resource with embedded children</p>
+
+<div class="highlight highlight-json"><pre><span class="p">{</span>
+  <span class="nt">"_links"</span><span class="p">:</span> <span class="p">{</span>
+    <span class="nt">"self"</span><span class="p">:</span> <span class="p">{</span><span class="nt">"href"</span><span class="p">:</span> <span class="s2">"/parents/392/children/"</span><span class="p">},</span>
+    <span class="nt">"next"</span><span class="p">:</span> <span class="p">{</span> <span class="nt">"href"</span><span class="p">:</span> <span class="s2">"/parents/392/children?page=2"</span><span class="p">,</span> <span class="nt">"title"</span><span class="p">:</span> <span class="s2">"Page 2"</span> <span class="p">},</span>
+    <span class="nt">"last"</span><span class="p">:</span> <span class="p">{</span> <span class="nt">"href"</span><span class="p">:</span> <span class="s2">"/parents/392/children?page=5"</span><span class="p">,</span> <span class="nt">"title"</span><span class="p">:</span> <span class="s2">"Page 5"</span> <span class="p">},</span>
+    <span class="nt">"createForm"</span><span class="p">:</span> <span class="p">{</span> <span class="nt">"href"</span><span class="p">:</span> <span class="s2">"/parents/392/children/"</span><span class="p">,</span> <span class="nt">"title"</span><span class="p">:</span> <span class="s2">"Create Order"</span><span class="p">},</span>
+    <span class="nt">"items"</span><span class="p">:</span> <span class="p">[</span>
+      <span class="p">{</span><span class="nt">"href"</span><span class="p">:</span> <span class="s2">"/children/382"</span><span class="p">,</span> <span class="nt">"title"</span><span class="p">:</span> <span class="s2">"Child 1"</span><span class="p">},</span>
+      <span class="p">{</span><span class="nt">"href"</span><span class="p">:</span> <span class="s2">"/children/8371"</span><span class="p">,</span> <span class="nt">"title"</span><span class="p">:</span> <span class="s2">"Child 2"</span><span class="p">},</span>
+      <span class="p">{</span><span class="nt">"href"</span><span class="p">:</span> <span class="s2">"/children/716"</span><span class="p">,</span> <span class="nt">"title"</span><span class="p">:</span> <span class="s2">"Child 3"</span><span class="p">}</span>
+    <span class="p">]</span>
+  <span class="p">},</span>
+  <span class="nt">"_embedded"</span><span class="p">:</span> <span class="p">{</span>
+    <span class="nt">"items"</span><span class="p">:</span> <span class="p">[</span>
+      <span class="p">{</span>
+        <span class="nt">"_links"</span> <span class="p">{</span>
+          <span class="nt">"self"</span><span class="p">:</span> <span class="p">{</span><span class="nt">"href"</span><span class="p">:</span> <span class="s2">"/children/382"</span><span class="p">}</span>
+        <span class="p">},</span>
+        <span class="nt">"name"</span><span class="p">:</span> <span class="s2">"Child 1"</span><span class="p">,</span>
+        <span class="nt">"age"</span><span class="p">:</span> <span class="mi">13</span>
+      <span class="p">},</span>
+      <span class="p">{</span>
+        <span class="nt">"_links"</span> <span class="p">{</span>
+          <span class="nt">"self"</span><span class="p">:</span> <span class="p">{</span><span class="nt">"href"</span><span class="p">:</span> <span class="s2">"/children/8371"</span><span class="p">}</span>
+        <span class="p">},</span>
+        <span class="nt">"name"</span><span class="p">:</span> <span class="s2">"Child 2"</span><span class="p">,</span>
+        <span class="nt">"age"</span><span class="p">:</span> <span class="mi">16</span>
+      <span class="p">},</span>
+      <span class="p">{</span>
+        <span class="nt">"_links"</span> <span class="p">{</span>
+          <span class="nt">"self"</span><span class="p">:</span> <span class="p">{</span><span class="nt">"href"</span><span class="p">:</span> <span class="s2">"/children/716"</span><span class="p">}</span>
+        <span class="p">},</span>
+        <span class="nt">"name"</span><span class="p">:</span> <span class="s2">"Child 3"</span><span class="p">,</span>
+        <span class="nt">"age"</span><span class="p">:</span> <span class="mi">31</span>
+      <span class="p">}</span>
+    <span class="p">]</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<h3>
+<a name="direct-links-to-each-child" class="anchor" href="#direct-links-to-each-child"><span class="octicon octicon-link"></span></a>Direct links to each child</h3>
+
+<p>This seems fine for small related lists, but doesn't allow pagination links or
+metadata about the collection</p>
+
+<div class="highlight highlight-json"><pre><span class="p">{</span>
+  <span class="nt">"_links"</span><span class="p">:</span> <span class="p">{</span>
+    <span class="nt">"self"</span><span class="p">:</span> <span class="p">{</span><span class="nt">"href"</span><span class="p">:</span> <span class="s2">"/parents/392"</span><span class="p">},</span>
+    <span class="nt">"children"</span><span class="p">:</span> <span class="p">[</span>
+      <span class="p">{</span><span class="nt">"href"</span><span class="p">:</span> <span class="s2">"/children/382"</span><span class="p">,</span> <span class="nt">"title"</span><span class="p">:</span> <span class="s2">"Child 1"</span><span class="p">},</span>
+      <span class="p">{</span><span class="nt">"href"</span><span class="p">:</span> <span class="s2">"/children/8371"</span><span class="p">,</span> <span class="nt">"title"</span><span class="p">:</span> <span class="s2">"Child 2"</span><span class="p">},</span>
+      <span class="p">{</span><span class="nt">"href"</span><span class="p">:</span> <span class="s2">"/children/716"</span><span class="p">,</span> <span class="nt">"title"</span><span class="p">:</span> <span class="s2">"Child 3"</span><span class="p">}</span>
+    <span class="p">]</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<h3>
+<a name="an-embedded-collection-resource-with-links" class="anchor" href="#an-embedded-collection-resource-with-links"><span class="octicon octicon-link"></span></a>An embedded collection resource with links</h3>
+
+<div class="highlight highlight-json"><pre>    <span class="p">{</span>
+      <span class="nt">"_links"</span><span class="p">:</span> <span class="p">{</span>
+        <span class="nt">"self"</span><span class="p">:</span> <span class="p">{</span><span class="nt">"href"</span><span class="p">:</span> <span class="s2">"/parents/392"</span><span class="p">},</span>
+        <span class="nt">"children"</span><span class="p">:</span> <span class="p">{</span><span class="nt">"href"</span><span class="p">:</span> <span class="s2">"/parents/392/children/"</span><span class="p">}</span>
+      <span class="p">},</span>
+      <span class="nt">"_embedded"</span><span class="p">:</span> <span class="p">{</span>
+        <span class="nt">"children"</span><span class="p">:</span> <span class="p">{</span>
+          <span class="nt">"_links"</span><span class="p">:</span> <span class="p">{</span>
+            <span class="nt">"self"</span><span class="p">:</span> <span class="p">{</span><span class="nt">"href"</span><span class="p">:</span> <span class="s2">"/parents/392/children/"</span><span class="p">},</span>
+            <span class="nt">"next"</span><span class="p">:</span> <span class="p">{</span> <span class="nt">"href"</span><span class="p">:</span> <span class="s2">"/parents/392/children?page=2"</span><span class="p">,</span> <span class="nt">"title"</span><span class="p">:</span> <span class="s2">"Page 2"</span> <span class="p">},</span>
+            <span class="nt">"last"</span><span class="p">:</span> <span class="p">{</span> <span class="nt">"href"</span><span class="p">:</span> <span class="s2">"/parents/392/children?page=5"</span><span class="p">,</span> <span class="nt">"title"</span><span class="p">:</span> <span class="s2">"Page 5"</span> <span class="p">},</span>
+            <span class="nt">"createForm"</span><span class="p">:</span> <span class="p">{</span> <span class="nt">"href"</span><span class="p">:</span> <span class="s2">"/parents/392/children/"</span><span class="p">,</span> <span class="nt">"title"</span><span class="p">:</span> <span class="s2">"Create Order"</span><span class="p">},</span>
+            <span class="nt">"items"</span><span class="p">:</span> <span class="p">[</span>
+              <span class="p">{</span><span class="nt">"href"</span><span class="p">:</span> <span class="s2">"/children/382"</span><span class="p">,</span> <span class="nt">"title"</span><span class="p">:</span> <span class="s2">"Child 1"</span><span class="p">},</span>
+              <span class="p">{</span><span class="nt">"href"</span><span class="p">:</span> <span class="s2">"/children/8371"</span><span class="p">,</span> <span class="nt">"title"</span><span class="p">:</span> <span class="s2">"Child 2"</span><span class="p">},</span>
+              <span class="p">{</span><span class="nt">"href"</span><span class="p">:</span> <span class="s2">"/children/716"</span><span class="p">,</span> <span class="nt">"title"</span><span class="p">:</span> <span class="s2">"Child 3"</span><span class="p">}</span>
+            <span class="p">]</span>
+          <span class="p">}</span>
+        <span class="p">}</span>
+      <span class="p">}</span>
+    <span class="p">}</span>
+</pre></div>
+
+<h3>
+<a name="an-embedded-collection-with-embedded-items" class="anchor" href="#an-embedded-collection-with-embedded-items"><span class="octicon octicon-link"></span></a>An embedded collection with embedded items</h3>
+
+<div class="highlight highlight-json"><pre><span class="p">{</span>
+  <span class="nt">"_links"</span><span class="p">:</span> <span class="p">{</span>
+    <span class="nt">"self"</span><span class="p">:</span> <span class="p">{</span><span class="nt">"href"</span><span class="p">:</span> <span class="s2">"/parents/392"</span><span class="p">},</span>
+    <span class="nt">"children"</span><span class="p">:</span> <span class="p">{</span><span class="nt">"href"</span><span class="p">:</span> <span class="s2">"/parents/392/children/"</span><span class="p">}</span>
+  <span class="p">},</span>
+  <span class="nt">"_embedded"</span><span class="p">:</span> <span class="p">{</span>
+    <span class="nt">"children"</span><span class="p">:</span> <span class="p">{</span>
+      <span class="nt">"_links"</span><span class="p">:</span> <span class="p">{</span>
+        <span class="nt">"self"</span><span class="p">:</span> <span class="p">{</span><span class="nt">"href"</span><span class="p">:</span> <span class="s2">"/parents/392/children/"</span><span class="p">},</span>
+        <span class="nt">"next"</span><span class="p">:</span> <span class="p">{</span> <span class="nt">"href"</span><span class="p">:</span> <span class="s2">"/parents/392/children?page=2"</span><span class="p">,</span> <span class="nt">"title"</span><span class="p">:</span> <span class="s2">"Page 2"</span> <span class="p">},</span>
+        <span class="nt">"last"</span><span class="p">:</span> <span class="p">{</span> <span class="nt">"href"</span><span class="p">:</span> <span class="s2">"/parents/392/children?page=5"</span><span class="p">,</span> <span class="nt">"title"</span><span class="p">:</span> <span class="s2">"Page 5"</span> <span class="p">},</span>
+        <span class="nt">"createForm"</span><span class="p">:</span> <span class="p">{</span> <span class="nt">"href"</span><span class="p">:</span> <span class="s2">"/parents/392/children/"</span><span class="p">,</span> <span class="nt">"title"</span><span class="p">:</span> <span class="s2">"Create Order"</span><span class="p">},</span>
+        <span class="nt">"items"</span><span class="p">:</span> <span class="p">[</span>
+          <span class="p">{</span><span class="nt">"href"</span><span class="p">:</span> <span class="s2">"/children/382"</span><span class="p">,</span> <span class="nt">"title"</span><span class="p">:</span> <span class="s2">"Child 1"</span><span class="p">},</span>
+          <span class="p">{</span><span class="nt">"href"</span><span class="p">:</span> <span class="s2">"/children/8371"</span><span class="p">,</span> <span class="nt">"title"</span><span class="p">:</span> <span class="s2">"Child 2"</span><span class="p">},</span>
+          <span class="p">{</span><span class="nt">"href"</span><span class="p">:</span> <span class="s2">"/children/716"</span><span class="p">,</span> <span class="nt">"title"</span><span class="p">:</span> <span class="s2">"Child 3"</span><span class="p">}</span>
+        <span class="p">],</span>
+        <span class="nt">"_embedded"</span><span class="p">:</span> <span class="p">{</span>
+          <span class="nt">"items"</span><span class="p">:</span> <span class="p">[</span>
+            <span class="p">{</span>
+            <span class="nt">"_links"</span> <span class="p">{</span>
+              <span class="nt">"self"</span><span class="p">:</span> <span class="p">{</span><span class="nt">"href"</span><span class="p">:</span> <span class="s2">"/children/382"</span><span class="p">}</span>
+            <span class="p">},</span>
+            <span class="nt">"name"</span><span class="p">:</span> <span class="s2">"Child 1"</span><span class="p">,</span>
+            <span class="nt">"age"</span><span class="p">:</span> <span class="mi">13</span>
+            <span class="p">},</span>
+            <span class="p">{</span>
+            <span class="nt">"_links"</span> <span class="p">{</span>
+              <span class="nt">"self"</span><span class="p">:</span> <span class="p">{</span><span class="nt">"href"</span><span class="p">:</span> <span class="s2">"/children/8371"</span><span class="p">}</span>
+            <span class="p">},</span>
+            <span class="nt">"name"</span><span class="p">:</span> <span class="s2">"Child 2"</span><span class="p">,</span>
+            <span class="nt">"age"</span><span class="p">:</span> <span class="mi">16</span>
+            <span class="p">},</span>
+            <span class="p">{</span>
+            <span class="nt">"_links"</span> <span class="p">{</span>
+              <span class="nt">"self"</span><span class="p">:</span> <span class="p">{</span><span class="nt">"href"</span><span class="p">:</span> <span class="s2">"/children/716"</span><span class="p">}</span>
+            <span class="p">},</span>
+            <span class="nt">"name"</span><span class="p">:</span> <span class="s2">"Child 3"</span><span class="p">,</span>
+            <span class="nt">"age"</span><span class="p">:</span> <span class="mi">31</span>
+            <span class="p">}</span>
+          <span class="p">]</span>
+        <span class="p">}</span>
+      <span class="p">}</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<h2>
+<a name="haljson-example" class="anchor" href="#haljson-example"><span class="octicon octicon-link"></span></a>hal+json Example</h2>
+
+<p>Issuing a GET to /orders might illicit the response:</p>
+
+<div class="highlight highlight-json"><pre><span class="p">{</span>
+  <span class="nt">"_links"</span><span class="p">:</span> <span class="p">{</span>
+    <span class="nt">"self"</span><span class="p">:</span> <span class="p">{</span> <span class="nt">"href"</span><span class="p">:</span> <span class="s2">"/orders/"</span> <span class="p">},</span>
+    <span class="nt">"next"</span><span class="p">:</span> <span class="p">{</span> <span class="nt">"href"</span><span class="p">:</span> <span class="s2">"/orders?page=2"</span><span class="p">,</span> <span class="nt">"title"</span><span class="p">:</span> <span class="s2">"Page 2"</span> <span class="p">},</span>
+    <span class="nt">"last"</span><span class="p">:</span> <span class="p">{</span> <span class="nt">"href"</span><span class="p">:</span> <span class="s2">"/orders?page=5"</span><span class="p">,</span> <span class="nt">"title"</span><span class="p">:</span> <span class="s2">"Page 5"</span> <span class="p">},</span>
+    <span class="nt">"createForm"</span><span class="p">:</span> <span class="p">{</span> <span class="nt">"href"</span><span class="p">:</span> <span class="s2">"/orders/"</span><span class="p">,</span> <span class="nt">"title"</span><span class="p">:</span> <span class="s2">"Create Order"</span><span class="p">},</span>
+    <span class="nt">"curies"</span><span class="p">:</span> <span class="p">[{</span>
+        <span class="nt">"name"</span><span class="p">:</span> <span class="s2">"rel"</span><span class="p">,</span>
+        <span class="nt">"href"</span><span class="p">:</span> <span class="s2">"http://docs.example.com/rels/{rel}"</span><span class="p">,</span>
+        <span class="nt">"templated"</span><span class="p">:</span> <span class="kc">true</span>
+    <span class="p">}],</span>
+    <span class="nt">"items"</span><span class="p">:</span> <span class="p">[</span>
+        <span class="p">{</span><span class="nt">"href"</span><span class="p">:</span> <span class="s2">"/orders/123"</span><span class="p">,</span> <span class="nt">"title"</span><span class="p">:</span> <span class="s2">"Christmas Order"</span><span class="p">},</span>
+        <span class="p">{</span><span class="nt">"href"</span><span class="p">:</span> <span class="s2">"/orders/124"</span><span class="p">,</span> <span class="nt">"title"</span><span class="p">:</span> <span class="s2">"Birthday Order"</span><span class="p">},</span>
+    <span class="p">]</span>
+  <span class="p">},</span>
+  <span class="nt">"_embedded"</span><span class="p">:</span> <span class="p">{</span>
+    <span class="nt">"items"</span><span class="p">:</span> <span class="p">[</span>
+    <span class="p">{</span>
+      <span class="nt">"_links"</span><span class="p">:</span> <span class="p">{</span>
+        <span class="nt">"self"</span><span class="p">:</span> <span class="p">{</span> <span class="nt">"href"</span><span class="p">:</span> <span class="s2">"/orders/123"</span> <span class="p">},</span>
+        <span class="nt">"rel:basket"</span><span class="p">:</span> <span class="p">{</span> <span class="nt">"href"</span><span class="p">:</span> <span class="s2">"/baskets/98712"</span> <span class="p">},</span>
+        <span class="nt">"rel:customer"</span><span class="p">:</span> <span class="p">{</span> <span class="nt">"href"</span><span class="p">:</span> <span class="s2">"/customers/7809"</span> <span class="p">}</span>
+      <span class="p">},</span>
+      <span class="nt">"name"</span><span class="p">:</span> <span class="s2">"Christmas Order"</span><span class="p">,</span>
+      <span class="nt">"total"</span><span class="p">:</span> <span class="mf">30.00</span><span class="p">,</span>
+      <span class="nt">"currency"</span><span class="p">:</span> <span class="s2">"USD"</span><span class="p">,</span>
+      <span class="nt">"status"</span><span class="p">:</span> <span class="s2">"shipped"</span><span class="p">,</span>
+    <span class="p">},</span>
+    <span class="p">{</span>
+      <span class="nt">"_links"</span><span class="p">:</span> <span class="p">{</span>
+        <span class="nt">"self"</span><span class="p">:</span> <span class="p">{</span> <span class="nt">"href"</span><span class="p">:</span> <span class="s2">"/orders/124"</span> <span class="p">},</span>
+        <span class="nt">"rel:basket"</span><span class="p">:</span> <span class="p">{</span> <span class="nt">"href"</span><span class="p">:</span> <span class="s2">"/baskets/97213"</span> <span class="p">},</span>
+        <span class="nt">"rel:customer"</span><span class="p">:</span> <span class="p">{</span> <span class="nt">"href"</span><span class="p">:</span> <span class="s2">"/customers/12369"</span> <span class="p">}</span>
+      <span class="p">},</span>
+      <span class="nt">"name"</span><span class="p">:</span> <span class="s2">"Birthday Order"</span><span class="p">,</span>
+      <span class="nt">"total"</span><span class="p">:</span> <span class="mf">20.00</span><span class="p">,</span>
+      <span class="nt">"currency"</span><span class="p">:</span> <span class="s2">"USD"</span><span class="p">,</span>
+      <span class="nt">"status"</span><span class="p">:</span> <span class="s2">"processing"</span>
+    <span class="p">}]</span>
+  <span class="p">},</span>
+  <span class="nt">"currentlyProcessing"</span><span class="p">:</span> <span class="mi">14</span><span class="p">,</span>
+  <span class="nt">"shippedToday"</span><span class="p">:</span> <span class="mi">20</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>Sending a GET to the URI for a specific resource will return only that
+resource, e.g. GET /orders/123 might return:</p>
+
+<div class="highlight highlight-json"><pre><span class="p">{</span>
+  <span class="nt">"_links"</span><span class="p">:</span> <span class="p">{</span>
+    <span class="nt">"self"</span><span class="p">:</span> <span class="p">{</span> <span class="nt">"href"</span><span class="p">:</span> <span class="s2">"/orders/123"</span> <span class="p">},</span>
+    <span class="nt">"rel:basket"</span><span class="p">:</span> <span class="p">{</span> <span class="nt">"href"</span><span class="p">:</span> <span class="s2">"/baskets/98712"</span> <span class="p">},</span>
+    <span class="nt">"rel:customer"</span><span class="p">:</span> <span class="p">{</span> <span class="nt">"href"</span><span class="p">:</span> <span class="s2">"/customers/7809"</span> <span class="p">}</span>
+    <span class="s2">"curies"</span><span class="p">:</span> <span class="p">[{</span>
+        <span class="nt">"name"</span><span class="p">:</span> <span class="s2">"rel"</span><span class="p">,</span>
+        <span class="nt">"href"</span><span class="p">:</span> <span class="s2">"http://docs.example.org/rels/{rel}"</span><span class="p">,</span>
+        <span class="nt">"templated"</span><span class="p">:</span> <span class="kc">true</span>
+    <span class="p">}]</span>
+  <span class="p">},</span>
+  <span class="nt">"rel:total"</span><span class="p">:</span> <span class="mf">30.00</span><span class="p">,</span>
+  <span class="nt">"rel:currency"</span><span class="p">:</span> <span class="s2">"USD"</span><span class="p">,</span>
+  <span class="nt">"rel:status"</span><span class="p">:</span> <span class="s2">"shipped"</span><span class="p">,</span>
+<span class="p">}</span>
+</pre></div>
+
+<h2>
+<a name="posting-data" class="anchor" href="#posting-data"><span class="octicon octicon-link"></span></a>Posting Data</h2>
+
+<p>You'll see in the above collection payload a <code>createForm</code> rel, which is a link
+that you can use to add new elements to the collection. Issuing a GET request
+to the <code>createForm</code> link will return a document in <a href="http://json-schema.org/examples.html">JSON-schema</a>
+format that tells the client what format the resource should take. POSTing to
+the link in the proper format will create a new resource and will return it
+with an HTTP 201 Created status.</p>
+
+<h2>
+<a name="editing-data" class="anchor" href="#editing-data"><span class="octicon octicon-link"></span></a>Editing Data</h2>
+
+<p>When the client is able to edit a resource, there will be an <code>editForm</code> rel.
+As with <code>createForm</code>, sending a GET request to this URL will return a
+<a href="http://json-schema.org/examples.html">JSON-schema</a> document. The default values given in the schema are
+the current vaues for the resource being edited. POSTing to the URL with the
+updated JSON data will update the resource.</p>
+
+<p>Details on the <code>createForm</code> and <code>editForm</code> rels can be found in
+<a href="http://tools.ietf.org/html/rfc6861">RFC6861</a>. Note that, following JSON conventions and to make things
+easier on clients, we have modified the standard hyphonated rel names to
+camelCase.</p>
+
+<h2>
+<a name="websockets-streaming-api" class="anchor" href="#websockets-streaming-api"><span class="octicon octicon-link"></span></a>Websockets Streaming API</h2>
+
+<p>Many applications are interested in the latest data as it comes in. For these
+applications constantly polling is a drain on both the client and server, so
+this API implements a streaming interface via <a href="http://en.wikipedia.org/wiki/WebSocket">Websockets</a>. For
+many resources you will find a <code>ch:websocketStream</code> link that you can follow
+with any websocket-capable browser or client application. Once the websocket
+connection is established the server will send HAL+JSON-formatted updates that
+typically are the same as what you would receive in a GET response. Streams for
+some resources will also include "contained" resources. For instance,
+subscribing to the stream for a Site resource might also include all the
+devices in that site, and even all the sensors in those devices.</p>
+
+<p>Typically clients will start by synching their current state using the HTTP
+API, and maintain a hash that maps resource URLs to the client's internal
+representation. After subscribing to a stream, clients can match incoming
+resource descriptions by using the <code>self</code> link as the key into the hash.</p>
+
+<h1>
+<a name="dev-server-initial-setup" class="anchor" href="#dev-server-initial-setup"><span class="octicon octicon-link"></span></a>Dev Server Initial Setup</h1>
+
+<p>To develop for Chain API the best way is with a virtual machine. The following
+instructions should guide you through setting up a development environment that
+should match the production machine.</p>
+
+<p>First you'll want to make sure that both Virtualbox and Vagrant are installed,
+as well as git.</p>
+
+<p>Then clone the code from the repository with:</p>
+
+<pre><code>git clone https://github.com/ssfrr/chain-api.git
+</code></pre>
+
+<p>Git will create a folder called chain-api and check out the code into
+it.</p>
+
+<p>from within that folder run "vagrant up" and it should instantiate the virtual
+machine.</p>
+
+<p>after the machine is up you can run "vagrant ssh" to ssh into the new VM. From
+there you can follow the below instructions on setting up a Chain API server.</p>
+
+<h1>
+<a name="chain-api-server-setup-instructions" class="anchor" href="#chain-api-server-setup-instructions"><span class="octicon octicon-link"></span></a>Chain API Server Setup Instructions</h1>
+
+<p>Currently Chain API is supported on Ubuntu Precise (12.04 LTS)
+Install puppet and the proper puppet modules with</p>
+
+<pre><code>sudo apt-get install rubygems
+sudo gem install puppet -v3.4.3 --no-rdoc --no-ri
+(or on Arch use yaourt -S puppet)
+sudo puppet module install puppetlabs/postgresql -v3.2.0
+</code></pre>
+
+<p>Unfortunately Ubuntu Precise has an old nginx package that doesn't support
+websocket proxying. Add <code>deb http://nginx.org/packages/ubuntu/ precise nginx</code>
+to your <code>/etc/apt/sources.list</code> and run</p>
+
+<pre><code>sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys ABF5BD827BD9BF62
+sudo apt-get update
+</code></pre>
+
+<p>NOTE FOR ARCH:</p>
+
+<p>The puppet manifest doesn't work well on Arch, so just install the python
+packages with pip system packages with pacman that are listed in the manifest,
+and comment those stanzas out.  I also had to set the ownership of
+/var/lib/postgres with:</p>
+
+<pre><code>sudo chown -R postgres:users /var/lib/postgres
+</code></pre>
+
+<p>END OF ARCH-SPECIFIC NOTE</p>
+
+<p>edit manifest.pp and change the database username and password.</p>
+
+<p>Copy <code>localsettings_template.py</code> into a new file called <code>localsettings.py</code>, setting
+the username and password, as well as the <code>SECRET_KEY</code>. You can generate an
+appropriate secret key in python with:</p>
+
+<pre><code>import random
+''.join([random.SystemRandom().
+    choice('abcdefghijklmnopqrstuvwxyz0123456789!@#$%^&amp;*(-_=+)')
+    for i in range(50)])
+</code></pre>
+
+<p>Then set up the server with</p>
+
+<pre><code>sudo puppet apply manifest.pp
+</code></pre>
+
+<p>Now you can initialize your django environment</p>
+
+<pre><code>./manage.py syncdb
+./manage.py migrate
+</code></pre>
+
+<p>Now you should be able to run the server with:</p>
+
+<pre><code>./manage.py runserver 0.0.0.0:8000
+</code></pre>
+
+<p>and access it from your host machine's browser at</p>
+
+<pre><code>http://localhost:8000/admin
+</code></pre>
+
+<h2>
+<a name="setting-up-for-production" class="anchor" href="#setting-up-for-production"><span class="octicon octicon-link"></span></a>Setting up for Production</h2>
+
+<p>While the above steps should be fine for development, there are a few more
+things you need to do for a production machine.</p>
+
+<p>First make sure whatever user will be deploying is in the "staff" group. This will
+allow us to autodeploy without needing root permissions.</p>
+
+<pre><code>sudo usermod -aG staff USERNAME
+sudo chown -R root:staff /usr/local /srv
+sudo chmod -R g+w /usr/local /srv
+</code></pre>
+
+<p>First install the django app to your system python install by running</p>
+
+<pre><code>./setup.py develop
+</code></pre>
+
+<p>This will install the app as a system package, so you don't need to hard-code
+paths.</p>
+
+<p>NOTE - the package is installed WITHOUT root permissions. This is
+important because if we install with root permissions the first time then we'll
+need root permission on every subsequent time.</p>
+
+<p>Then copy the system config files</p>
+
+<pre><code>sudo cp -R system/* /
+</code></pre>
+
+<p>And enable the HTTP interface to supervisor by adding the following code to
+the configuration at /etc/supervisor/supervisord.conf (setting the username
+and password to whatever you want them to be)</p>
+
+<pre><code>[inet_http_server]
+port=*:9001
+user=username
+password=password
+</code></pre>
+
+<p>We also need to change the permissions so that anyone in the "staff" group can
+manage supervisor tasks.</p>
+
+<pre><code>[unix_http_server]
+file=/var/run/supervisor.sock
+chmod=0770
+chown=nobody:staff
+</code></pre>
+
+<p>Now you can restart supervisord and nginx to pick up the config changes. Note
+that supervisor restart doesn't work, so it must be stopped and started.</p>
+
+<p>sudo /etc/init.d/supervisor stop
+sudo /etc/init.d/supervisor start
+sudo /etc/init.d/nginx restart</p>
+
+<h2>
+<a name="deploy-hooks" class="anchor" href="#deploy-hooks"><span class="octicon octicon-link"></span></a>Deploy Hooks</h2>
+
+<p>In the "hooks" directory you'll find a post-receive hook that should be copied
+(or symlinked) into the .git/hooks directory of your deployed server. You'll also
+need to run</p>
+
+<pre><code>git config receive.denyCurrentBranch ignore
+</code></pre>
+
+<p>To allow pushes to the checked-out branch.</p>
+
+<p>On your development machine you should now be able to set up the deployment server as a
+git remote</p>
+
+<pre><code>git remote add production ssh://deployuser@yourserver.com/deployed/repo/dir
+</code></pre>
+
+<p>then whenever you have a version to push to production just:</p>
+
+<pre><code>git push production
+</code></pre>
+        </section>
+
+        <aside id="sidebar">
+          <a href="https://github.com/ssfrr/chain-api/zipball/master" class="button">
+            <small>Download</small>
+            .zip file
+          </a>
+          <a href="https://github.com/ssfrr/chain-api/tarball/master" class="button">
+            <small>Download</small>
+            .tar.gz file
+          </a>
+
+          <p class="repo-owner"><a href="https://github.com/ssfrr/chain-api"></a> is maintained by <a href="https://github.com/ssfrr">ssfrr</a>.</p>
+
+          <p>This page was generated by <a href="https://pages.github.com">GitHub Pages</a> using the Architect theme by <a href="https://twitter.com/jasonlong">Jason Long</a>.</p>
+        </aside>
+      </div>
+    </div>
+
+  
+  </body>
+</html>
