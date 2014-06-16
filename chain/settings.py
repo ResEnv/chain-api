@@ -4,10 +4,6 @@
 # the forwarded host so we generate the correct URIs
 USE_X_FORWARDED_HOST = True
 
-# Hosts/domain names that are valid for this site; required if DEBUG is False
-# See https://docs.djangoproject.com/en/1.5/ref/settings/#allowed-hosts
-ALLOWED_HOSTS = []
-
 SITE_ID = 1
 
 # If you set this to False, Django will make some optimizations so as not
