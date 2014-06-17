@@ -160,7 +160,7 @@ def post_sensor_data(report_data, device, prefix=''):
 
         sensor_data['value'] = data
         logger.info("Posting %s data: %s" % (server_metric, sensor_data))
-        history.create(sensor_data)
+        history.create(sensor_data, cache=False)
 
 
 if __name__ == '__main__':
