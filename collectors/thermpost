@@ -19,6 +19,7 @@ from time import sleep
 import requests
 import logging
 import coloredlogs
+from chain.settings import COLLECTOR_AUTH
 
 STAT_BASE_URL = \
     'http://tac.mit.edu/E14_displays/get_controller_data.aspx?floor='
@@ -46,7 +47,7 @@ def main():
     site_url = opts['<chain_url>']
 
     logger.info('Getting site info from %s' % site_url)
-    site = chainclient.get(site_url)
+    site = chainclient.get(site_url, auth=COLLECTOR_AUTH)
     devices_coll = site.rels['ch:devices']
     existing_devices = {dev.name: dev for dev in devices_coll.rels['items']}
 
@@ -119,6 +120,7 @@ def find_sensor_by_metric(sensor_list, metric):
         if sensor['metric'] == metric:
             return sensor
     raise KeyError('"%s" not found' % metric)
+
 
 def f_to_c(temp_f):
     return 5.0 / 9.0 * (temp_f - 32)

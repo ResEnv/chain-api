@@ -20,6 +20,7 @@ import datetime
 import logging
 import coloredlogs
 import time
+from chain.settings import COLLECTOR_AUTH
 
 logger = logging.getLogger(__name__)
 coloredlogs.install(level=logging.INFO)
@@ -60,7 +61,7 @@ def main():
     opts = docopt(__doc__)
     site_url = opts['<chain_url>']
 
-    site = chainclient.get(site_url)
+    site = chainclient.get(site_url, auth=COLLECTOR_AUTH)
     logger.debug("Got Site: %s" % site)
 
     tidsense_url = site.links.rawZMQStream.href

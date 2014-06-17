@@ -23,9 +23,12 @@ DATABASES = {
     }
 }
 
+# these will be used by the collector scripts and should match the username and
+# password provided in the .htpasswd file that nginx is looking at
+COLLECTOR_AUTH = ('user', 'passwd')
+
 # Make this unique, and don't share it with anybody.
 SECRET_KEY = 'jakd82l?las{19ka0n%laoeb*klanql0?kdj01kdnc1(n=lbac'
-
 
 # Local time zone for this installation. Choices can be found here:
 # http://en.wikipedia.org/wiki/List_of_tz_zones_by_name

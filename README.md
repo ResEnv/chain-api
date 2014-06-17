@@ -790,12 +790,20 @@ manage supervisor tasks.
     chmod=0770
     chown=nobody:staff
 
+Now create the htpasswd file that will determine the usernames and passwords
+that will be allowed to POST to your ChainAPI Instance:
+
+    sudo htpasswd -c /var/www/mywebsite.com/.htpasswd exampleuser
+
+and edit /etc/nginx/sites-available/chain.conf to add the path to your
+.htpasswd file where it says `PATH/TO/HTPASSWD`.
+
 Now you can restart supervisord and nginx to pick up the config changes. Note
 that supervisor restart doesn't work, so it must be stopped and started.
 
-sudo /etc/init.d/supervisor stop
-sudo /etc/init.d/supervisor start
-sudo /etc/init.d/nginx restart
+    sudo /etc/init.d/supervisor stop
+    sudo /etc/init.d/supervisor start
+    sudo /etc/init.d/nginx restart
 
 Deploy Hooks
 ------------

@@ -32,6 +32,11 @@ package { "supervisor":
 #    require => Exec["apt-update"],
 }
 
+package { "apache2-utils":
+    ensure  => present,
+#    require => Exec["apt-update"],
+}
+
 # python dependencies are listed in setup.py
 
 # Set up DB schema and users

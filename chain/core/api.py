@@ -653,6 +653,8 @@ class Resource(object):
             return cls.render_response(schema, request)
 
         elif request.method == 'POST':
+            #if not request.user.is_authenticated():
+            #    return render_401(request)
             resource = cls(obj=cls.queryset.get(id=id), request=request)
             data = json.loads(request.body)
             try:
@@ -679,6 +681,8 @@ class Resource(object):
             return cls.render_response(schema, request)
 
         elif request.method == 'POST':
+            #if not request.user.is_authenticated():
+            #    return render_401(request)
             data = json.loads(request.body)
             obj_params = request.GET.dict()
             new_resource = cls(data=data, request=request, filters=obj_params)
@@ -719,6 +723,18 @@ def render_error(status, msg, request):
     }
     return HttpResponse(json.dumps(err_data), status=status,
                         content_type="application/json")
+
+
+#def render_401(request):
+#    err_data = {
+#        'status': 401,
+#        'message': 'Unauthorized - Login Required',
+#    }
+#    response = HttpResponse(json.dumps(err_data), status=401,
+#                            content_type="application/json")
+#    response['WWW-Authenticate'] = 'Basic Realm="ChainAPI"'
+#    #import pdb; pdb.set_trace()
+#    return response
 
 
 def handle500(request):
