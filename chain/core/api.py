@@ -138,8 +138,6 @@ def serialize_geo_location(loc):
 
 
 class Resource(object):
-    #TODO: errors (4xx, 5xx, etc.) should be returned JSON-encoded
-
     model = None
     resource_name = None
     resource_type = None
@@ -454,34 +452,35 @@ class Resource(object):
     def deserialize(self):
         '''Deserializes this instance and returns the object representation'''
 
-        if not self._obj:
-            new_obj_data = {}
+        if self._obj:
+            return self._obj
+        new_obj_data = {}
 
-            # take the intersection of the fields given and the fields in
-            # self.model_fields
+        # take the intersection of the fields given and the fields in
+        # self.model_fields
 
-            for field_name in [f for f in self.model_fields
-                               if f in self._data]:
-                value = self.sanitize_field_value(field_name,
-                                                  self._data[field_name])
-                new_obj_data[field_name] = value
+        for field_name in [f for f in self.model_fields
+                           if f in self._data]:
+            value = self.sanitize_field_value(field_name,
+                                              self._data[field_name])
+            new_obj_data[field_name] = value
 
-            for stub_field_name in self.stub_fields.keys():
-                new_obj_data[stub_field_name] = self.stub_object_finding(
-                    new_obj_data, stub_field_name, self._data[stub_field_name])
-            if self.model_has_field('geo_location') and \
-                    'geoLocation' in self._data:
-                dataloc = self._data['geoLocation']
-                loc = GeoLocation(elevation=dataloc.get('elevation', None),
-                                  latitude=dataloc['latitude'],
-                                  longitude=dataloc['longitude'])
-                loc.save()
-                new_obj_data['geo_location'] = loc
-            # the query string may contain more object data, for instance if
-            # we're posting to a child collection resource
+        for stub_field_name in self.stub_fields.keys():
+            new_obj_data[stub_field_name] = self.stub_object_finding(
+                new_obj_data, stub_field_name, self._data[stub_field_name])
+        if self.model_has_field('geo_location') and \
+                'geoLocation' in self._data:
+            dataloc = self._data['geoLocation']
+            loc = GeoLocation(elevation=dataloc.get('elevation', None),
+                              latitude=dataloc['latitude'],
+                              longitude=dataloc['longitude'])
+            loc.save()
+            new_obj_data['geo_location'] = loc
+        # the query string may contain more object data, for instance if
+        # we're posting to a child collection resource
 
-            new_obj_data.update(self._filters)
-            self._obj = self.model(**new_obj_data)
+        new_obj_data.update(self._filters)
+        self._obj = self.model(**new_obj_data)
         return self._obj
 
     def update(self, data):

@@ -691,6 +691,27 @@ class ApiSensorDataTests(ChainTestCase):
             timestamp=timestamp)
         self.assertEqual(db_data.value, data['value'])
 
+    def test_lists_of_sensor_data_should_be_postable(self):
+        device = self.get_a_device()
+        sensor = self.get_a_sensor()
+        sensor_data = self.get_resource(
+            sensor.links['ch:dataHistory'].href)
+        data_url = sensor_data.links.createForm.href
+        basetime = make_aware(datetime(2013, 1, 1, 0, 0, 0), utc)
+        timestamps = [basetime + timedelta(seconds=i) for i in range(0, 3)]
+        values = range(0, 3)
+        data = [{
+            'value': value,
+            'timestamp': timestamp.isoformat()
+        } for value, timestamp in zip(values, timestamps)]
+        self.create_resource(data_url, data)
+        for i in range(0, 3):
+            db_data = ScalarData.objects.get(
+                sensor__metric__name=sensor.metric,
+                sensor__device__name=device.name,
+                timestamp=timestamps[i])
+            self.assertEqual(db_data.value, values[i])
+
     def test_posting_data_should_send_zmq_msgs(self):
         fake_zmq_socket.clear()
         sensor = self.get_a_sensor()
