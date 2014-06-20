@@ -683,8 +683,37 @@ class Resource(object):
             #if not request.user.is_authenticated():
             #    return render_401(request)
             data = json.loads(request.body)
+            if isinstance(data, list):
+                return cls.create_list(data, request)
+            else:
+                return cls.create_single(data, request)
+
+    @classmethod
+    def create_single(cls, data, request):
+        obj_params = request.GET.dict()
+        new_resource = cls(data=data, request=request, filters=obj_params)
+        try:
+            new_resource.save()
+        except IntegrityError:
+            return render_error(
+                400, 'Error storing object. Either required fields are '
+                'missing data or a matching object already exists',
+                request)
+        response_data = new_resource.serialize()
+        tags = new_resource.get_tags()
+        if tags:
+            stream_data = json.dumps(new_resource.serialize_stream())
+        for tag in tags:
+            zmq_socket.send_string(tag + ' ' + stream_data)
+        return cls.render_response(response_data, request,
+                                   status=HTTP_STATUS_CREATED)
+
+    @classmethod
+    def create_list(cls, data, request):
+        response_data = []
+        for item in data:
             obj_params = request.GET.dict()
-            new_resource = cls(data=data, request=request, filters=obj_params)
+            new_resource = cls(data=item, request=request, filters=obj_params)
             try:
                 new_resource.save()
             except IntegrityError:
@@ -692,14 +721,14 @@ class Resource(object):
                     400, 'Error storing object. Either required fields are '
                     'missing data or a matching object already exists',
                     request)
-            response_data = new_resource.serialize()
+            response_data.append(new_resource.serialize())
             tags = new_resource.get_tags()
             if tags:
                 stream_data = json.dumps(new_resource.serialize_stream())
             for tag in tags:
                 zmq_socket.send_string(tag + ' ' + stream_data)
-            return cls.render_response(response_data, request,
-                                       status=HTTP_STATUS_CREATED)
+        return cls.render_response(response_data, request,
+                                   status=HTTP_STATUS_CREATED)
 
     @classmethod
     def urls(cls):
