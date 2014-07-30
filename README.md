@@ -374,12 +374,12 @@ Related Collections
 -------------------
 
 When a resource has a related collection (e.g. a parent resource has a
-"children" relation), there are several possible ways to represent it.
+"children" relation), it will be represented with a collection resource.  The
+resource might have "next", "previous", or "last" links to handle pagination.
+If the application can add items to the collection, it can have a `createForm`
+link. See the section on forms for details.
 
-_Note - this section is pretty speculative, and we probably won't allow the
-full flexibility of all these different related collection formats_
-
-### A single link to the collection as a separate resource
+For instance, the following parent resource has a `children` collection:
 
 ```json
 {
@@ -408,7 +408,11 @@ which when followed gives you a full collection resource:
 }
 ```
 
-or a collection resource with embedded children
+Rather than the collection only containing links to the items, it may include
+the items themselves embedded within the response. If you are using a HAL
+client (or chainclient), then it should handle both cases (linked or embedded)
+transparently and your application code shouldn't need to care. An example
+with embedded items would look like:
 
 ```json
 {
@@ -450,102 +454,6 @@ or a collection resource with embedded children
   }
 }
 ```
-
-### Direct links to each child
-
-This seems fine for small related lists, but doesn't allow pagination links or
-metadata about the collection
-
-```json
-{
-  "_links": {
-    "self": {"href": "/parents/392"},
-    "children": [
-      {"href": "/children/382", "title": "Child 1"},
-      {"href": "/children/8371", "title": "Child 2"},
-      {"href": "/children/716", "title": "Child 3"}
-    ]
-  }
-}
-```
-
-### An embedded collection resource with links
-
-```json
-    {
-      "_links": {
-        "self": {"href": "/parents/392"},
-        "children": {"href": "/parents/392/children/"}
-      },
-      "_embedded": {
-        "children": {
-          "_links": {
-            "self": {"href": "/parents/392/children/"},
-            "next": { "href": "/parents/392/children?page=2", "title": "Page 2" },
-            "last": { "href": "/parents/392/children?page=5", "title": "Page 5" },
-            "createForm": { "href": "/parents/392/children/", "title": "Create Order"},
-            "items": [
-              {"href": "/children/382", "title": "Child 1"},
-              {"href": "/children/8371", "title": "Child 2"},
-              {"href": "/children/716", "title": "Child 3"}
-            ]
-          }
-        }
-      }
-    }
-```
-
-### An embedded collection with embedded items
-
-```json
-{
-  "_links": {
-    "self": {"href": "/parents/392"},
-    "children": {"href": "/parents/392/children/"}
-  },
-  "_embedded": {
-    "children": {
-      "_links": {
-        "self": {"href": "/parents/392/children/"},
-        "next": { "href": "/parents/392/children?page=2", "title": "Page 2" },
-        "last": { "href": "/parents/392/children?page=5", "title": "Page 5" },
-        "createForm": { "href": "/parents/392/children/", "title": "Create Order"},
-        "items": [
-          {"href": "/children/382", "title": "Child 1"},
-          {"href": "/children/8371", "title": "Child 2"},
-          {"href": "/children/716", "title": "Child 3"}
-        ],
-        "_embedded": {
-          "items": [
-            {
-            "_links" {
-              "self": {"href": "/children/382"}
-            },
-            "name": "Child 1",
-            "age": 13
-            },
-            {
-            "_links" {
-              "self": {"href": "/children/8371"}
-            },
-            "name": "Child 2",
-            "age": 16
-            },
-            {
-            "_links" {
-              "self": {"href": "/children/716"}
-            },
-            "name": "Child 3",
-            "age": 31
-            }
-          ]
-        }
-      }
-    }
-  }
-}
-```
-
 
 hal+json Example
 ----------------
