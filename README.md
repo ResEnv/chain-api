@@ -599,20 +599,10 @@ Chain API Server Setup Instructions
 ===================================
 
 Currently Chain API is supported on Ubuntu Precise (12.04 LTS)
-Install puppet and the proper puppet modules with
+Install dependencies with manifest.sh
 
-    sudo apt-get install rubygems
-    sudo gem install puppet -v3.4.3 --no-rdoc --no-ri
-    (or on Arch use yaourt -S puppet)
-    sudo puppet module install puppetlabs/postgresql -v3.2.0
-
-Unfortunately Ubuntu Precise has an old nginx package that doesn't support
-websocket proxying. Add `deb http://nginx.org/packages/ubuntu/ precise nginx`
-to your `/etc/apt/sources.list` and run
-
-    sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys ABF5BD827BD9BF62
-    sudo apt-get update
-
+    cd chain-api/
+    sudo ./manifest.sh
 
 NOTE FOR ARCH:
 
@@ -625,7 +615,16 @@ and comment those stanzas out.  I also had to set the ownership of
 
 END OF ARCH-SPECIFIC NOTE
 
-edit manifest.pp and change the database username and password.
+### Setup Postgres
+
+    sudo su – postgres
+    createuser --pwprompt
+
+after creating a new user, you can create the postgres db like so:
+
+    createdb chain
+
+
 
 Copy `localsettings_template.py` into a new file called `localsettings.py`, setting
 the username and password, as well as the `SECRET_KEY`. You can generate an
@@ -636,11 +635,11 @@ appropriate secret key in python with:
         choice('abcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*(-_=+)')
         for i in range(50)])
 
-Then set up the server with
+Then install python dependencies like so:
 
-    sudo puppet apply manifest.pp
+    ./setup.py develop
 
-Now you can initialize your django environment
+Now you can initialise your django environment
 
     ./manage.py syncdb
     ./manage.py migrate
@@ -652,6 +651,28 @@ Now you should be able to run the server with:
 and access it from your host machine's browser at
 
     http://localhost:8000/admin
+
+Dev Server Vagrant Box Setup
+---------------------------
+An alternative method to quickly start developing with chain-api on Ubuntu 12.04 Wheezy64 Vagrant Box
+
+    curl -o package.box http://donald.ws/package.box
+    vagrant box add chain-box package.box
+    vagrant init chain-box
+    vagrant up
+    vagrant ssh
+
+default postgres username/password:
+
+    username: yoda
+    password: 123
+
+Make sure to change the username/password and edit localsettings.py
+
+Run the server with:
+
+    cd ~/chain-api/
+    ./manage.py runserver 0.0.0.0:8000
 
 Setting up for Production
 -------------------------
