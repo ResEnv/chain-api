@@ -1,6 +1,7 @@
 from chain.core.api import Resource, ResourceField, CollectionField
 from chain.core.api import full_reverse
 from chain.core.api import CHAIN_CURIES
+from chain.core.api import BadRequestException
 from chain.core.models import Site, Device, Sensor, ScalarData
 from django.conf.urls import include, patterns, url
 from django.utils import timezone
@@ -48,14 +49,20 @@ class SensorDataResource(Resource):
         # if they are given, then we need to convert them from unix time to use
         # in the queryset filter
         if 'timestamp__gte' in self._filters:
-            page_start = datetime.utcfromtimestamp(
-                float(self._filters['timestamp__gte']))
+            try:
+                page_start = datetime.utcfromtimestamp(
+                    float(self._filters['timestamp__gte']))
+            except ValueError:
+                raise BadRequestException("Invalid timestamp format for lower bound of date range.")
         else:
             page_start = request_time - self.default_timespan
 
         if 'timestamp__lt' in self._filters:
-            page_end = datetime.utcfromtimestamp(
-                float(self._filters['timestamp__lt']))
+            try:
+                page_end = datetime.utcfromtimestamp(
+                    float(self._filters['timestamp__lt']))
+            except ValueError:
+                raise BadRequestException("Invalid timestamp format for upper bound of date range.")
         else:
             page_end = request_time
 

@@ -46,6 +46,7 @@ HTTP_STATUS_SUCCESS = 200
 HTTP_STATUS_CREATED = 201
 HTTP_STATUS_NOT_FOUND = 404
 HTTP_STATUS_NOT_ACCEPTABLE = 406
+HTTP_STATUS_BAD_REQUEST = 400
 
 jinja_env = Environment(loader=PackageLoader('chain.core', 'templates'))
 
@@ -582,10 +583,13 @@ class Resource(object):
                 limit = int(filters.pop('limit'))
             except ValueError:
                 pass
-        response_data = cls(queryset=cls.queryset, request=request,
-                            filters=filters, offset=offset,
-                            limit=limit).serialize()
-        return cls.render_response(response_data, request)
+        try:
+            response_data = cls(queryset=cls.queryset, request=request,
+                                filters=filters, offset=offset,
+                                limit=limit).serialize()
+            return cls.render_response(response_data, request)
+        except BadRequestException as e:
+            return render_error(HTTP_STATUS_BAD_REQUEST, e.message, request)
 
     @classmethod
     def get_field_schema_type(cls, field_name):
@@ -744,6 +748,12 @@ class Resource(object):
                             cls.create_view, name=base_name + '-create'))
 
 
+class BadRequestException(Exception):
+    def __init__(self, message):
+        self.message = message
+    def __str__(self):
+        return "[Bad Request: " + repr(self.message) + "]"
+
 def render_error(status, msg, request):
     err_data = {
         'status': status,
@@ -763,6 +773,7 @@ def render_error(status, msg, request):
 #    response['WWW-Authenticate'] = 'Basic Realm="ChainAPI"'
 #    #import pdb; pdb.set_trace()
 #    return response
+
 
 
 def handle500(request):
