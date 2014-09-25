@@ -46,6 +46,7 @@ from chain.core.hal import HALDoc
 
 HTTP_STATUS_NOT_ACCEPTABLE = 406
 HTTP_STATUS_NOT_FOUND = 404
+HTTP_STATUS_BAD_REQUEST = 400
 
 BASE_API_URL = '/'
 SCALAR_DATA_URL = BASE_API_URL + 'scalar_data/'
@@ -167,13 +168,16 @@ class ChainTestCase(TestCase):
         for data in self.scalar_data:
             data.save()
 
-    def get_resource(self, url, mime_type='application/hal+json'):
+    def get_resource(self, url, mime_type='application/hal+json', expect_status_code=HTTP_STATUS_SUCCESS, check_mime_type=True):
         accept_header = mime_type + ',' + ACCEPT_TAIL
         response = self.client.get(url,
                                    HTTP_ACCEPT=accept_header,
                                    HTTP_HOST='localhost')
-        self.assertEqual(response.status_code, HTTP_STATUS_SUCCESS)
-        self.assertEqual(response['Content-Type'], mime_type)
+        self.assertEqual(response.status_code, expect_status_code)
+        if check_mime_type:
+            self.assertEqual(response['Content-Type'], mime_type)
+        else:
+            return response.content
         if mime_type == 'application/hal+json':
             return HALDoc(json.loads(response.content))
         elif mime_type == 'application/json':
@@ -771,6 +775,21 @@ class ApiSensorDataTests(ChainTestCase):
         datapage = self.get_resource(
             site.links["ch:devices"].href + "&limit=1000")
         self.assertEqual(1000, len(datapage.links['items']))
+
+    def test_sensor_data_timestamp_edge_cases(self):
+        sensor = self.get_a_sensor()
+        try:
+            self.get_resource(
+                sensor.links['ch:dataHistory'].href + "&timestamp__gte=NaN&timestamp__lt=NaN", expect_status_code=HTTP_STATUS_BAD_REQUEST, check_mime_type=False)
+            self.get_resource(
+                sensor.links['ch:dataHistory'].href + "&timestamp__gte=NaN", expect_status_code=HTTP_STATUS_BAD_REQUEST, check_mime_type=False)
+            self.get_resource(
+                sensor.links['ch:dataHistory'].href + "&timestamp__lt=NaN", expect_status_code=HTTP_STATUS_BAD_REQUEST, check_mime_type=False)
+            self.get_resource(
+                sensor.links['ch:dataHistory'].href + "&timestamp__lt=TestingBadInput", expect_status_code=HTTP_STATUS_BAD_REQUEST, check_mime_type=False)
+            # Timestamp edge cases were handled correctly
+        except Exception:
+            self.assertTrue(False) # Timestamp edge cases crashed the server
 
 
 # these tests are testing specific URL conventions within this application
