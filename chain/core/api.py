@@ -659,7 +659,10 @@ class Resource(object):
             #if not request.user.is_authenticated():
             #    return render_401(request)
             resource = cls(obj=cls.queryset.get(id=id), request=request)
-            data = json.loads(request.body)
+            try:
+                data = json.loads(request.body)
+            except ValueError:
+                return render_error(HTTP_STATUS_BAD_REQUEST, "The edit operation could not be performed because the data provided in the request body cannot be parsed as legal JSON.", request)
             try:
                 resource.update(data)
             except IntegrityError:
@@ -686,7 +689,10 @@ class Resource(object):
         elif request.method == 'POST':
             #if not request.user.is_authenticated():
             #    return render_401(request)
-            data = json.loads(request.body)
+            try:
+                data = json.loads(request.body)
+            except ValueError:
+                return render_error(HTTP_STATUS_BAD_REQUEST, "The create operation could not be performed because the data provided in the request body cannot be parsed as legal JSON.", request)
             if isinstance(data, list):
                 return cls.create_list(data, request)
             else:
