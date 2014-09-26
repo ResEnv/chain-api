@@ -257,6 +257,13 @@ class BasicHALJSONTests(ChainTestCase):
         self.assertEqual(response.status_code, HTTP_STATUS_SUCCESS)
         self.assertEqual(response['Content-Type'], 'application/hal+json')
 
+class DefaultMIMETests(ChainTestCase):
+    def test_root_should_supply_json_if_no_accept_header(self):
+        data = self.get_resource(BASE_API_URL)
+        sites_coll = data.links['ch:sites']
+        response = self.client.get(sites_coll.href, HTTP_HOST='localhost')
+        self.assertEqual(response.status_code, HTTP_STATUS_SUCCESS)
+        self.assertEqual(response['Content-Type'], "application/json")
 
 class ApiRootTests(ChainTestCase):
     def test_root_should_have_self_rel(self):
