@@ -62,8 +62,6 @@ def obj_from_filled_schema(schema):
     a form schema'''
     obj = {}
     for k, v in schema['properties'].iteritems():
-#        if k in ['type', 'required', 'title']:
-#            continue
         if v['type'] == 'object':
             subobj = obj_from_filled_schema(v)
             if subobj:
@@ -168,7 +166,9 @@ class ChainTestCase(TestCase):
         for data in self.scalar_data:
             data.save()
 
-    def get_resource(self, url, mime_type='application/hal+json', expect_status_code=HTTP_STATUS_SUCCESS, check_mime_type=True):
+    def get_resource(self, url, mime_type='application/hal+json',
+                     expect_status_code=HTTP_STATUS_SUCCESS,
+                     check_mime_type=True):
         accept_header = mime_type + ',' + ACCEPT_TAIL
         response = self.client.get(url,
                                    HTTP_ACCEPT=accept_header,
@@ -176,11 +176,9 @@ class ChainTestCase(TestCase):
         self.assertEqual(response.status_code, expect_status_code)
         if check_mime_type:
             self.assertEqual(response['Content-Type'], mime_type)
-        else:
-            return response.content
-        if mime_type == 'application/hal+json':
+        if response['Content-Type'] == 'application/hal+json':
             return HALDoc(json.loads(response.content))
-        elif mime_type == 'application/json':
+        elif response['Content-Type'] == 'application/json':
             return json.loads(response.content)
         else:
             return response.content
@@ -825,13 +823,23 @@ class ApiSensorDataTests(ChainTestCase):
         sensor = self.get_a_sensor()
         try:
             self.get_resource(
-                sensor.links['ch:dataHistory'].href + "&timestamp__gte=NaN&timestamp__lt=NaN", expect_status_code=HTTP_STATUS_BAD_REQUEST, check_mime_type=False)
+                sensor.links['ch:dataHistory'].href +
+                    "&timestamp__gte=NaN&timestamp__lt=NaN",
+                expect_status_code=HTTP_STATUS_BAD_REQUEST,
+                check_mime_type=False)
             self.get_resource(
-                sensor.links['ch:dataHistory'].href + "&timestamp__gte=NaN", expect_status_code=HTTP_STATUS_BAD_REQUEST, check_mime_type=False)
+                sensor.links['ch:dataHistory'].href + "&timestamp__gte=NaN",
+                expect_status_code=HTTP_STATUS_BAD_REQUEST,
+                check_mime_type=False)
             self.get_resource(
-                sensor.links['ch:dataHistory'].href + "&timestamp__lt=NaN", expect_status_code=HTTP_STATUS_BAD_REQUEST, check_mime_type=False)
+                sensor.links['ch:dataHistory'].href + "&timestamp__lt=NaN",
+                expect_status_code=HTTP_STATUS_BAD_REQUEST,
+                check_mime_type=False)
             self.get_resource(
-                sensor.links['ch:dataHistory'].href + "&timestamp__lt=TestingBadInput", expect_status_code=HTTP_STATUS_BAD_REQUEST, check_mime_type=False)
+                sensor.links['ch:dataHistory'].href +
+                    "&timestamp__lt=TestingBadInput",
+                expect_status_code=HTTP_STATUS_BAD_REQUEST,
+                check_mime_type=False)
             # Timestamp edge cases were handled correctly
         except Exception:
             self.assertTrue(False) # Timestamp edge cases crashed the server
