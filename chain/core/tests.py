@@ -176,11 +176,9 @@ class ChainTestCase(TestCase):
         self.assertEqual(response.status_code, expect_status_code)
         if check_mime_type:
             self.assertEqual(response['Content-Type'], mime_type)
-        else:
-            return response.content
-        if mime_type == 'application/hal+json':
+        if response['Content-Type'] == 'application/hal+json':
             return HALDoc(json.loads(response.content))
-        elif mime_type == 'application/json':
+        elif response['Content-Type'] == 'application/json':
             return json.loads(response.content)
         else:
             return response.content
