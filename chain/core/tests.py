@@ -255,6 +255,7 @@ class BasicHALJSONTests(ChainTestCase):
         self.assertEqual(response.status_code, HTTP_STATUS_SUCCESS)
         self.assertEqual(response['Content-Type'], 'application/hal+json')
 
+
 class DefaultMIMETests(ChainTestCase):
     def test_root_should_supply_json_if_no_accept_header(self):
         data = self.get_resource(BASE_API_URL)
@@ -263,9 +264,9 @@ class DefaultMIMETests(ChainTestCase):
         self.assertEqual(response.status_code, HTTP_STATUS_SUCCESS)
         self.assertEqual(response['Content-Type'], "application/json")
 
+
 class SafePostTests(ChainTestCase):
     def test_lack_of_json_data_in_edit_should_not_crash_server(self):
-        #def post_resource(self, url, resource, expected_status):
         site = self.get_a_site()
         edit_href = site.links.editForm.href
         edit_form = self.get_resource(edit_href)
@@ -285,14 +286,16 @@ class SafePostTests(ChainTestCase):
             self.assertTrue(False) # lack of JSON crashed the server
         self.assertEqual(response.status_code, HTTP_STATUS_BAD_REQUEST)
         self.assertEqual(response['Content-Type'], "application/json")
+
     def test_lack_of_json_data_in_create_should_not_crash_server(self):
         sites = self.get_sites()
-        
+
         mime_type = 'application/hal+json'
         accept_header = mime_type + ',' + ACCEPT_TAIL
         response = None
         try:
-            response = self.client.post(sites.links.createForm.href, "bad json",
+            response = self.client.post(sites.links.createForm.href,
+                                        "bad json",
                                         content_type=mime_type,
                                         HTTP_ACCEPT=accept_header,
                                         HTTP_HOST='localhost')
@@ -300,6 +303,7 @@ class SafePostTests(ChainTestCase):
             self.assertTrue(False) # lack of JSON crashed the server
         self.assertEqual(response.status_code, HTTP_STATUS_BAD_REQUEST)
         self.assertEqual(response['Content-Type'], "application/json")
+
 
 class ApiRootTests(ChainTestCase):
     def test_root_should_have_self_rel(self):
