@@ -635,6 +635,17 @@ appropriate secret key in python with:
         choice('abcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*(-_=+)')
         for i in range(50)])
 
+Before continuing, ensure that the `build-essential` package for Ubuntu is installed.  If
+not (or if you are unsure), install it by running:
+
+    sudo apt-get install build-essential
+
+Check to make sure `libzmq-dev` is not installed.  The version of ZMQ found in the apt repository
+is below the minimum required version for ChainAPI.  ChainAPI will install the correct version,
+but only if ZMQ is not already installed on the system.  If it is installed, you can uninstall it with
+
+    sudo apt-get remove libzmq-dev
+
 Then install python dependencies like so:
 
     ./setup.py develop
@@ -687,6 +698,17 @@ allow us to autodeploy without needing root permissions.
     sudo chown -R root:staff /usr/local /srv
     sudo chmod -R g+w /usr/local /srv
 
+Before continuing, ensure that the `build-essential` package for Ubuntu is installed.  If
+not (or if you are unsure), install it by running:
+
+    sudo apt-get install build-essential
+
+Check to make sure `libzmq-dev` is not installed.  The version of ZMQ found in the apt repository
+is below the minimum required version for ChainAPI.  ChainAPI will install the correct version,
+but only if ZMQ is not already installed on the system.  If it is installed, you can uninstall it with
+
+    sudo apt-get remove libzmq-dev
+
 First install the django app to your system python install by running
 
     ./setup.py develop
@@ -726,6 +748,11 @@ that will be allowed to POST to your ChainAPI Instance:
 
 and edit /etc/nginx/sites-available/chain.conf to add the path to your
 .htpasswd file where it says `PATH/TO/HTPASSWD`.
+
+Next, copy the static files (CSS, JS, static HTML, etc.) to the
+webserver's static folder by running
+
+    ./manage.py collectstatic
 
 Now you can restart supervisord and nginx to pick up the config changes. Note
 that supervisor restart doesn't work, so it must be stopped and started.
