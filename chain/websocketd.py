@@ -5,10 +5,12 @@
 from __future__ import print_function
 
 import zmq.green as zmq
+# import gevent
 from flask import Flask
 from flask_sockets import Sockets
 from geventwebsocket import WebSocketError
-from chain.settings import ZMQ_PUB_URL
+from zmq_passthrough import passthrough
+from chain.settings import ZMQ_PASSTHROUGH_URL_PUB
 
 app = Flask(__name__)
 app.debug = True
@@ -20,7 +22,7 @@ websockets = Sockets(app)
 def site_socket(ws, tag):
     print('ws client connected for tag "%s"' % tag)
     zmq_sock = zmq_ctx.socket(zmq.SUB)
-    zmq_sock.connect(ZMQ_PUB_URL)
+    zmq_sock.connect(ZMQ_PASSTHROUGH_URL_PUB)
     # note that flask gives us tag as a unicode string
     zmq_sock.setsockopt_string(zmq.SUBSCRIBE, tag)
     while True:
@@ -35,3 +37,6 @@ def site_socket(ws, tag):
             print('Caught WebSocketError: %s' % e)
             break
     zmq_sock.disconnect(ZMQ_PUB_URL)
+
+# Start the passthrough process:
+# gevent.spawn(passthrough)

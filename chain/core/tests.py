@@ -23,6 +23,9 @@ class FakeZMQSocket(object):
     def bind(self, *args, **kwargs):
         pass
 
+    def connect(self, *args, **kwargs):
+        pass
+
     def send(self, msg):
         topic, _, msg = msg.partition(' ')
         if topic not in self.sent_msgs:
