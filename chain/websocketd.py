@@ -5,7 +5,7 @@
 from __future__ import print_function
 
 import zmq.green as zmq
-# import gevent
+import gevent
 from flask import Flask
 from flask_sockets import Sockets
 from geventwebsocket import WebSocketError
@@ -39,4 +39,4 @@ def site_socket(ws, tag):
     zmq_sock.disconnect(ZMQ_PUB_URL)
 
 # Start the passthrough process:
-# gevent.spawn(passthrough)
+gevent.spawn(passthrough, zmq_context=zmq_ctx)
