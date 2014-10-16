@@ -18,6 +18,7 @@ setup(
         'psycopg2==2.5.2',
         'django==1.6.2',
         'django-extensions==1.3.3',
+        'django-cors-headers==0.13',
         'south==0.8.4',
         'jinja2==2.7.2',
         'mimeparse==0.1.3',

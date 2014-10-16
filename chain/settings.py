@@ -4,6 +4,9 @@
 # the forwarded host so we generate the correct URIs
 USE_X_FORWARDED_HOST = True
 
+# tell browsers to allow clients to access this API from other domains
+CORS_ORIGIN_ALLOW_ALL = True
+
 SITE_ID = 1
 
 # If you set this to False, Django will make some optimizations so as not
@@ -59,7 +62,8 @@ TEMPLATE_LOADERS = (
 )
 
 MIDDLEWARE_CLASSES = (
-    #'debug_toolbar.middleware.DebugToolbarMiddleware',
+    # 'debug_toolbar.middleware.DebugToolbarMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -87,10 +91,11 @@ INSTALLED_APPS = (
     'django.contrib.sites',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    #'debug_toolbar',
+    # 'debug_toolbar',
     'chain.core',
     'south',
     'django_extensions',
+    'corsheaders',
     # Uncomment the next line to enable the admin:
     'django.contrib.admin',
     # Uncomment the next line to enable admin documentation:
