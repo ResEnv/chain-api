@@ -62,6 +62,7 @@ class Device(models.Model):
 
     class Meta:
         unique_together = ['site', 'name', 'building', 'floor', 'room']
+        ordering = ["name"]
 
     def __repr__(self):
         return ('Device(site=%r, name=%r, description=%r, building=%r, ' +
