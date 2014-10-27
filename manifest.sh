@@ -20,7 +20,7 @@ sudo apt-get --yes --force-yes install nginx
 sudo apt-get --yes --force-yes install supervisor
 sudo apt-get --yes --force-yes install apache2-utils
 sudo apt-get --yes --force-yes install postgresql postgresql-contrib
-sudo apt-get --yes --force-yes install libzmq-dev
+# sudo apt-get --yes --force-yes install libzmq-dev
 
 #Postgres setup
 #su – postgres
