@@ -670,8 +670,8 @@ default postgres username/password:
 
 default http username/password:
 
-    username: yoda_http
-    password: 123_http
+    username: yoda
+    password: 123
 
 Make sure to change the username/password and edit localsettings.py
 
