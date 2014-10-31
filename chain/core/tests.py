@@ -41,7 +41,7 @@ class FakeZMQSocket(object):
 # monkey patch so we can check what messages the API is sending
 zmq.Context = FakeZMQContext
 
-from chain.core.models import ScalarData, Unit, Metric, Device, Sensor, Site
+from chain.core.models import ScalarData, Unit, Metric, Device, ScalarSensor, Site
 from chain.core.models import GeoLocation
 from chain.core.resources import DeviceResource
 from chain.core.api import HTTP_STATUS_SUCCESS, HTTP_STATUS_CREATED
@@ -149,10 +149,10 @@ class ChainTestCase(TestCase):
         self.sensors = []
         for device in self.devices:
             device.save()
-            self.sensors.append(Sensor(device=device,
+            self.sensors.append(ScalarSensor(device=device,
                                        metric=self.temp_metric,
                                        unit=self.unit))
-            self.sensors.append(Sensor(device=device,
+            self.sensors.append(ScalarSensor(device=device,
                                        metric=self.setpoint_metric,
                                        unit=self.unit))
         self.scalar_data = []
@@ -244,7 +244,7 @@ class ChainTestCase(TestCase):
         return self.get_resource(sensors.links.items[0].href)
 
 
-class SensorDataTest(ChainTestCase):
+class ScalarSensorDataTest(ChainTestCase):
     def test_data_can_be_added(self):
         data = ScalarData(sensor=self.sensors[0], value=25)
         data.save()
@@ -648,7 +648,7 @@ class ApiDeviceTests(ChainTestCase):
                              fake_zmq_socket.sent_msgs[tag][0]['name'])
 
 
-class ApiSensorTests(ChainTestCase):
+class ApiScalarSensorTests(ChainTestCase):
     def test_sensors_should_be_postable_to_existing_device(self):
         device = self.get_a_device()
         sensors = self.get_resource(device.links['ch:sensors'].href)
@@ -659,7 +659,7 @@ class ApiSensorTests(ChainTestCase):
             'unit': 'Smoots',
         }
         self.create_resource(sensor_url, new_sensor)
-        db_sensor = Sensor.objects.get(metric__name='Bridge Length',
+        db_sensor = ScalarSensor.objects.get(metric__name='Bridge Length',
                                        device__name=device.name)
         self.assertEqual('Smoots', db_sensor.unit.name)
 
@@ -683,7 +683,7 @@ class ApiSensorTests(ChainTestCase):
             'unit': 'millihelen',
         }
         self.create_resource(sensors.links['createForm'].href, new_sensor)
-        db_sensor = Sensor.objects.get(metric__name='Beauty',
+        db_sensor = ScalarSensor.objects.get(metric__name='Beauty',
                                        device__name=device.name)
         self.assertEqual('millihelen', db_sensor.unit.name)
 
@@ -716,7 +716,7 @@ class ApiSensorTests(ChainTestCase):
         self.assertEqual(response.unit, new_sensor['unit'])
 
 
-class ApiSensorDataTests(ChainTestCase):
+class ApiScalarSensorDataTests(ChainTestCase):
     def test_sensor_data_should_have_timestamp_and_value(self):
         sensor = self.get_a_sensor()
         sensor_data = self.get_resource(
@@ -775,7 +775,7 @@ class ApiSensorDataTests(ChainTestCase):
         sensor = self.get_a_sensor()
         device = self.get_resource(
             sensor.links['ch:device'].href)
-        db_sensor = Sensor.objects.get(
+        db_sensor = ScalarSensor.objects.get(
             metric__name=sensor.metric,
             device__name=device.name)
         sensor_data = self.get_resource(
@@ -817,7 +817,7 @@ class ApiSensorDataTests(ChainTestCase):
         site = self.get_a_site()
         db_site = Site.objects.get(name=site.name)
         Device.objects.bulk_create(
-            [Device(name="Test Sensor %d" % i, site=db_site)
+            [Device(name="Test ScalarSensor %d" % i, site=db_site)
              for i in range(1500)])
         datapage = self.get_resource(
             site.links["ch:devices"].href + "&limit=20")
