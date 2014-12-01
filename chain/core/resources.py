@@ -185,6 +185,10 @@ class PresenceDataResource(Resource):
 
     def serialize_single(self, embed, cache):
         serialized_data = super(PresenceDataResource, self).serialize_single(embed, cache)
+        if 'person' in serialized_data:
+            del serialized_data['person']
+        if 'sensor' in serialized_data:
+            del serialized_data['sensor']
         if '_links' not in serialized_data:
             serialized_data['_links'] = {}
         serialized_data['_links'].update(self.get_additional_links())
@@ -303,7 +307,7 @@ class PresenceDataResource(Resource):
 
     def serialize_stream(self):
         '''Serialize this resource for a stream'''
-        data = self.serialize_single(rels=False)
+        data = self.serialize_single(False, None) #(rels=False)
         # TODO:  Make useful
         data['_links'] = {
             'href': self.get_single_href(),
@@ -534,7 +538,7 @@ class MixedSensorResource(Resource):
     }
 
     @classmethod
-    def get_schema(cls):
+    def get_schema(cls, filters=None):
         schema = {
             'required': ['sensor-type'],
             'type': 'object',
@@ -548,7 +552,7 @@ class MixedSensorResource(Resource):
             'title': 'Create Sensor'
         }
         for sensor_type in cls.available_sensor_types:
-            sub_schema = cls.available_sensor_types[sensor_type]['resource'].get_schema()
+            sub_schema = cls.available_sensor_types[sensor_type]['resource'].get_schema(filters)
             schema = json_merge(schema, sub_schema)
         return schema
 
@@ -700,8 +704,8 @@ class SiteResource(Resource):
         return ['site-%d' % self._obj.id]
 
     @classmethod
-    def get_schema(cls):
-        schema = super(SiteResource, cls).get_schema()
+    def get_schema(cls, filters=None):
+        schema = super(SiteResource, cls).get_schema(filters)
         schema['properties']['rawZMQStream'] = {
             'type': 'string',
             'format': 'uri',

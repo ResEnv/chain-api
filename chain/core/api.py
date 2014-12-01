@@ -140,6 +140,16 @@ def serialize_geo_location(loc):
         'latitude': loc.latitude,
         'longitude': loc.longitude
     }
+    
+
+def get_filtered_fields(filters):
+    filtered_fields = set()
+    regex_id = r'(.*)_id$'
+    for filter in filters:
+        match = re.search(regex_id, filter)
+        if match is not None:
+             filtered_fields.add(match.group(1))
+    return filtered_fields
 
 
 class Resource(object):
@@ -445,7 +455,7 @@ class Resource(object):
 
     @classmethod
     def sanitize_field_value(cls, field_name, value):
-        '''Converts the given value to the correct python type, for instance if
+        '''Converts the given value to the correct python tyhttp://localhost:8080/people/1pe, for instance if
         the field is supposed to be a float field and the string "23" is given,
         it will be converted to 23.0
 
@@ -454,11 +464,9 @@ class Resource(object):
         field = cls.model._meta.get_field_by_name(field_name)[0]
         field_class = field.__class__
         if field_class == models.ForeignKey:
-            print field
             lookup = lookup_associated_model_object(value)
             if lookup is None:
                 raise BadRequestException("The url to the given resource does not exist.")
-            print lookup
             return lookup
         return field.to_python(value)
 
@@ -468,12 +476,16 @@ class Resource(object):
         if self._obj:
             return self._obj
         new_obj_data = {}
+        
+        filtered_fields = get_filtered_fields(self._filters)
 
         # take the intersection of the fields given and the fields in
         # self.model_fields
 
         for field_name in [f for f in self.model_fields
                            if f in self._data]:
+            if field_name in filtered_fields:
+                continue
             value = self.sanitize_field_value(field_name,
                                               self._data[field_name])
             new_obj_data[field_name] = value
@@ -620,16 +632,21 @@ class Resource(object):
         return schema_type_from_model_field(field)
 
     @classmethod
-    def get_schema(cls):
+    def get_schema(cls, filters=None):
         '''Returns the JSON schema for this resource as a dictionary.
         Subclasses should override this method'''
+        if filters is None:
+            filters = {}
+        filtered_fields = get_filtered_fields(filters)
         schema = {
             'type': 'object',
             'title': 'Create ' + capitalize(cls.resource_type),
             'properties': {},
-            'required': cls.required_fields
+            'required': [field for field in cls.required_fields if field not in filtered_fields]
         }
         for field_name in cls.model_fields + cls.stub_fields.keys():
+            if field_name in filtered_fields:
+                continue
             sch_type, sch_format = cls.get_field_schema_type(field_name)
             schema['properties'][field_name] = {
                 'type': sch_type,
@@ -695,7 +712,7 @@ class Resource(object):
     @csrf_exempt
     def create_view(cls, request):
         if request.method == 'GET':
-            schema = cls.get_schema()
+            schema = cls.get_schema(request.GET.dict())
             return cls.render_response(schema, request)
 
         elif request.method == 'POST':
