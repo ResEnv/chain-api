@@ -40,7 +40,8 @@ TIME_ZONE = 'America/New_York'
 # http://www.i18nguy.com/unicode/language-identifiers.html
 LANGUAGE_CODE = 'en-us'
 
-ZMQ_PUB_URL = 'tcp://127.0.0.1:31416'
+ZMQ_PASSTHROUGH_URL_PULL = 'tcp://127.0.0.1:31416'
+ZMQ_PASSTHROUGH_URL_PUB = 'tcp://127.0.0.1:31417'
 
 # leave the websocket host as None if it is the same as the Django host
 WEBSOCKET_HOST = None

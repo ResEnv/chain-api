@@ -13,7 +13,8 @@ from jinja2 import Environment, PackageLoader
 from urlparse import urlparse, urlunparse, parse_qs
 from urllib import urlencode
 from chain.core.models import GeoLocation
-from chain.settings import ZMQ_PUB_URL, WEBSOCKET_PATH, WEBSOCKET_HOST
+from chain.settings import WEBSOCKET_PATH, WEBSOCKET_HOST, \
+    ZMQ_PASSTHROUGH_URL_PULL
 import zmq
 
 
@@ -52,8 +53,8 @@ jinja_env = Environment(loader=PackageLoader('chain.core', 'templates'))
 
 # Set up ZMQ feed for realtime clients
 zmq_ctx = zmq.Context()
-zmq_socket = zmq_ctx.socket(zmq.PUB)
-zmq_socket.bind(ZMQ_PUB_URL)
+zmq_socket = zmq_ctx.socket(zmq.PUSH)
+zmq_socket.connect(ZMQ_PASSTHROUGH_URL_PULL)
 
 
 def full_reverse(view_name, request, *args, **kwargs):
