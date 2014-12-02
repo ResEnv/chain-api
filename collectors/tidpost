@@ -80,7 +80,7 @@ def main():
             dev = existing_devices[dev_name]
         except KeyError:
             logger.info("Creating device %s" % dev_name)
-            dev = devices_coll.create({'name': dev_name})
+            dev = devices_coll.create({'name': dev_name}, auth=COLLECTOR_AUTH)
             existing_devices[dev_name] = dev
         post_sensor_data(dev_json, dev)
 
@@ -156,12 +156,12 @@ def post_sensor_data(report_data, device, prefix=''):
                                            server_metric)
         except KeyError:
             sensor = sensors_coll.create(
-                {'metric': server_metric, 'unit': unit})
+                {'metric': server_metric, 'unit': unit}, auth=COLLECTOR_AUTH)
         history = sensor.rels['ch:dataHistory']
 
         sensor_data['value'] = data
         logger.info("Posting %s data: %s" % (server_metric, sensor_data))
-        history.create(sensor_data, cache=False)
+        history.create(sensor_data, cache=False, auth=COLLECTOR_AUTH)
 
 
 if __name__ == '__main__':

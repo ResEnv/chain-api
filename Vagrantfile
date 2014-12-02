@@ -10,15 +10,16 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   # please see the online documentation at vagrantup.com.
 
   # Every Vagrant virtual environment requires a box to build off of.
-  config.vm.box = "wheezy64"
+  config.vm.box = "chain-ubuntu1404"
 
   # The url from where the 'config.vm.box' box will be fetched if it
   # doesn't already exist on the user's system.
-  config.vm.box_url = "http://media.mit.edu/~sfr/wheezy64.box"
+  config.vm.box_url = "http://phive-yogurt.mit.edu/chain-ubuntu1404.box"
 
   # set up port forwarding
   config.vm.network :forwarded_port, guest: 8000, host: 8000
   config.vm.network :forwarded_port, guest: 80, host: 8080
+  config.vm.network :forwarded_port, guest: 9001, host: 9001
 
   # Enable provisioning with Puppet stand alone.  Puppet manifests
   # are contained in a directory path relative to this Vagrantfile.

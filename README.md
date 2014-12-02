@@ -602,6 +602,7 @@ Currently Chain API is supported on Ubuntu Precise (12.04 LTS)
 Install dependencies with manifest.sh
 
     cd chain-api/
+    sudo chmod +x ./manifest.sh
     sudo ./manifest.sh
 
 NOTE FOR ARCH:
@@ -617,8 +618,8 @@ END OF ARCH-SPECIFIC NOTE
 
 ### Setup Postgres
 
-    sudo su – postgres
-    createuser --pwprompt
+    sudo su - postgres
+    createuser --pwprompt <POSTGRES USERNAME>
 
 after creating a new user, you can create the postgres db like so:
 
@@ -667,7 +668,7 @@ Dev Server Vagrant Box Setup
 ---------------------------
 An alternative method to quickly start developing with chain-api on Ubuntu 12.04 Wheezy64 Vagrant Box
 
-    curl -o package.box http://donald.ws/package.box
+    curl -o package.box http://phive-yogurt.mit.edu/chain-ubuntu1404.box
     vagrant box add chain-box package.box
     vagrant init chain-box
     vagrant up
@@ -678,12 +679,26 @@ default postgres username/password:
     username: yoda
     password: 123
 
+default http username/password:
+
+    username: yoda
+    password: 123
+
 Make sure to change the username/password and edit localsettings.py
 
-Run the server with:
+Supervisor and Nginx are setup to run automatically, but you will have to run the following first.
 
-    cd ~/chain-api/
-    ./manage.py runserver 0.0.0.0:8000
+    cd /vagrant
+    sudo ./setup.py develop
+    sudo chmod -R g+wx-s /usr/local /srv
+    sudo chmod -R a+r /usr/local
+
+Then restart supervisor and nginx:
+
+    sudo /etc/init.d/supervisor stop
+    sudo /etc/init.d/supervisor start
+    sudo /etc/init.d/nginx restart
+
 
 Setting up for Production
 -------------------------
@@ -696,7 +711,8 @@ allow us to autodeploy without needing root permissions.
 
     sudo usermod -aG staff USERNAME
     sudo chown -R root:staff /usr/local /srv
-    sudo chmod -R g+w /usr/local /srv
+    sudo chmod -R g+wx-s /usr/local /srv
+    sudo chmod -R a+r /usr/local
 
 Before continuing, ensure that the `build-essential` package for Ubuntu is installed.  If
 not (or if you are unsure), install it by running:
