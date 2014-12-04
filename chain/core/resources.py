@@ -2,12 +2,14 @@ from chain.core.api import Resource, ResourceField, CollectionField
 from chain.core.api import full_reverse
 from chain.core.api import CHAIN_CURIES
 from chain.core.api import BadRequestException
+from chain.core.api import register_resource
 from chain.core.models import Site, Device, ScalarSensor, ScalarData, \
     PresenceSensor, PresenceData, Person
 from django.conf.urls import include, patterns, url
 from django.utils import timezone
 from datetime import timedelta, datetime
 import calendar
+import re
 
 
 class ScalarSensorDataResource(Resource):
@@ -714,7 +716,8 @@ class SiteResource(Resource):
         devices = Device.objects.filter(site_id=id).select_related(
             'sensors',
             'sensors__metric',
-            'sensors__unit')
+            'sensors__unit'
+        )
         db_sensor_data = ScalarData.objects.filter(sensor__device__site_id=id,
                                                    timestamp__gt=time_begin)
         response = {
@@ -780,16 +783,18 @@ class ApiRootResource(Resource):
         return cls.render_response(response_data, request)
 
 
+# URL Setup:
+
+resources = [ScalarSensorDataResource, ScalarSensorResource, PresenceDataResource,
+             PresenceSensorResource, PersonResource, MixedSensorResource, DeviceResource,
+             SiteResource]
+
 urls = patterns(
     '',
-    url(r'^/$', ApiRootResource.single_view, name='api-root'),
-    url(r'^$', ApiRootResource.single_view, name='api-root'),
-    url(r'^sites/', include(SiteResource.urls())),
-    url(r'^devices/', include(DeviceResource.urls())),
-    url(r'^sensors/', include(MixedSensorResource.urls())),
-    url(r'^scalar_sensors/', include(ScalarSensorResource.urls())),
-    url(r'^sensor_data/', include(ScalarSensorDataResource.urls())),
-    url(r'^presence_data/', include(PresenceDataResource.urls())),
-    url(r'^presence_sensors/', include(PresenceSensorResource.urls())),
-    url(r'^people/', include(PersonResource.urls()))
+    url(r'^/?$', ApiRootResource.single_view, name='api-root')
 )
+
+for resource in resources:
+    new_url = url("^%s/" % resource.resource_name, include(resource.urls()))
+    urls += patterns('', new_url)
+    register_resource(resource)

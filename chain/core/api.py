@@ -16,6 +16,7 @@ from chain.core.models import GeoLocation
 from chain.settings import WEBSOCKET_PATH, WEBSOCKET_HOST, \
     ZMQ_PASSTHROUGH_URL_PULL
 import zmq
+import re
 
 
 def capitalize(word):
@@ -32,6 +33,8 @@ def schema_type_from_model_field(field):
         return 'string', 'date-time'
     elif field_class == models.BooleanField:
         return 'boolean', None
+    elif field_class == models.ForeignKey:
+        return 'string', 'url'
     else:
         raise NotImplementedError('Field type %s not recognized' % field_class)
 
@@ -449,6 +452,14 @@ class Resource(object):
         NOTE - this currently only works for vanilla model fields, which serves
         our purposes for now'''
         field = cls.model._meta.get_field_by_name(field_name)[0]
+        field_class = field.__class__
+        if field_class == models.ForeignKey:
+            print field
+            lookup = lookup_associated_model_object(value)
+            if lookup is None:
+                raise BadRequestException("The url to the given resource does not exist.")
+            print lookup
+            return lookup
         return field.to_python(value)
 
     def deserialize(self):
@@ -754,6 +765,47 @@ class Resource(object):
                         url(r'^create$',
                             cls.create_view, name=base_name + '-create'))
 
+# Resource URL Setup and Lookup:
+
+url_resource_map = {}
+
+resource_type_pattern = re.compile("^(?:https?://)?[^/]*/([^/]+)")
+def lookup_associated_resource_type(url):
+    match = resource_type_pattern.match(url)
+    if match is None:
+        return None
+    else:
+        return url_resource_map.get(match.group(1), None)
+    
+def lookup_associated_model(url):
+    res_type = lookup_associated_resource_type(url)
+    if res_type is None:
+        return None
+    else:
+        return res_type.model
+    
+resource_instance_pattern = re.compile("^(?:https?://)?[^/]*/([^/]+)/(\d+)")
+def lookup_associated_model_object(url):
+    match = resource_instance_pattern.match(url)
+    if match is None:
+        return None
+    resc_type = url_resource_map.get(match.group(1), None)
+    if resc_type is None:
+        return None
+    model_type = resc_type.model
+    if model_type is None:
+        return None
+    instances = model_type.objects.filter(id=int(match.group(2)))
+    if len(instances) == 0:
+        return None
+    return instances[0]
+    
+def register_resource(resource):
+    url_resource_map[resource.resource_name] = resource
+    
+
+
+# Error Handling:
 
 class BadRequestException(Exception):
     def __init__(self, message):
