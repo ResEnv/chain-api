@@ -95,11 +95,13 @@ def unlazy(given):
 
 
 class CollectionField(object):
+
     '''A Collection field is a field on a resource that points to a child
     collection, e.g. an Author resource might have a 'books' field that is a
     collection of all the books by that author. By default the serialized data
     will only have a link to the child collection, but by setting embed=True
     you can actually embed the full collection inside the parent object.'''
+
     def __init__(self, child_resource_class, reverse_name, embed=False):
         self._reverse_name = reverse_name
         self._child_resource_class = child_resource_class
@@ -118,8 +120,10 @@ class CollectionField(object):
 
 
 class ResourceField(object):
+
     '''Describes a related single resource field, e.g. a Book resource might
     have an 'author' field that links (or embeds) the author resource'''
+
     def __init__(self, related_resource_class, parent_field_name, embed=False):
         self._related_resource_class = related_resource_class
         self._parent_field_name = parent_field_name
@@ -140,7 +144,7 @@ def serialize_geo_location(loc):
         'latitude': loc.latitude,
         'longitude': loc.longitude
     }
-    
+
 
 def get_filtered_fields(filters):
     filtered_fields = set()
@@ -148,7 +152,7 @@ def get_filtered_fields(filters):
     for filter in filters:
         match = re.search(regex_id, filter)
         if match is not None:
-             filtered_fields.add(match.group(1))
+            filtered_fields.add(match.group(1))
     return filtered_fields
 
 
@@ -466,7 +470,8 @@ class Resource(object):
         if field_class == models.ForeignKey:
             lookup = lookup_associated_model_object(value)
             if lookup is None:
-                raise BadRequestException("The url to the given resource does not exist.")
+                raise BadRequestException(
+                    "The url to the given resource does not exist.")
             return lookup
         return field.to_python(value)
 
@@ -476,7 +481,7 @@ class Resource(object):
         if self._obj:
             return self._obj
         new_obj_data = {}
-        
+
         filtered_fields = get_filtered_fields(self._filters)
 
         # take the intersection of the fields given and the fields in
@@ -640,10 +645,12 @@ class Resource(object):
         filtered_fields = get_filtered_fields(filters)
         schema = {
             'type': 'object',
-            'title': 'Create ' + capitalize(cls.resource_type),
+            'title': 'Create ' +
+            capitalize(
+                cls.resource_type),
             'properties': {},
-            'required': [field for field in cls.required_fields if field not in filtered_fields]
-        }
+            'required': [
+                field for field in cls.required_fields if field not in filtered_fields]}
         for field_name in cls.model_fields + cls.stub_fields.keys():
             if field_name in filtered_fields:
                 continue
@@ -656,7 +663,7 @@ class Resource(object):
                 schema['properties'][field_name]['format'] = sch_format
             # don't allow empty strings in required fields
             if field_name in cls.required_fields and sch_type == 'string':
-                    schema['properties'][field_name]['minLength'] = 1
+                schema['properties'][field_name]['minLength'] = 1
         if cls.model_has_field('geo_location'):
             schema['properties']['geoLocation'] = {
                 'type': 'object',
@@ -685,13 +692,16 @@ class Resource(object):
             return cls.render_response(schema, request)
 
         elif request.method == 'POST':
-            #if not request.user.is_authenticated():
+            # if not request.user.is_authenticated():
             #    return render_401(request)
             resource = cls(obj=cls.queryset.get(id=id), request=request)
             try:
                 data = json.loads(request.body)
             except ValueError:
-                return render_error(HTTP_STATUS_BAD_REQUEST, "The edit operation could not be performed because the data provided in the request body cannot be parsed as legal JSON.", request)
+                return render_error(
+                    HTTP_STATUS_BAD_REQUEST,
+                    "The edit operation could not be performed because the data provided in the request body cannot be parsed as legal JSON.",
+                    request)
             try:
                 resource.update(data)
             except IntegrityError:
@@ -716,12 +726,15 @@ class Resource(object):
             return cls.render_response(schema, request)
 
         elif request.method == 'POST':
-            #if not request.user.is_authenticated():
+            # if not request.user.is_authenticated():
             #    return render_401(request)
             try:
                 data = json.loads(request.body)
             except ValueError:
-                return render_error(HTTP_STATUS_BAD_REQUEST, "The create operation could not be performed because the data provided in the request body cannot be parsed as legal JSON.", request)
+                return render_error(
+                    HTTP_STATUS_BAD_REQUEST,
+                    "The create operation could not be performed because the data provided in the request body cannot be parsed as legal JSON.",
+                    request)
             if isinstance(data, list):
                 return cls.create_list(data, request)
             else:
@@ -787,21 +800,26 @@ class Resource(object):
 url_resource_map = {}
 
 resource_type_pattern = re.compile("^(?:https?://)?[^/]*/([^/]+)")
+
+
 def lookup_associated_resource_type(url):
     match = resource_type_pattern.match(url)
     if match is None:
         return None
     else:
         return url_resource_map.get(match.group(1), None)
-    
+
+
 def lookup_associated_model(url):
     res_type = lookup_associated_resource_type(url)
     if res_type is None:
         return None
     else:
         return res_type.model
-    
+
 resource_instance_pattern = re.compile("^(?:https?://)?[^/]*/([^/]+)/(\d+)")
+
+
 def lookup_associated_model_object(url):
     match = resource_instance_pattern.match(url)
     if match is None:
@@ -816,19 +834,22 @@ def lookup_associated_model_object(url):
     if len(instances) == 0:
         return None
     return instances[0]
-    
+
+
 def register_resource(resource):
     url_resource_map[resource.resource_name] = resource
-    
 
 
 # Error Handling:
 
 class BadRequestException(Exception):
+
     def __init__(self, message):
         self.message = message
+
     def __str__(self):
         return "[Bad Request: " + repr(self.message) + "]"
+
 
 def render_error(status, msg, request):
     err_data = {
@@ -839,7 +860,7 @@ def render_error(status, msg, request):
                         content_type="application/json")
 
 
-#def render_401(request):
+# def render_401(request):
 #    err_data = {
 #        'status': 401,
 #        'message': 'Unauthorized - Login Required',
@@ -847,9 +868,8 @@ def render_error(status, msg, request):
 #    response = HttpResponse(json.dumps(err_data), status=401,
 #                            content_type="application/json")
 #    response['WWW-Authenticate'] = 'Basic Realm="ChainAPI"'
-#    #import pdb; pdb.set_trace()
+# import pdb; pdb.set_trace()
 #    return response
-
 
 
 def handle500(request):

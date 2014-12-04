@@ -33,7 +33,11 @@ class ScalarSensorDataResource(Resource):
         as a single resource with a list of data points'''
 
         if not embed:
-            return super(ScalarSensorDataResource, self).serialize_list(embed, cache)
+            return super(
+                ScalarSensorDataResource,
+                self).serialize_list(
+                embed,
+                cache)
 
         href = self.get_list_href()
 
@@ -57,7 +61,8 @@ class ScalarSensorDataResource(Resource):
                 page_start = datetime.utcfromtimestamp(
                     float(self._filters['timestamp__gte']))
             except ValueError:
-                raise BadRequestException("Invalid timestamp format for lower bound of date range.")
+                raise BadRequestException(
+                    "Invalid timestamp format for lower bound of date range.")
         else:
             page_start = request_time - self.default_timespan
 
@@ -66,7 +71,8 @@ class ScalarSensorDataResource(Resource):
                 page_end = datetime.utcfromtimestamp(
                     float(self._filters['timestamp__lt']))
             except ValueError:
-                raise BadRequestException("Invalid timestamp format for upper bound of date range.")
+                raise BadRequestException(
+                    "Invalid timestamp format for upper bound of date range.")
         else:
             page_end = request_time
 
@@ -148,9 +154,14 @@ class ScalarSensorResource(Resource):
     }
 
     def serialize_single(self, embed, cache, *args, **kwargs):
-        data = super(ScalarSensorResource, self).serialize_single(embed, cache,
-                                                                  *args, **kwargs)
-        
+        data = super(
+            ScalarSensorResource,
+            self).serialize_single(
+            embed,
+            cache,
+            *args,
+            **kwargs)
+
         data['sensor-type'] = "scalar"
         if embed:
             data['dataType'] = 'float'
@@ -184,7 +195,11 @@ class PresenceDataResource(Resource):
             pass
 
     def serialize_single(self, embed, cache):
-        serialized_data = super(PresenceDataResource, self).serialize_single(embed, cache)
+        serialized_data = super(
+            PresenceDataResource,
+            self).serialize_single(
+            embed,
+            cache)
         if 'person' in serialized_data:
             del serialized_data['person']
         if 'sensor' in serialized_data:
@@ -197,20 +212,22 @@ class PresenceDataResource(Resource):
     def get_additional_links(self):
         return {
             'person': {
-                'href': self.get_person_url(self._obj.person),
-                'title': "%s, %s" % (self._obj.person.last_name, self._obj.person.first_name)
-            },
-            'sensor': {
-                'href': self.get_sensor_url(self._obj.sensor),
-                'title': "%s->%s" % (self._obj.sensor.device.name, self._obj.sensor.metric)
-            }
-        }
+                'href': self.get_person_url(
+                    self._obj.person), 'title': "%s, %s" %
+                (self._obj.person.last_name, self._obj.person.first_name)}, 'sensor': {
+                'href': self.get_sensor_url(
+                    self._obj.sensor), 'title': "%s->%s" %
+                (self._obj.sensor.device.name, self._obj.sensor.metric)}}
 
     def serialize_list(self, embed, cache):
         '''a "list" of SensorData resources is actually represented
         as a single resource with a list of data points'''
         if not embed:
-            return super(PresenceDataResource, self).serialize_list(embed, cache)
+            return super(
+                PresenceDataResource,
+                self).serialize_list(
+                embed,
+                cache)
 
         href = self.get_list_href()
 
@@ -237,7 +254,8 @@ class PresenceDataResource(Resource):
                 page_start = datetime.utcfromtimestamp(
                     float(self._filters['timestamp__gte']))
             except ValueError:
-                raise BadRequestException("Invalid timestamp format for lower bound of date range.")
+                raise BadRequestException(
+                    "Invalid timestamp format for lower bound of date range.")
         else:
             page_start = request_time - self.default_timespan
 
@@ -246,7 +264,8 @@ class PresenceDataResource(Resource):
                 page_end = datetime.utcfromtimestamp(
                     float(self._filters['timestamp__lt']))
             except ValueError:
-                raise BadRequestException("Invalid timestamp format for upper bound of date range.")
+                raise BadRequestException(
+                    "Invalid timestamp format for upper bound of date range.")
         else:
             page_end = request_time
 
@@ -260,11 +279,16 @@ class PresenceDataResource(Resource):
 
         # Make links:
         for obj in objs:
-            presence_data_resource = PresenceDataResource(obj=obj, request=self._request)
-            visits.append({
-                'href': presence_data_resource.get_single_href(),
-                'title': "%s at %s at time %s" % (obj.person.last_name, obj.sensor.device, obj.timestamp.isoformat())
-            })
+            presence_data_resource = PresenceDataResource(
+                obj=obj,
+                request=self._request)
+            visits.append(
+                {
+                    'href': presence_data_resource.get_single_href(),
+                    'title': "%s at %s at time %s" %
+                    (obj.person.last_name,
+                     obj.sensor.device,
+                     obj.timestamp.isoformat())})
         return serialized_data
 
     def get_person_url(self, obj):
@@ -278,7 +302,9 @@ class PresenceDataResource(Resource):
         if self._request is None:
             # No way to form URL, just return the person's ID
             return obj.id
-        psensor_resource = PresenceSensorResource(obj=obj, request=self._request)
+        psensor_resource = PresenceSensorResource(
+            obj=obj,
+            request=self._request)
         return psensor_resource.get_single_href()
 
     def format_time(self, timestamp):
@@ -307,11 +333,11 @@ class PresenceDataResource(Resource):
 
     def serialize_stream(self):
         '''Serialize this resource for a stream'''
-        data = self.serialize_single(False, None) #(rels=False)
+        data = self.serialize_single(False, None)  # (rels=False)
         # TODO:  Make useful
         data['_links'] = {
             'href': self.get_single_href(),
-            #'person': 
+            #'person':
         }
         data['_links'].update(self.get_additional_links())
         return data
@@ -346,8 +372,13 @@ class PresenceSensorResource(Resource):
     }
 
     def serialize_single(self, embed, cache, *args, **kwargs):
-        data = super(PresenceSensorResource, self).serialize_single(embed, cache,
-                                                            *args, **kwargs)
+        data = super(
+            PresenceSensorResource,
+            self).serialize_single(
+            embed,
+            cache,
+            *args,
+            **kwargs)
         data['sensor-type'] = "presence"
         data['dataType'] = "presence"
         if embed:
@@ -365,9 +396,9 @@ class PresenceSensorResource(Resource):
             'timestamp').reverse()[:1]
         if last_data:
             links['last-visit'] = {
-                'href': self.get_presense_data_url(last_data[0]),
-                'title': "%s at %s" % (last_data[0].person, last_data[0].timestamp.isoformat())
-            }
+                'href': self.get_presense_data_url(
+                    last_data[0]), 'title': "%s at %s" %
+                (last_data[0].person, last_data[0].timestamp.isoformat())}
         return links
 
     def get_additional_embedded(self):
@@ -397,7 +428,9 @@ class PresenceSensorResource(Resource):
         if self._request is None:
             # No way to form URL, just return the person's ID
             return obj.id
-        psensor_resource = PresenceSensorResource(obj=obj, request=self._request)
+        psensor_resource = PresenceSensorResource(
+            obj=obj,
+            request=self._request)
         return psensor_resource.get_single_href()
 
     def get_tags(self):
@@ -416,13 +449,19 @@ class PersonResource(Resource):
     model_fields = ['first_name', 'last_name', 'twitter_handle', 'rfid']
     related_fields = {
         'ch:presence-data': CollectionField(PresenceDataResource,
-                                      reverse_name='person'),
+                                            reverse_name='person'),
         'ch:site': ResourceField('chain.core.resources.SiteResource', 'site')
     }
     queryset = Person.objects
 
     def serialize_single(self, embed, cache, *args, **kwargs):
-        data = super(PersonResource, self).serialize_single(embed, cache, *args, **kwargs)
+        data = super(
+            PersonResource,
+            self).serialize_single(
+            embed,
+            cache,
+            *args,
+            **kwargs)
         if embed:
             if '_embedded' not in data:
                 data['_embedded'] = {}
@@ -442,10 +481,12 @@ class PersonResource(Resource):
         last_data = self.get_presence_data()
         if last_data:
             links['last-visit'] = {
-                'href': self.get_presense_data_url(last_data[0]),
-                'title': "at %s->%s at time %s" % (last_data[0].sensor.device, last_data[0].sensor.metric,\
-                     last_data[0].timestamp.isoformat())
-            }
+                'href': self.get_presense_data_url(
+                    last_data[0]),
+                'title': "at %s->%s at time %s" %
+                (last_data[0].sensor.device,
+                 last_data[0].sensor.metric,
+                 last_data[0].timestamp.isoformat())}
         if self._obj.picture_url:
             links['picture'] = {
                 'href': self._obj.picture_url,
@@ -478,10 +519,12 @@ class PersonResource(Resource):
 Merge two "JSON" style dictionary/list objects
   recursively.  Designed for merging schemas from
   multiple sensor objects.
-  
+
 If two objects are not merge-able, the version from
   obj1 is used.
 '''
+
+
 def json_merge(obj1, obj2):
     if isinstance(obj1, list):
         # Merge array:
@@ -518,7 +561,7 @@ class MixedSensorResource(Resource):
 
     # for now, name is hardcoded as the only attribute of metric and unit
     stub_fields = {'metric': 'name'}
-    
+
     queryset = ScalarSensor.objects
 
     available_sensor_types = {
@@ -548,11 +591,12 @@ class MixedSensorResource(Resource):
                     'title': 'sensor-type',
                     'enum': cls.available_sensor_types.keys()
                 }
-            }, 
+            },
             'title': 'Create Sensor'
         }
         for sensor_type in cls.available_sensor_types:
-            sub_schema = cls.available_sensor_types[sensor_type]['resource'].get_schema(filters)
+            sub_schema = cls.available_sensor_types[
+                sensor_type]['resource'].get_schema(filters)
             schema = json_merge(schema, sub_schema)
         return schema
 
@@ -570,13 +614,19 @@ class MixedSensorResource(Resource):
         for sensor_type in cls.available_sensor_types:
             if data['sensor-type'] == sensor_type:
                 del data['sensor-type']
-                return cls.available_sensor_types[sensor_type]['resource'].create_single(data, req)
+                return cls.available_sensor_types[sensor_type][
+                    'resource'].create_single(data, req)
         # TODO:  Return 400 rather than raising an exception
         raise Exception("Unrecognized sensor type.")
 
     def serialize_single(self, embed, cache, *args, **kwargs):
-        data = super(MixedSensorResource, self).serialize_single(embed, cache,
-                                                            *args, **kwargs)
+        data = super(
+            MixedSensorResource,
+            self).serialize_single(
+            embed,
+            cache,
+            *args,
+            **kwargs)
         if embed:
             pass
         if '_links' in data:
@@ -585,8 +635,13 @@ class MixedSensorResource(Resource):
         return data
 
     def serialize_list(self, embed, cache, *args, **kwargs):
-        data = super(MixedSensorResource, self).serialize_list(embed=embed, cache=cache,
-                                                            *args, **kwargs)
+        data = super(
+            MixedSensorResource,
+            self).serialize_list(
+            embed=embed,
+            cache=cache,
+            *args,
+            **kwargs)
         if embed:
             pass
         if '_links' in data:
@@ -599,10 +654,15 @@ class MixedSensorResource(Resource):
         sensors = self.query_models()
         items = []
         for sensor in sensors:
-            items.append({
-                'href': (mapped_model_to_res[type(sensor)](obj=sensor, request=self._request)).get_single_href(),
-                'title': "%s" % sensor
-            })
+            items.append(
+                {
+                    'href': (
+                        mapped_model_to_res[
+                            type(sensor)](
+                            obj=sensor,
+                            request=self._request)).get_single_href(),
+                    'title': "%s" %
+                    sensor})
         return {'items': items}
 
     def map_model_to_resource(self):
@@ -615,7 +675,8 @@ class MixedSensorResource(Resource):
     def query_models(self):
         results = []
         for sensor_type in self.available_sensor_types:
-            modelResults = self.available_sensor_types[sensor_type]['model'].objects.filter(**self._filters)
+            modelResults = self.available_sensor_types[sensor_type][
+                'model'].objects.filter(**self._filters)
             results.extend(modelResults)
         return results
 
@@ -739,7 +800,9 @@ class SiteResource(Resource):
             response['devices'].append(dev_data)
             dev_data['sensors'] = []
             for sensor in device.sensors.all():
-                sensor_resource = ScalarSensorResource(obj=sensor, request=request)
+                sensor_resource = ScalarSensorResource(
+                    obj=sensor,
+                    request=request)
                 sensor_data = sensor_resource.serialize(rels=False)
                 sensor_data['href'] = sensor_resource.get_single_href()
                 dev_data['sensors'].append(sensor_data)
@@ -789,9 +852,15 @@ class ApiRootResource(Resource):
 
 # URL Setup:
 
-resources = [ScalarSensorDataResource, ScalarSensorResource, PresenceDataResource,
-             PresenceSensorResource, PersonResource, MixedSensorResource, DeviceResource,
-             SiteResource]
+resources = [
+    ScalarSensorDataResource,
+    ScalarSensorResource,
+    PresenceDataResource,
+    PresenceSensorResource,
+    PersonResource,
+    MixedSensorResource,
+    DeviceResource,
+    SiteResource]
 
 urls = patterns(
     '',
