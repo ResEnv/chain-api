@@ -124,7 +124,10 @@ def post_sensor_data(report_data, device, timestamp):
                 {'metric': server_metric, 'unit': TEMP_UNIT}, auth=COLLECTOR_AUTH)
         history = sensor.rels['ch:dataHistory']
 
-        sensor_data['value'] = f_to_c(float(report_data[data_metric]))
+        try:
+            sensor_data['value'] = f_to_c(float(report_data[data_metric]))
+        except ValueError:
+            logger.warning("Got ValueError converting %s" % report_data[data_metric])
         logger.info("Posting %s data: %s" % (server_metric, sensor_data))
         history.create(sensor_data, cache=False, auth=COLLECTOR_AUTH)
 
