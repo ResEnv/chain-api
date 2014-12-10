@@ -285,8 +285,9 @@ class PresenceDataResource(Resource):
             visits.append(
                 {
                     'href': presence_data_resource.get_single_href(),
-                    'title': "%s at %s at time %s" %
+                    'title': "%s %s %s at time %s" %
                     (obj.person.last_name,
+                     "at" if obj.present else "left",
                      obj.sensor.device,
                      obj.timestamp.isoformat())})
         return serialized_data
