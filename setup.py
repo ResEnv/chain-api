@@ -9,6 +9,7 @@ setup(
     py_packages=['chain', 'flask-sockets'],
     scripts=['collectors/tidpost',
              'collectors/thermpost',
+             'collectors/rfidpost',
              'scripts/chainsocketpolicyd'],
     author='Spencer Russell',
     author_email='sfr@mit.edu',
