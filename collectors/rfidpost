@@ -31,7 +31,7 @@ logging.getLogger('requests').setLevel(logging.WARNING)
 allowed_tag_fields = {"first_name", "last_name", "id", "picture_url", "user_name"}
 
 ### CONFIGURABLE SETTINGS: ###
-loop_time_seconds = 10
+loop_time_seconds = 4
 tagnet_host = "tagnet.media.mit.edu"
 '''
 The following flag determines how new presence data is posted.  If true,
