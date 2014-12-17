@@ -174,6 +174,7 @@ class ScalarSensorResource(Resource):
 
     def get_tags(self):
         return ['sensor-%s' % self._obj.id,
+                'scalar_sensor-%s' % self._obj.id,
                 'device-%s' % self._obj.device_id,
                 'site-%s' % self._obj.device.site_id]
 
@@ -347,9 +348,10 @@ class PresenceDataResource(Resource):
         if not self._obj:
             raise ValueError(
                 'Tried to called get_tags on a resource without an object')
-        db_sensor = ScalarSensor.objects.select_related('device').get(
+        db_sensor = PresenceSensor.objects.select_related('device').get(
             id=self._obj.sensor_id)
-        return ['sensor-%d' % db_sensor.id,
+        return ['person-%d' % self._obj.person_id,
+                'sensor-%d' % db_sensor.id,
                 'device-%d' % db_sensor.device_id,
                 'site-%d' % db_sensor.device.site_id]
 
@@ -436,6 +438,7 @@ class PresenceSensorResource(Resource):
 
     def get_tags(self):
         return ['sensor-%s' % self._obj.id,
+                'presense_sensor-%s' % self._obj.id,
                 'device-%s' % self._obj.device_id,
                 'site-%s' % self._obj.device.site_id]
 
