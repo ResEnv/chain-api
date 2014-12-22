@@ -36,7 +36,7 @@ def site_socket(ws, tag):
         except WebSocketError as e:
             print('Caught WebSocketError: %s' % e)
             break
-    zmq_sock.disconnect(ZMQ_PUB_URL)
+    zmq_sock.disconnect(ZMQ_PASSTHROUGH_URL_PUB)
 
 # Start the passthrough process:
 gevent.spawn(passthrough, zmq_context=zmq_ctx)
