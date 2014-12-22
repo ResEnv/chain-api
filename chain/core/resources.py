@@ -51,7 +51,8 @@ class SensorDataResource(Resource):
         if 'timestamp__gte' in self._filters:
             try:
                 page_start = datetime.utcfromtimestamp(
-                    float(self._filters['timestamp__gte']))
+                    float(self._filters['timestamp__gte'])).replace(
+                        tzinfo=timezone.utc)
             except ValueError:
                 raise BadRequestException("Invalid timestamp format for lower bound of date range.")
         else:
@@ -60,7 +61,8 @@ class SensorDataResource(Resource):
         if 'timestamp__lt' in self._filters:
             try:
                 page_end = datetime.utcfromtimestamp(
-                    float(self._filters['timestamp__lt']))
+                    float(self._filters['timestamp__lt'])).replace(
+                        tzinfo=timezone.utc)
             except ValueError:
                 raise BadRequestException("Invalid timestamp format for upper bound of date range.")
         else:
