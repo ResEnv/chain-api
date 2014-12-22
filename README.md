@@ -689,7 +689,9 @@ Make sure to change the username/password and edit localsettings.py
 Supervisor and Nginx are setup to run automatically, but you will have to run the following first.
 
     cd /vagrant
+    sudo su - postgres -c 'psql -c "ALTER USER yoda WITH SUPERUSER;"'
     sudo ./setup.py develop
+    sudo ./manage.py migrate
     sudo chmod -R g+wx-s /usr/local /srv
     sudo chmod -R a+r /usr/local
 
