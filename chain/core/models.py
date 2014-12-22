@@ -25,31 +25,6 @@ class Site(models.Model):
         return self.name
 
 
-class Person(models.Model):
-    '''A Person involved with the site. Some sensors might detect presence of a
-    person, so they can reference this model with person-specific
-    information'''
-    first_name = models.CharField(max_length=255)
-    last_name = models.CharField(max_length=255)
-    picture_url = models.CharField(max_length=255, blank=True)
-    twitter_handle = models.CharField(max_length=255, blank=True)
-    rfid = models.CharField(max_length=255, blank=True)
-    site = models.ForeignKey(Site, related_name='people')
-    geo_location = models.OneToOneField(GeoLocation, null=True, blank=True)
-
-    class Meta:
-        verbose_name_plural = "people"
-
-    def __repr__(self):
-        return ('Person(first_name=%s, last_name=%s, picture_url=%s, ' +
-                'twitter_handle=%s, rfid=%s)') % (
-                    self.first_name, self.last_name, self.picture_url,
-                    self.twitter_handle, self.rfid)
-
-    def __str__(self):
-        return " ".join([self.first_name, self.last_name])
-
-
 class Device(models.Model):
     '''A set of co-located sensors, often sharing a PCB'''
     name = models.CharField(max_length=255)
@@ -98,7 +73,7 @@ class Metric(models.Model):
         return self.name
 
 
-class Sensor(models.Model):
+class ScalarSensor(models.Model):
     '''An individual sensor. There may be multiple sensors on a single device.
     The metadata field is used to store information that might be necessary to
     tie the Sensor data to the physical Sensor in the real world, such as a MAC
@@ -124,7 +99,7 @@ class ScalarData(models.Model):
     '''A data point representing scalar sensor data, such as temperature,
     humidity, etc.'''
     # Django automatically creates indices on foreign keys
-    sensor = models.ForeignKey(Sensor, related_name='scalar_data')
+    sensor = models.ForeignKey(ScalarSensor, related_name='scalar_data')
     timestamp = models.DateTimeField(default=timezone.now, blank=True,
                                      db_index=True)
     value = models.FloatField()
@@ -141,6 +116,54 @@ class ScalarData(models.Model):
         return '%.3f %s' % (self.value, self.sensor.unit)
 
 
+class Person(models.Model):
+    '''A Person involved with the site. Some sensors might detect presence of a
+    person, so they can reference this model with person-specific
+    information'''
+    first_name = models.CharField(max_length=255)
+    last_name = models.CharField(max_length=255)
+    picture_url = models.CharField(max_length=255, blank=True)
+    twitter_handle = models.CharField(max_length=255, blank=True)
+    rfid = models.CharField(max_length=255, blank=True)
+    site = models.ForeignKey(Site, related_name='people')
+    geo_location = models.OneToOneField(GeoLocation, null=True, blank=True)
+
+    class Meta:
+        verbose_name_plural = "people"
+
+    def __repr__(self):
+        return ('Person(first_name=%s, last_name=%s, picture_url=%s, ' +
+                'twitter_handle=%s, rfid=%s)') % (
+                    self.first_name, self.last_name, self.picture_url,
+                    self.twitter_handle, self.rfid)
+
+    def __str__(self):
+        return " ".join([self.first_name, self.last_name])
+
+
+class PresenceSensor(models.Model):
+    '''An individual sensor. There may be multiple sensors on a single device.
+    The metadata field is used to store information that might be necessary to
+    tie the Sensor data to the physical Sensor in the real world, such as a MAC
+    address, serial number, etc.'''
+    device = models.ForeignKey(Device, related_name='presence_sensors')
+    metric = models.ForeignKey(Metric, related_name='presence_sensors')
+    # unit = models.ForeignKey(Unit, related_name='sensors')
+    metadata = models.CharField(max_length=255, blank=True)
+    geo_location = models.OneToOneField(GeoLocation, null=True, blank=True)
+
+    class Meta:
+        unique_together = ['device', 'metric']
+
+    def __repr__(self):
+        return 'PresenceSensor(device=%r, id=%r)' % (
+            self.device, self.id)
+
+    def __str__(self):
+        return str(self.metric)
+        # self.metric.name
+
+
 class PresenceData(models.Model):
     '''Sensor data indicating that a given Person was detected by the sensor at
     the given time, for instance using RFID or face recognition. Note that this
@@ -148,7 +171,7 @@ class PresenceData(models.Model):
     setting present=False. Typically a Presence sensor should indicate once
     when a person is first detected, then again when they are first absent.'''
 
-    sensor = models.ForeignKey(Sensor, related_name='presence_data')
+    sensor = models.ForeignKey(PresenceSensor, related_name='presence_data')
     timestamp = models.DateTimeField(default=timezone.now, blank=True)
     person = models.ForeignKey(Person, related_name='presense_data')
     present = models.BooleanField()

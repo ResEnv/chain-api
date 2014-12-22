@@ -1,0 +1,238 @@
+#!/usr/bin/env python
+
+'''tidpost
+
+Listens to all tidmarsh data and posts it to the given site URL using the
+chain-api REST protocol. The ZMQ address is retreived from the server's
+representation in the chain API.
+
+Usage:
+    tidpost <chain_url>
+
+    <chain_url>: URL for the site to post to
+'''
+
+from docopt import docopt
+import zmq
+import chainclient
+import json
+import datetime
+import logging
+import coloredlogs
+import time
+import urllib
+from chain.settings import COLLECTOR_AUTH
+
+logger = logging.getLogger(__name__)
+coloredlogs.install(level=logging.INFO)
+# disable debug logging in the requests module, it's a bit noisy
+logging.getLogger('requests').setLevel(logging.WARNING)
+
+allowed_tag_fields = {"first_name", "last_name", "id", "picture_url", "user_name"}
+
+### CONFIGURABLE SETTINGS: ###
+loop_time_seconds = 4
+tagnet_host = "tagnet.media.mit.edu"
+'''
+The following flag determines how new presence data is posted.  If true,
+then presence data is only posted when a new person appears at a sensor
+or someone at a sensor leaves.
+
+Otherwise, new presence data is posted for a present person at every tick,
+saying they are present.  This is naturally quite a bit of data, which is why
+the mode is disabled by default.
+'''
+present_departed_mode_enabled = True
+### END CONFIGURABLE SETTINGS ###
+
+### CACHE ACCESS ###
+known_pollers = []
+people_last_present_at_sensor_cache = {}
+def get_people_last_present_at_sensor(sensor):
+    if sensor in people_last_present_at_sensor_cache:
+        people_set = people_last_present_at_sensor_cache[sensor]
+    else:
+        people_set = set()
+        people_last_present_at_sensor_cache[sensor] = people_set
+    return people_set
+def set_people_last_present_at_sensor(sensor, people_set=None):
+    if people_set is None:
+        people_set = set()
+    people_last_present_at_sensor_cache[sensor] = people_set
+### END CACHE ACCESS ###
+
+def main():
+    opts = docopt(__doc__)
+    site_url = opts['<chain_url>']
+    
+    update_known_pollers()
+
+    site = chainclient.get(site_url, auth=COLLECTOR_AUTH)
+    logger.debug("Got Site: %s" % site)
+    
+    people_url = site['_links']['ch:people']['href']
+
+    devices_coll = site.rels['ch:devices']
+    existing_devices = get_api_device_dict(devices_coll)
+    
+    while True:
+        for poller in known_pollers:
+            sensor = get_rfid_sensor_for_poller(site, poller)
+            update_rfid_sensor(site, poller, sensor)
+        time.sleep(loop_time_seconds)
+
+    '''while True:
+        for device_name in existing_devices:
+            rfid_sensors = get_rfid_sensors_given_device(existing_devices[device_name])
+            for rfid_sensor in rfid_sensors:
+                update_rfid_sensor(site, existing_devices[device_name], rfid_sensor)
+        time.sleep(loop_time_seconds)'''
+        
+def update_known_pollers():
+    global known_pollers
+    content = urllib.urlopen("http://%s/rfid/api/rfid_info" % tagnet_host)
+    poller_info = json.load(content)
+    pollers = map(lambda poller: poller['name'], poller_info['pollers'])
+    known_pollers = pollers
+    
+def get_rfid_sensor_for_poller(site, poller):
+    # TODO:  retrieve or create rfid sensor for the given poller
+    # TODO:  Make more efficient:
+    matched_devices = filter(lambda device: device.get('name') == poller, site.rels['ch:devices'].rels['items'])
+    if len(matched_devices) > 0:
+        device = matched_devices[0]
+    else:
+        req_body = {"name": poller}
+        site.rels['ch:devices'].create(req_body, auth=COLLECTOR_AUTH)
+        matched_devices = filter(lambda device: device.get('name') == poller, site.rels['ch:devices'].rels['items'])
+        if len(matched_devices) > 0:
+            device = matched_devices[0]
+        else:
+            raise Exception("Could not create device.")
+        
+    matched_sensors = filter(lambda sensor: sensor.get('metric') == 'rfid', device.rels['ch:sensors'].rels['items'])
+    if len(matched_sensors) > 0:
+        sensor = matched_sensors[0]
+    else:
+        req_body = {"sensor-type": "presence", "metric": "rfid", "unit": "n/a"}
+        device.rels['ch:sensors'].create(req_body, auth=COLLECTOR_AUTH)
+        matched_sensors = filter(lambda sensor: sensor.get('metric') == 'rfid', device.rels['ch:sensors'].rels['items'])
+        if len(matched_sensors) > 0:
+            sensor = matched_sensors[0]
+        else:
+            raise Exception("Could not create sensor.")
+    return sensor
+                
+def update_rfid_sensor(site, poller, sensor):
+    print "Updating %s" % poller
+    
+    if present_departed_mode_enabled:
+        sensor_link = sensor.links['self']['href']
+        people_set = get_people_last_present_at_sensor(sensor_link)
+    
+    url = "http://%s/getRfidUserProfiles?readerid=%s" % (tagnet_host, poller)
+    
+    data_coll = sensor.rels['ch:dataHistory'];
+    
+    tags = json.load(urllib.urlopen(url))["tags"]
+    sanitized_tags = map(lambda x: sanitize(x, allowed_tag_fields), tags)
+    next_people_set = set(filter(lambda link: link is not None, map(lambda tag: get_person_link_from_tags(tag, site), sanitized_tags)))
+    
+    if present_departed_mode_enabled:
+        new_people_set = next_people_set.difference(people_set)
+        departed_people_set = people_set.difference(next_people_set)
+        set_people_last_present_at_sensor(sensor_link, next_people_set)
+    else:
+        new_people_set = next_people_set
+        departed_people_set = set()
+    
+    now = datetime.datetime.utcnow()
+    
+    request_bodies_present = map(lambda person: {'present': True, 'person': person, 'timestamp': now.isoformat() + "+00:00"}, new_people_set)
+    request_bodies_departed = map(lambda person: {'present': False, 'person': person, 'timestamp': now.isoformat() + "+00:00"}, departed_people_set)
+    request_bodies = request_bodies_present + request_bodies_departed
+    for req_body in request_bodies:
+        data_coll.create(req_body, auth=COLLECTOR_AUTH)
+    
+def sanitize(object, allowed_keys):
+    sanitized = {}
+    for key in object:
+        if key in allowed_keys:
+            sanitized[key] = object[key]
+    return sanitized
+
+def get_person_link_from_tags(tags, site):
+    person = get_person_from_tags(tags, site)
+    if person is None:
+        return None
+    return person['href']
+
+def get_person_from_tags(tags, site):
+    if 'id' not in tags:
+        return None
+    existing_person = get_person_by_rfid(tags['id'], site['_links']['ch:people']['href'])
+    if existing_person is None:
+        existing_person = create_person_with_tags(tags, site)
+    if existing_person is None:
+        return None
+    return existing_person
+        
+        
+def create_person_with_tags(tags, site):
+    '''
+    {
+        "first_name": tags['first_name'],
+        "last_name": tags['last_name'],
+        "rfid": tags['id'],
+        "twitter_handle": tags['user_name']
+    }
+    '''
+    req_body = {}
+    if 'first_name' not in tags or 'last_name' not in tags:
+        return None
+    req_body['first_name'] = tags['first_name']
+    req_body['last_name'] = tags['last_name']
+    if 'id' in tags:
+        req_body['rfid'] = tags['id']
+    if 'user_name' in tags:
+        req_body['twitter_handle'] = tags['user_name']
+    people_coll = site.rels['ch:people']
+    return people_coll.create(req_body, auth=COLLECTOR_AUTH)['_links']['self']
+    
+            
+
+def get_person_by_rfid(rfid, people_url):
+    people_url_filtered = "%s&rfid=%s" % (people_url, rfid)
+    list_response = chainclient.get(people_url_filtered, auth=COLLECTOR_AUTH)
+    results = list_response._links.items
+    if len(results) < 1:
+        return None
+    return results[0]
+
+def get_rfid_sensors_given_device(device):
+    sensors = chainclient.get(device._links['ch:sensors']['href'], auth=COLLECTOR_AUTH).rels['items']
+    # sensors = chainclient.get(device._links['ch:sensors']['href'], auth=COLLECTOR_AUTH)._links.items
+    return filter(lambda sensor: sensor.get('metric') == "rfid", sensors)
+
+def get_api_device_dict(devices_coll):
+    '''Requests all the devices from the tidmarsh site and builds a dictionary
+    keyed on the device name, so that as new data comes in we can quickly look
+    up the corresponding device and post the sensor data'''
+
+    devices_dict = {}
+
+    for device in devices_coll.rels['items']:
+        devices_dict[device.name] = device
+
+    return devices_dict
+
+
+if __name__ == '__main__':
+    # keep retrying if the connection fails, in case this script comes up
+    # before the server does or the server goes down for some reason
+    while True:
+        try:
+            main()
+        except chainclient.ConnectionError as e:
+            logger.warning("Failed to connect to Chain API: %s" % e)
+            time.sleep(5)

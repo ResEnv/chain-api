@@ -9,6 +9,7 @@ fake_zmq_socket = None
 
 
 class FakeZMQContext(object):
+
     def socket(self, socket_type):
         global fake_zmq_socket
         fake_zmq_socket = FakeZMQSocket(socket_type)
@@ -16,6 +17,7 @@ class FakeZMQContext(object):
 
 
 class FakeZMQSocket(object):
+
     def __init__(self, socket_type):
         self._type = socket_type
         self.sent_msgs = {}
@@ -41,7 +43,8 @@ class FakeZMQSocket(object):
 # monkey patch so we can check what messages the API is sending
 zmq.Context = FakeZMQContext
 
-from chain.core.models import ScalarData, Unit, Metric, Device, Sensor, Site
+from chain.core.models import ScalarData, Unit, Metric, Device, ScalarSensor, Site, \
+    PresenceSensor
 from chain.core.models import GeoLocation
 from chain.core.resources import DeviceResource
 from chain.core.api import HTTP_STATUS_SUCCESS, HTTP_STATUS_CREATED
@@ -75,6 +78,7 @@ def obj_from_filled_schema(schema):
 
 
 class HalTests(TestCase):
+
     def setUp(self):
         self.test_doc = {
             '_links': {'self': {'href': 'http://example.com'}},
@@ -119,6 +123,7 @@ class HalTests(TestCase):
 
 
 class ChainTestCase(TestCase):
+
     def setUp(self):
         self.unit = Unit(name='C')
         self.unit.save()
@@ -149,12 +154,12 @@ class ChainTestCase(TestCase):
         self.sensors = []
         for device in self.devices:
             device.save()
-            self.sensors.append(Sensor(device=device,
-                                       metric=self.temp_metric,
-                                       unit=self.unit))
-            self.sensors.append(Sensor(device=device,
-                                       metric=self.setpoint_metric,
-                                       unit=self.unit))
+            self.sensors.append(ScalarSensor(device=device,
+                                             metric=self.temp_metric,
+                                             unit=self.unit))
+            self.sensors.append(ScalarSensor(device=device,
+                                             metric=self.setpoint_metric,
+                                             unit=self.unit))
         self.scalar_data = []
         for sensor in self.sensors:
             sensor.save()
@@ -243,8 +248,29 @@ class ChainTestCase(TestCase):
         sensors = self.get_sensors()
         return self.get_resource(sensors.links.items[0].href)
 
+    def create_a_sensor_of_type(self, sensor_type):
+        device = self.get_a_device()
+        sensors = self.get_resource(device.links['ch:sensors'].href)
+        sensor_url = sensors.links['createForm'].href
 
-class SensorDataTest(ChainTestCase):
+        new_sensor = {
+            'sensor-type': sensor_type,
+            'metric': 'rfid',
+            'unit': 'N/A',
+        }
+        return self.create_resource(sensor_url, new_sensor)
+
+    def get_a_sensor_of_type(self, sensor_type):
+        sensors = self.get_sensors()
+        for link in sensors.links.items:
+            sensor = self.get_resource(link.href)
+            if sensor['sensor-type'] == sensor_type:
+                return sensor
+        return self.create_a_sensor_of_type(sensor_type)
+
+
+class ScalarSensorDataTest(ChainTestCase):
+
     def test_data_can_be_added(self):
         data = ScalarData(sensor=self.sensors[0], value=25)
         data.save()
@@ -252,6 +278,7 @@ class SensorDataTest(ChainTestCase):
 
 
 class BasicHALJSONTests(ChainTestCase):
+
     def test_response_with_accept_hal_json_should_return_hal_json(self):
         response = self.client.get(BASE_API_URL,
                                    HTTP_ACCEPT='application/hal+json')
@@ -260,6 +287,7 @@ class BasicHALJSONTests(ChainTestCase):
 
 
 class DefaultMIMETests(ChainTestCase):
+
     def test_root_should_supply_json_if_no_accept_header(self):
         data = self.get_resource(BASE_API_URL)
         sites_coll = data.links['ch:sites']
@@ -269,6 +297,7 @@ class DefaultMIMETests(ChainTestCase):
 
 
 class SafePostTests(ChainTestCase):
+
     def test_lack_of_json_data_in_edit_should_not_crash_server(self):
         site = self.get_a_site()
         edit_href = site.links.editForm.href
@@ -286,7 +315,7 @@ class SafePostTests(ChainTestCase):
                                         HTTP_ACCEPT=accept_header,
                                         HTTP_HOST='localhost')
         except ValueError:
-            self.assertTrue(False) # lack of JSON crashed the server
+            self.assertTrue(False)  # lack of JSON crashed the server
         self.assertEqual(response.status_code, HTTP_STATUS_BAD_REQUEST)
         self.assertEqual(response['Content-Type'], "application/json")
 
@@ -303,12 +332,13 @@ class SafePostTests(ChainTestCase):
                                         HTTP_ACCEPT=accept_header,
                                         HTTP_HOST='localhost')
         except ValueError:
-            self.assertTrue(False) # lack of JSON crashed the server
+            self.assertTrue(False)  # lack of JSON crashed the server
         self.assertEqual(response.status_code, HTTP_STATUS_BAD_REQUEST)
         self.assertEqual(response['Content-Type'], "application/json")
 
 
 class ApiRootTests(ChainTestCase):
+
     def test_root_should_have_self_rel(self):
         root = self.get_resource(BASE_API_URL,
                                  mime_type='application/hal+json')
@@ -328,6 +358,7 @@ class ApiRootTests(ChainTestCase):
 
 
 class ApiSitesTests(ChainTestCase):
+
     def test_sites_coll_should_have_self_rel(self):
         sites = self.get_sites()
         self.assertIn('href', sites.links.self)
@@ -553,6 +584,7 @@ class ApiSitesTests(ChainTestCase):
 
 
 class ApiDeviceTests(ChainTestCase):
+
     def test_device_should_have_sensors_link(self):
         device = self.get_a_device()
         self.assertIn('ch:sensors', device.links)
@@ -648,7 +680,8 @@ class ApiDeviceTests(ChainTestCase):
                              fake_zmq_socket.sent_msgs[tag][0]['name'])
 
 
-class ApiSensorTests(ChainTestCase):
+class ApiScalarSensorTests(ChainTestCase):
+
     def test_sensors_should_be_postable_to_existing_device(self):
         device = self.get_a_device()
         sensors = self.get_resource(device.links['ch:sensors'].href)
@@ -659,8 +692,8 @@ class ApiSensorTests(ChainTestCase):
             'unit': 'Smoots',
         }
         self.create_resource(sensor_url, new_sensor)
-        db_sensor = Sensor.objects.get(metric__name='Bridge Length',
-                                       device__name=device.name)
+        db_sensor = ScalarSensor.objects.get(metric__name='Bridge Length',
+                                             device__name=device.name)
         self.assertEqual('Smoots', db_sensor.unit.name)
 
     def test_sensors_should_be_postable_to_newly_posted_device(self):
@@ -683,8 +716,8 @@ class ApiSensorTests(ChainTestCase):
             'unit': 'millihelen',
         }
         self.create_resource(sensors.links['createForm'].href, new_sensor)
-        db_sensor = Sensor.objects.get(metric__name='Beauty',
-                                       device__name=device.name)
+        db_sensor = ScalarSensor.objects.get(metric__name='Beauty',
+                                             device__name=device.name)
         self.assertEqual('millihelen', db_sensor.unit.name)
 
     def test_sensor_should_have_data_url(self):
@@ -716,7 +749,107 @@ class ApiSensorTests(ChainTestCase):
         self.assertEqual(response.unit, new_sensor['unit'])
 
 
-class ApiSensorDataTests(ChainTestCase):
+class ApiPresenceSensorTests(ChainTestCase):
+
+    def test_presence_sensors_should_be_postable_to_existing_device(self):
+        device = self.get_a_device()
+        sensors = self.get_resource(device.links['ch:sensors'].href)
+        sensor_url = sensors.links['createForm'].href
+
+        new_sensor = {
+            'sensor-type': 'presence',
+            'metric': 'rfid',
+            'unit': 'N/A',
+        }
+        new_sensor_res = self.create_resource(sensor_url, new_sensor)
+        new_sensor_link = new_sensor_res['_links']['self']['href']
+        db_sensor = PresenceSensor.objects.get(metric__name='rfid',
+                                               device__name=device.name)
+        self.assertTrue(db_sensor is not None)
+
+        # Reload the list of sensors:
+        sensors = self.get_resource(device.links['ch:sensors'].href)
+
+        # Check to see if new sensor included in the list:
+        found_self = False
+        for link in sensors.links['items']:
+            if link['href'] == new_sensor_link:
+                found_self = True
+                break
+        self.assertTrue(found_self)
+
+    def test_presence_sensors_should_be_postable_to_newly_posted_device(self):
+        site = self.get_a_site()
+        devices = self.get_resource(site.links['ch:devices'].href)
+
+        new_device = {
+            "building": "E14",
+            "description": "Another great device",
+            "floor": "5",
+            "name": "Unit Test Presence Sensor 49382",
+            "room": "E14-548R"
+        }
+        device = self.create_resource(devices.links['createForm'].href,
+                                      new_device)
+
+        sensors = self.get_resource(device.links['ch:sensors'].href)
+        sensor_url = sensors.links['createForm'].href
+        new_sensor = {
+            'sensor-type': 'presence',
+            'metric': 'rfid',
+            'unit': 'N/A',
+        }
+        new_sensor_res = self.create_resource(sensor_url, new_sensor)
+        new_sensor_link = new_sensor_res['_links']['self']['href']
+        db_sensor = PresenceSensor.objects.get(metric__name='rfid',
+                                               device__name=device.name)
+        self.assertTrue(db_sensor is not None)
+
+        # Reload the list of sensors:
+        sensors = self.get_resource(device.links['ch:sensors'].href)
+
+        # Check to see if new sensor included in the list:
+        found_self = False
+        for link in sensors.links['items']:
+            if link['href'] == new_sensor_link:
+                found_self = True
+                break
+        self.assertTrue(found_self)
+
+    def test_presence_sensor_should_have_data_url(self):
+        sensor = self.get_a_sensor_of_type('presence')
+        self.assertTrue(sensor is not None)
+        self.assertIn('ch:dataHistory', sensor.links)
+
+    def test_presence_sensor_should_have_parent_link(self):
+        sensor = self.get_a_sensor_of_type('presence')
+        self.assertTrue(sensor is not None)
+        self.assertIn('ch:device', sensor.links)
+
+    '''def test_sensor_should_have_value_and_timestamp(self):
+        sensor = self.get_a_sensor_of_type('presence')
+        self.assertTrue(sensor is not None)
+        self.assertIn('value', sensor)
+        self.assertIn('updated', sensor)'''
+
+    def test_presence_sensor_should_have_presence_datatype(self):
+        sensor = self.get_a_sensor_of_type('presence')
+        self.assertTrue(sensor is not None)
+        self.assertIn('dataType', sensor)
+        self.assertEquals(sensor.dataType, 'presence')
+
+    def test_presence_sensor_should_be_editable(self):
+        sensor = self.get_a_sensor_of_type('presence')
+        self.assertTrue(sensor is not None)
+        edit_href = sensor.links.editForm.href
+        edit_form = self.get_resource(edit_href)
+        new_sensor = obj_from_filled_schema(edit_form)
+        new_sensor['unit'] = 'rfid2'
+        response = self.update_resource(edit_href, new_sensor)
+
+
+class ApiScalarSensorDataTests(ChainTestCase):
+
     def test_sensor_data_should_have_timestamp_and_value(self):
         sensor = self.get_a_sensor()
         sensor_data = self.get_resource(
@@ -775,7 +908,7 @@ class ApiSensorDataTests(ChainTestCase):
         sensor = self.get_a_sensor()
         device = self.get_resource(
             sensor.links['ch:device'].href)
-        db_sensor = Sensor.objects.get(
+        db_sensor = ScalarSensor.objects.get(
             metric__name=sensor.metric,
             device__name=device.name)
         sensor_data = self.get_resource(
@@ -817,7 +950,7 @@ class ApiSensorDataTests(ChainTestCase):
         site = self.get_a_site()
         db_site = Site.objects.get(name=site.name)
         Device.objects.bulk_create(
-            [Device(name="Test Sensor %d" % i, site=db_site)
+            [Device(name="Test ScalarSensor %d" % i, site=db_site)
              for i in range(1500)])
         datapage = self.get_resource(
             site.links["ch:devices"].href + "&limit=20")
@@ -831,7 +964,7 @@ class ApiSensorDataTests(ChainTestCase):
         try:
             self.get_resource(
                 sensor.links['ch:dataHistory'].href +
-                    "&timestamp__gte=NaN&timestamp__lt=NaN",
+                "&timestamp__gte=NaN&timestamp__lt=NaN",
                 expect_status_code=HTTP_STATUS_BAD_REQUEST,
                 check_mime_type=False)
             self.get_resource(
@@ -844,16 +977,17 @@ class ApiSensorDataTests(ChainTestCase):
                 check_mime_type=False)
             self.get_resource(
                 sensor.links['ch:dataHistory'].href +
-                    "&timestamp__lt=TestingBadInput",
+                "&timestamp__lt=TestingBadInput",
                 expect_status_code=HTTP_STATUS_BAD_REQUEST,
                 check_mime_type=False)
             # Timestamp edge cases were handled correctly
         except Exception:
-            self.assertTrue(False) # Timestamp edge cases crashed the server
+            self.assertTrue(False)  # Timestamp edge cases crashed the server
 
 
 # these tests are testing specific URL conventions within this application
 class CollectionFilteringTests(ChainTestCase):
+
     def test_devices_can_be_filtered_by_site(self):
         full_devices_coll = self.get_resource(BASE_API_URL + 'devices/')
         filtered_devices_coll = self.get_resource(
@@ -895,6 +1029,7 @@ class CollectionFilteringTests(ChainTestCase):
 
 
 class HTMLTests(ChainTestCase):
+
     def test_root_request_accepting_html_gets_it(self):
         res = self.get_resource(BASE_API_URL, mime_type='text/html').strip()
         # check that it startswith a doctype
@@ -903,6 +1038,7 @@ class HTMLTests(ChainTestCase):
 
 
 class ErrorTests(TestCase):
+
     def test_unsupported_mime_types_should_return_406_status(self):
         response = self.client.get(BASE_API_URL, HTTP_ACCEPT='foobar')
         self.assertEqual(response.status_code, HTTP_STATUS_NOT_ACCEPTABLE)
