@@ -14,7 +14,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 
   # The url from where the 'config.vm.box' box will be fetched if it
   # doesn't already exist on the user's system.
-  config.vm.box_url = "http://phive-yogurt.mit.edu/chain-ubuntu1404.box"
+  config.vm.box_url = "http://chain-api.media.mit.edu/files/chain-ubuntu1404.box"
 
   # set up port forwarding
   config.vm.network :forwarded_port, guest: 8000, host: 8000
