@@ -9,7 +9,6 @@ from django.conf.urls import include, patterns, url
 from django.utils import timezone
 from datetime import timedelta, datetime
 import calendar
-import re
 
 
 class ScalarSensorDataResource(Resource):
@@ -858,6 +857,23 @@ class ApiRootResource(Resource):
 
 # URL Setup:
 
+urls = patterns(
+    '',
+    url(r'^/?$', ApiRootResource.single_view, name='api-root')
+)
+
+# add additional URLS to account for the rename of sensor to scalarsensor.
+# unfortunately we can't use redirects in case clients are POSTing to outdated
+# URLs. If we WERE redirecting, we would use RedirectView.as_view()
+#
+# put these first so they are overridden by the later ones, particularly when
+# doing URL reverse lookup.
+
+urls += patterns('',
+                 url("^sensordata/", include(ScalarSensorDataResource.urls())),
+                 url("^sensor/", include(ScalarSensorResource.urls())),
+                 )
+
 resources = [
     ScalarSensorDataResource,
     ScalarSensorResource,
@@ -868,12 +884,8 @@ resources = [
     DeviceResource,
     SiteResource]
 
-urls = patterns(
-    '',
-    url(r'^/?$', ApiRootResource.single_view, name='api-root')
-)
-
 for resource in resources:
     new_url = url("^%s/" % resource.resource_name, include(resource.urls()))
     urls += patterns('', new_url)
     register_resource(resource)
+
