@@ -205,7 +205,6 @@ def create_person_with_tags(tags, site):
         "first_name": tags['first_name'],
         "last_name": tags['last_name'],
         "rfid": tags['id'],
-        "twitter_handle": tags['user_name']
     }
     '''
     req_body = {}
@@ -215,8 +214,6 @@ def create_person_with_tags(tags, site):
     req_body['last_name'] = tags['last_name']
     if 'id' in tags:
         req_body['rfid'] = tags['id']
-    if 'user_name' in tags:
-        req_body['twitter_handle'] = tags['user_name']
     people_coll = site.rels['ch:people']
     return people_coll.create(req_body, auth=COLLECTOR_AUTH)['_links']['self']
 
