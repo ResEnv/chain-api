@@ -100,6 +100,7 @@ def get_rfid_sensor_for_poller(site, poller):
         device = matched_devices[0]
     else:
         req_body = {"name": poller}
+        logger.info("Creating Device: %s" % poller)
         site.rels['ch:devices'].create(req_body, auth=COLLECTOR_AUTH)
         matched_devices = filter(lambda device: device.get('name') == poller,
                                  site.rels['ch:devices'].rels['items'])
@@ -114,6 +115,7 @@ def get_rfid_sensor_for_poller(site, poller):
         sensor = matched_sensors[0]
     else:
         req_body = {"sensor-type": "presence", "metric": "rfid", "unit": "n/a"}
+        logger.info("Creating Presence Sensor on device: %s" % poller)
         device.rels['ch:sensors'].create(req_body, auth=COLLECTOR_AUTH)
         matched_sensors = filter(lambda sensor: sensor.get('metric') == 'rfid',
                                  device.rels['ch:sensors'].rels['items'])
@@ -164,6 +166,9 @@ def update_rfid_sensor(site, poller, sensor):
         departed_people_set)
     request_bodies = request_bodies_present + request_bodies_departed
     for req_body in request_bodies:
+        logger.info("Posting presence data for %s: %s" % (
+            req_body['person'],
+            'Present' if req_body['present'] else 'Not Present'))
         data_coll.create(req_body, auth=COLLECTOR_AUTH)
 
 
