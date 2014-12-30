@@ -927,6 +927,9 @@ class ApiScalarSensorDataTests(ChainTestCase):
             self.assertEqual(1, len(fake_zmq_socket.sent_msgs[tag]))
             self.assertEqual(data['value'],
                              fake_zmq_socket.sent_msgs[tag][0]['value'])
+            self.assertEqual(sensor.links['self'].href,
+                             fake_zmq_socket.sent_msgs[tag][0]['_links']['ch:sensor']['href'])
+
 
     def test_posting_data_should_sanitize_args_for_response(self):
         fake_zmq_socket.clear()

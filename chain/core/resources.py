@@ -120,7 +120,7 @@ class ScalarSensorDataResource(Resource):
         data['_links'] = {
             'self': {'href': self.get_single_href()},
             'ch:sensor': {'href': full_reverse(
-                'sensors-single', self._request,
+                'scalar_sensors-single', self._request,
                 args=(self._filters['sensor_id'],))}
         }
         return data
@@ -888,4 +888,3 @@ for resource in resources:
     new_url = url("^%s/" % resource.resource_name, include(resource.urls()))
     urls += patterns('', new_url)
     register_resource(resource)
-
