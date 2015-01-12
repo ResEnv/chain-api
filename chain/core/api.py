@@ -555,7 +555,10 @@ class Resource(object):
         for stub in self.stub_fields.keys():
             stub_data = getattr(self._obj, stub)
             props[stub]['default'] = getattr(stub_data, self.stub_fields[stub])
-        geo_loc = self._obj.geo_location
+        try:
+            geo_loc = self._obj.geo_location
+        except AttributeError:
+            geo_loc = None
         if geo_loc is not None:
             props['geoLocation']['properties']['latitude']['default'] = \
                 geo_loc.latitude

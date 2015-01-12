@@ -44,7 +44,7 @@ class FakeZMQSocket(object):
 zmq.Context = FakeZMQContext
 
 from chain.core.models import ScalarData, Unit, Metric, Device, ScalarSensor, Site, \
-    PresenceSensor
+    PresenceSensor, Person
 from chain.core.models import GeoLocation
 from chain.core.resources import DeviceResource
 from chain.core.api import HTTP_STATUS_SUCCESS, HTTP_STATUS_CREATED
@@ -147,10 +147,17 @@ class ChainTestCase(TestCase):
         ]
         for site in self.sites:
             site.save()
-        num_devices = 5
+        num_devices = 2 * len(self.sites)
         self.devices = [Device(name='Thermostat %d' % i,
                                site=self.sites[i % len(self.sites)])
                         for i in range(0, num_devices)]
+        num_people = 2 * len(self.sites)
+        self.people = [Person(first_name='John',
+                              last_name = 'Doe %d' % i,
+                              site=self.sites[i % len(self.sites)])
+                       for i in range(0, num_people)]
+        for person in self.people:
+            person.save()
         self.sensors = []
         for device in self.devices:
             device.save()
@@ -234,6 +241,11 @@ class ChainTestCase(TestCase):
     def get_devices(self):
         site = self.get_a_site()
         return self.get_resource(site.links['ch:devices'].href)
+
+    def get_a_person(self):
+        site = self.get_a_site()
+        people = self.get_resource(site.links['ch:people'].href)
+        return self.get_resource(people.links['items'][0].href)
 
     def get_a_device(self):
         '''GETs a device through the API for testing'''
@@ -750,7 +762,6 @@ class ApiScalarSensorTests(ChainTestCase):
 
 
 class ApiPresenceSensorTests(ChainTestCase):
-
     def test_presence_sensors_should_be_postable_to_existing_device(self):
         device = self.get_a_device()
         sensors = self.get_resource(device.links['ch:sensors'].href)
@@ -845,7 +856,38 @@ class ApiPresenceSensorTests(ChainTestCase):
         edit_form = self.get_resource(edit_href)
         new_sensor = obj_from_filled_schema(edit_form)
         new_sensor['unit'] = 'rfid2'
-        response = self.update_resource(edit_href, new_sensor)
+        self.update_resource(edit_href, new_sensor)
+
+
+class ApiPresenceSensorDataTests(ChainTestCase):
+    def setUp(self):
+        super(ApiPresenceSensorDataTests, self).setUp()
+        # make sure there's data in the first presence sensor
+        sensor = self.get_a_sensor_of_type('presence')
+        data = self.get_resource(sensor.links['ch:dataHistory'].href)
+        create_url = data.links['createForm'].href
+        new_data = {
+            'present': True,
+            'person': self.get_a_person().links['self'].href
+        }
+        self.create_resource(create_url, new_data)
+
+    def test_presence_data_should_have_edit_form(self):
+        sensor = self.get_a_sensor_of_type('presence')
+        all_data = self.get_resource(sensor.links['ch:dataHistory'].href)
+        data = self.get_resource(all_data.links['items'][0].href)
+        edit_href = data.links['editForm'].href
+        self.get_resource(edit_href)
+
+    def test_presence_data_should_be_editable(self):
+        sensor = self.get_a_sensor_of_type('presence')
+        all_data = self.get_resource(sensor.links['ch:dataHistory'].href)
+        data = self.get_resource(all_data.links['items'][0].href)
+        edit_href = data.links['editForm'].href
+        schema = self.get_resource(edit_href)
+        new_data = obj_from_filled_schema(schema)
+        new_data['present'] = not new_data['present']
+        self.update_resource(edit_href, new_data)
 
 
 class ApiScalarSensorDataTests(ChainTestCase):
@@ -995,8 +1037,10 @@ class CollectionFilteringTests(ChainTestCase):
         full_devices_coll = self.get_resource(BASE_API_URL + 'devices/')
         filtered_devices_coll = self.get_resource(
             BASE_API_URL + 'devices/?site=%d' % self.sites[0].id)
-        self.assertEqual(len(full_devices_coll.links.items), 5)
-        self.assertEqual(len(filtered_devices_coll.links.items), 3)
+        self.assertEqual(len(full_devices_coll.links.items), len(self.devices))
+        self.assertEqual(len(filtered_devices_coll.links.items),
+                         len([d for d in self.devices
+                              if d.site==self.sites[0]]))
 
     def test_filtered_collection_has_filtered_url(self):
         site_id = self.sites[0].id

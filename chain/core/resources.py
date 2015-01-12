@@ -233,7 +233,7 @@ class PresenceDataResource(Resource):
 
         href = self.get_list_href()
 
-        visits = []
+        items = []
 
         serialized_data = {
             '_links': {
@@ -242,7 +242,7 @@ class PresenceDataResource(Resource):
                     'href': self.get_create_href(),
                     'title': 'Add Data'
                 },
-                'visits': visits
+                'items': items
             },
             'dataType': 'presence'
         }
@@ -284,7 +284,7 @@ class PresenceDataResource(Resource):
             presence_data_resource = PresenceDataResource(
                 obj=obj,
                 request=self._request)
-            visits.append(
+            items.append(
                 {
                     'href': presence_data_resource.get_single_href(),
                     'title': "%s %s %s at time %s" %
@@ -356,9 +356,21 @@ class PresenceDataResource(Resource):
                 'device-%d' % db_sensor.device_id,
                 'site-%d' % db_sensor.device.site_id]
 
+    def get_filled_schema(self):
+        schema = super(PresenceDataResource, self).get_filled_schema()
+        # we need to replace the sensor and/or person links with just
+        # the URL instead of the full object
+        props = schema['properties']
+        if 'person' in props:
+            person_default = props['person']['default']
+            props['person']['default'] = self.get_person_url(person_default)
+        if 'sensor' in props:
+            sensor_default = props['sensor']['default']
+            props['sensor']['default'] = self.get_sensor_url(sensor_default)
+        return schema
+
 
 class PresenceSensorResource(Resource):
-
     model = PresenceSensor
     display_field = 'metric'
     resource_name = 'presence_sensors'
