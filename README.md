@@ -1,8 +1,18 @@
 Chain API
 =========
 
-Update: Slides from my recent workshop at the MIT Media Lab are available here:
+News
+----
+
+I presented ChainAPI at the Mobiquitous 2014 conference in London. You can
+download the paper published in the proceedings
+[here](http://responsive.media.mit.edu/wp-content/uploads/sites/5/2013/12/ChainAPI_Mobiquitous2014_camera-ready.pdf).
+
+Slides from my recent workshop at the MIT Media Lab are available here:
 http://ssfrr.github.io/ChainDinnerSpring2014/workshop_slides.html
+
+Introduction
+------------
 
 Chain API is a hypermedia HTTP API for working with sensor data. It includes an
 HTTP interface supporting request/response interactions, as well as a
