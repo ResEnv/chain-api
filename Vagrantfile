@@ -43,5 +43,6 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   #  puppet.manifests_path = "."
   #  puppet.manifest_file  = "manifest.pp"
   #end
+  config.vm.provision "shell", path: "vagrant-initial-run-setup.sh"
 
 end

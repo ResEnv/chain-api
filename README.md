@@ -694,23 +694,12 @@ default http username/password:
     username: yoda
     password: 123
 
-Make sure to change the username/password and edit localsettings.py
+NOTE:  After initially provisioning the box, sometimes supervisor fails to start.  To fix, after running `vagrant up` for the first time, run:
 
-Supervisor and Nginx are setup to run automatically, but you will have to run the following first.
+    vagrant halt
+    vagrant up
 
-    cd /vagrant
-    sudo su - postgres -c 'psql -c "ALTER USER yoda WITH SUPERUSER;"'
-    sudo ./setup.py develop
-    sudo ./manage.py migrate
-    sudo chmod -R g+wx-s /usr/local /srv
-    sudo chmod -R a+r /usr/local
-
-Then restart supervisor and nginx:
-
-    sudo /etc/init.d/supervisor stop
-    sudo /etc/init.d/supervisor start
-    sudo /etc/init.d/nginx restart
-
+to restart the box.  Supervisor and Nginx will start on boot, and ChainAPI will be accessible at http://localhost:8080
 
 Setting up for Production
 -------------------------
@@ -751,6 +740,10 @@ need root permission on every subsequent time.
 Then copy the system config files
 
     sudo cp -R system/* /
+
+and remove default Nginx configuration files:
+
+    sudo rm /etc/nginx/conf.d/default.conf /etc/nginx/conf.d/example_ssl.conf
 
 And enable the HTTP interface to supervisor by adding the following code to
 the configuration at /etc/supervisor/supervisord.conf (setting the username
