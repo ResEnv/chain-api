@@ -1,5 +1,6 @@
 from django.test import TestCase
 from datetime import datetime, timedelta
+import random
 import json
 import zmq
 from django.utils.timezone import make_aware, utc, now
@@ -371,6 +372,15 @@ class ApiRootTests(ChainTestCase):
 
 class ApiSitesTests(ChainTestCase):
 
+    def test_nonexistant_site_should_return_404(self):
+        sites = self.get_sites()
+        non_existant_site_url = sites.links.items[0].href
+        site_urls = set((item.href for item in sites.links.items))
+        while non_existant_site_url in site_urls:
+            non_existant_site_url += str(random.randint(100, 999))
+        self.get_resource(non_existant_site_url, expect_status_code=HTTP_STATUS_NOT_FOUND, \
+            check_mime_type=False)
+
     def test_sites_coll_should_have_self_rel(self):
         sites = self.get_sites()
         self.assertIn('href', sites.links.self)
@@ -596,6 +606,12 @@ class ApiSitesTests(ChainTestCase):
 
 
 class ApiDeviceTests(ChainTestCase):
+
+    def test_nonexistant_device_should_return_404(self):
+        devices = self.get_devices()
+        self.get_resource(devices.links.items[0].href \
+            + "NONEXISTANT_RESOURCE", expect_status_code=HTTP_STATUS_NOT_FOUND, \
+            check_mime_type=False)
 
     def test_device_should_have_sensors_link(self):
         device = self.get_a_device()
