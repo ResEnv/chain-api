@@ -682,9 +682,12 @@ class Resource(object):
 
     @classmethod
     def single_view(cls, request, id):
-        response_data = cls(obj=cls.queryset.get(id=id),
-                            request=request).serialize()
-        return cls.render_response(response_data, request)
+        try:
+            response_data = cls(obj=cls.queryset.get(id=id),
+                                request=request).serialize()
+            return cls.render_response(response_data, request)
+        except cls.model.DoesNotExist:
+            return handle404(request)
 
     @classmethod
     @csrf_exempt
