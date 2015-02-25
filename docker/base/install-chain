@@ -1,0 +1,29 @@
+#!/bin/bash
+
+cd $CHAIN_HOME
+
+# Remove libzmq if installed:
+apt-get remove -y libzmq-dev
+
+usermod -aG staff root
+chown -R root:staff /usr/local /srv
+chmod -R g+wx-s /usr/local /srv
+chmod -R a+r /usr/local
+
+cp -R system/* /
+
+rm /etc/nginx/conf.d/default.conf /etc/nginx/conf.d/example_ssl.conf
+
+printf "\n[inet_http_server]\nport=*:9001\nusername=yoda\npassword=123" >> /etc/supervisor/supervisord.conf
+
+sudo htpasswd -b -c /etc/nginx/.htpasswd yoda 123
+TEMP=$(mktemp)
+sed "s/\/PATH\/TO\/HTPASSWD/\/etc\/nginx\/.htpasswd/g" /etc/nginx/sites-available/chain.conf > $TEMP
+cp $TEMP /etc/nginx/sites-available/chain.conf
+rm $TEMP
+
+yes yes | ./manage.py collectstatic
+
+cd $ORIGIN
+
+cp -R /var/lib/postgresql /var/lib/postgresql.backup
