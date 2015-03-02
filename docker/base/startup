@@ -16,7 +16,7 @@ cd $CHAIN_HOME
 ./setup.py develop
 
 ./manage.py syncdb --noinput
-echo "from django.contrib.auth.models import User; User.objects.create_superuser('admin', 'admin@example.com', 'pass')" | ./manage.py shell
+echo "from django.contrib.auth.models import User; User.objects.create_superuser('yoda', 'admin@example.com', '123')" | ./manage.py shell
 
 ./manage.py migrate
 
