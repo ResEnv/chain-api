@@ -518,7 +518,8 @@ class Resource(object):
         in the format given by this resource's schema'''
         for k, v in data.iteritems():
             if k in self.model_fields:
-                setattr(self._obj, k, v)
+                sanitized_value = type(self).sanitize_field_value(k, v)
+                setattr(self._obj, k, sanitized_value)
             elif k in self.stub_fields:
                 setattr(self._obj, k,
                         self.stub_object_finding(self._obj, k, v))
