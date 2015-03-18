@@ -1,0 +1,25 @@
+#!/bin/bash
+
+# Set up post-gres user if not setup:
+if [ "$(ls -A /var/lib/postgresql)" ]; then
+    echo "Data exists."
+else
+    cp -R /var/lib/postgresql.backup/* /var/lib/postgresql/
+    chown -R postgres:postgres /var/lib/postgresql
+fi
+/etc/init.d/postgresql start
+su - postgres -c "psql -U postgres -c \"CREATE USER yoda PASSWORD '123' SUPERUSER;\" && createdb chain"
+
+ORIGIN=$(pwd)
+cd $CHAIN_HOME
+
+./setup.py develop
+
+./manage.py syncdb --noinput
+echo "from django.contrib.auth.models import User; User.objects.create_superuser('yoda', 'admin@example.com', '123')" | ./manage.py shell
+
+./manage.py migrate
+
+/etc/init.d/supervisor stop
+
+cd $ORIGIN

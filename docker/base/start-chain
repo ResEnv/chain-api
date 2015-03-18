@@ -1,0 +1,8 @@
+#!/bin/bash
+
+/opt/startup
+
+/etc/init.d/supervisor start
+/etc/init.d/nginx restart
+
+supervisorctl tail -f chain_webserver

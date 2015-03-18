@@ -1,0 +1,6 @@
+#!/bin/bash
+
+/opt/startup
+
+cd $CHAIN_HOME
+./manage.py test chain
