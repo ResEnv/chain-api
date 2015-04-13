@@ -168,7 +168,7 @@ class Resource(object):
     page_size = 30
 
     def __init__(self, obj=None, queryset=None, data=None, request=None,
-                 filters=None, limit=None, offset=None):
+                 filters=None, limit=None, offset=None, tsv=False):
         if len([arg for arg in [obj, queryset, data] if arg]) != 1:
             logging.error(
                 'Exactly 1 object, queryset, or primitive data is required')
@@ -179,6 +179,34 @@ class Resource(object):
         self._request = request
         self._limit = limit or self.page_size
         self._offset = offset or 0
+        self._tsv = tsv
+
+    def serialize_single_tsv(self, embed=True, cache=None, rels=True):
+        '''Serializes this object, assuming that there is a single instance to
+        be serialized. Note that this only gets called from the top-level
+        serialize() method, which handles checking whether we're in the
+        cache'''
+        tsv_row = []
+        for field_name in sorted(self.model_fields):
+            data = self.serialize_field(
+                getattr(self._obj, field_name))
+            tsv_row.append(str(data))
+        for stub in sorted(self.stub_fields.keys()):
+            stub_data = getattr(self._obj, stub)
+            data = getattr(stub_data, self.stub_fields[stub])
+            tsv_row.append(str(data))
+        # check to see whether this object has a geolocation
+        try:
+            loc = self._obj.geo_location
+            if loc is not None:
+                geoLocation = serialize_geo_location(loc)
+                tsv_row.append(str(geoLocation))
+            else:
+                tsv_row.append("")
+        except AttributeError:
+            # guess this model doesn't support geo_location
+            pass
+        return '\t'.join(tsv_row)
 
     def serialize_single(self, embed=True, cache=None, rels=True):
         '''Serializes this object, assuming that there is a single instance to
@@ -369,6 +397,16 @@ class Resource(object):
             }
         return data
 
+    def serialize_list_tsv(self, embed, cache):
+        '''Serializes this object, assuming that there is a queryset that needs
+        to be serialized as a collection'''
+        queryset = self.get_queryset()
+        items = [
+            self.__class__(obj=obj, request=self._request, tsv=self._tsv).
+            serialize(cache=cache, embed=False) for obj in queryset]
+
+        return '\r\n'.join(items)
+
     def serialize_list(self, embed, cache):
         '''Serializes this object, assuming that there is a queryset that needs
         to be serialized as a collection'''
@@ -397,10 +435,11 @@ class Resource(object):
         }
         queryset = self.get_queryset()
         serialized_data['_links']['items'] = [
-            self.__class__(obj=obj, request=self._request).
+            self.__class__(obj=obj, request=self._request, tsv=self._tsv).
             serialize(cache=cache, embed=False) for obj in queryset]
 
         serialized_data = self.add_page_links(serialized_data, href)
+
         return serialized_data
 
     def serialize(self, embed=True, cache=None, *args, **kwargs):
@@ -416,16 +455,22 @@ class Resource(object):
 
         if self._queryset:
             # we don't currently handle cacheing whole collection lists.
-            self._data = self.serialize_list(embed, cache,
+            if self._tsv:
+                self._data = self.serialize_list_tsv(embed, cache, *args, **kwargs)
+            else:
+                self._data = self.serialize_list(embed, cache,
                                              *args, **kwargs)
 
         elif self._obj:
-            if (self._obj.__class__, self._obj.id, embed) in cache:
-                return cache[(self._obj.__class__, self._obj.id, embed)]
+            if (self._obj.__class__, self._obj.id, embed, self._tsv) in cache:
+                return cache[(self._obj.__class__, self._obj.id, embed, self._tsv)]
             else:
-                self._data = self.serialize_single(embed, cache,
+                if self._tsv:
+                    self._data = self.serialize_single_tsv(embed, cache,
+                else:
+                    self._data = self.serialize_single(embed, cache,
                                                    *args, **kwargs)
-                cache[(self._obj.__class__, self._obj.id, embed)] = self._data
+                cache[(self._obj.__class__, self._obj.id, embed, self._tsv)] = self._data
 
         return self._data
 
@@ -573,8 +618,10 @@ class Resource(object):
         return schema
 
     @classmethod
-    def render_response(cls, data, request, status=None):
+    def render_response(cls, data, request, use_tsv=False, status=None):
         # TODO: there's got to be a more robust library to parse accept headers
+        if use_tsv and status==HTTP_STATUS_SUCCESS:
+            return HttpResponse(data, status=status, content_type="text/tab-separated-values")
         if 'HTTP_ACCEPT' not in request.META:
             request.META['HTTP_ACCEPT'] = 'application/json'
         for accept in request.META['HTTP_ACCEPT'].split(','):
@@ -606,6 +653,10 @@ class Resource(object):
         offset = None
         limit = None
         filters = request.GET.dict()
+        use_tsv = False
+        if '__tsv__' in filters:
+            use_tsv = filters['__tsv__'] == "true"
+            del filters['__tsv__']
         if 'offset' in filters:
             try:
                 offset = int(filters.pop('offset'))
@@ -619,8 +670,8 @@ class Resource(object):
         try:
             response_data = cls(queryset=cls.queryset, request=request,
                                 filters=filters, offset=offset,
-                                limit=limit).serialize()
-            return cls.render_response(response_data, request)
+                                limit=limit, tsv=use_tsv).serialize()
+            return cls.render_response(response_data, request, status=HTTP_STATUS_SUCCESS, use_tsv=use_tsv)
         except BadRequestException as e:
             return render_error(HTTP_STATUS_BAD_REQUEST, e.message, request)
 
