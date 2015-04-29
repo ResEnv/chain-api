@@ -42,6 +42,11 @@ class ScalarSensorDataResource(Resource):
 
         serialized_data = {
             '_links': {
+                'self': {'href': href},
+                'tsv': {
+                    'href': self.get_list_href(tsv=True),
+                    'title': 'TSV'
+                },
                 'curies': CHAIN_CURIES,
                 'createForm': {
                     'href': self.get_create_href(),
@@ -237,6 +242,11 @@ class PresenceDataResource(Resource):
 
         serialized_data = {
             '_links': {
+                'self': {'href': href},
+                'tsv': {
+                    'href': self.get_list_href(tsv=True),
+                    'title': 'TSV'
+                },
                 'curies': CHAIN_CURIES,
                 'createForm': {
                     'href': self.get_create_href(),

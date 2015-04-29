@@ -52,6 +52,8 @@ HTTP_STATUS_NOT_FOUND = 404
 HTTP_STATUS_NOT_ACCEPTABLE = 406
 HTTP_STATUS_BAD_REQUEST = 400
 
+TSV_GET_PARAM = "__tsv__"
+
 jinja_env = Environment(loader=PackageLoader('chain.core', 'templates'))
 
 # Set up ZMQ feed for realtime clients
@@ -333,12 +335,14 @@ class Resource(object):
                                     WEBSOCKET_PATH,
                                     self.resource_type, self._obj.id)
 
-    def get_list_href(self):
+    def get_list_href(self, tsv=False):
         '''Gives the URL for this resource, including any filtering
         and pagination query parameters'''
         # TODO: use this for single views as well
         href = full_reverse(self.resource_name + '-list', self._request)
         query_params = self._filters.items()
+        if tsv:
+            query_params.append((unicode(TSV_GET_PARAM), u'true'))
         href += '?' + urlencode(query_params)
         return href
 
@@ -425,6 +429,10 @@ class Resource(object):
         serialized_data = {
             '_links': {
                 'self': {'href': href},
+                'tsv': {
+                    'href': self.get_list_href(tsv=True),
+                    'title': 'TSV'
+                },
                 'curies': CHAIN_CURIES,
                 'createForm': {
                     'href': self.get_create_href(),
@@ -467,6 +475,7 @@ class Resource(object):
             else:
                 if self._tsv:
                     self._data = self.serialize_single_tsv(embed, cache,
+                                                   *args, **kwargs)
                 else:
                     self._data = self.serialize_single(embed, cache,
                                                    *args, **kwargs)
@@ -654,9 +663,9 @@ class Resource(object):
         limit = None
         filters = request.GET.dict()
         use_tsv = False
-        if '__tsv__' in filters:
-            use_tsv = filters['__tsv__'] == "true"
-            del filters['__tsv__']
+        if TSV_GET_PARAM in filters:
+            use_tsv = filters[TSV_GET_PARAM] == "true"
+            del filters[TSV_GET_PARAM]
         if 'offset' in filters:
             try:
                 offset = int(filters.pop('offset'))
