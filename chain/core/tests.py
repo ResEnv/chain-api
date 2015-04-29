@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 import random
 import json
 import zmq
+import re, string
 from django.utils.timezone import make_aware, utc, now
 
 
@@ -196,6 +197,8 @@ class ChainTestCase(TestCase):
             return HALDoc(json.loads(response.content))
         elif response['Content-Type'] == 'application/json':
             return json.loads(response.content)
+        elif response['Content-Type'] == 'text/tab-separated-values':
+            return [string.split(line, "\t") for line in re.split(r'\r?\n', response.content)]
         else:
             return response.content
 
@@ -874,7 +877,6 @@ class ApiPresenceSensorTests(ChainTestCase):
         new_sensor['unit'] = 'rfid2'
         self.update_resource(edit_href, new_sensor)
 
-
 class ApiPresenceSensorDataTests(ChainTestCase):
     def setUp(self):
         super(ApiPresenceSensorDataTests, self).setUp()
@@ -887,6 +889,17 @@ class ApiPresenceSensorDataTests(ChainTestCase):
             'person': self.get_a_person().links['self'].href
         }
         self.create_resource(create_url, new_data)
+
+    def test_presence_sensor_data_should_have_tsv(self):
+        sensor = self.get_a_sensor_of_type('presence')
+        sensor_data = self.get_resource(
+            sensor.links['ch:dataHistory'].href)
+        self.assertIn('tsv', sensor_data.links)
+        tsv_data = self.get_resource(sensor_data.links['tsv'].href,
+                                     mime_type='text/tab-separated-values')
+        for row in tsv_data:
+            self.assertFalse(re.match(DATE_FORMAT, row[3]) is None)
+            self.assertTrue(row[1] == "True" or row[1] == "False")
 
     def test_presence_data_should_have_edit_form(self):
         sensor = self.get_a_sensor_of_type('presence')
@@ -906,6 +919,10 @@ class ApiPresenceSensorDataTests(ChainTestCase):
         self.update_resource(edit_href, new_data)
 
 
+# Date format:  2015-04-29T15:07:44.462463+00:00
+DATE_FORMAT = r'^\d{4}-[01]\d-[0123]\dT[012]\d:[0-5]\d:[0-5]\d\.\d{6}\+\d{2}:\d{2}$'
+FLOAT_FORMAT = r'^-?\d+\.?\d*$'
+
 class ApiScalarSensorDataTests(ChainTestCase):
 
     def test_sensor_data_should_have_timestamp_and_value(self):
@@ -914,6 +931,17 @@ class ApiScalarSensorDataTests(ChainTestCase):
             sensor.links['ch:dataHistory'].href)
         self.assertIn('timestamp', sensor_data.data[0])
         self.assertIn('value', sensor_data.data[0])
+
+    def test_scalar_sensor_data_should_have_tsv(self):
+        sensor = self.get_a_sensor()
+        sensor_data = self.get_resource(
+            sensor.links['ch:dataHistory'].href)
+        self.assertIn('tsv', sensor_data.links)
+        tsv_data = self.get_resource(sensor_data.links['tsv'].href,
+                                     mime_type='text/tab-separated-values')
+        for row in tsv_data:
+            self.assertFalse(re.match(DATE_FORMAT, row[0]) is None)
+            self.assertFalse(re.match(FLOAT_FORMAT, row[1]) is None)
 
     def test_sensor_data_should_have_data_type(self):
         sensor = self.get_a_sensor()
