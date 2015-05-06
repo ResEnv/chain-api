@@ -897,9 +897,15 @@ class ApiPresenceSensorDataTests(ChainTestCase):
         self.assertIn('tsv', sensor_data.links)
         tsv_data = self.get_resource(sensor_data.links['tsv'].href,
                                      mime_type='text/tab-separated-values')
-        for row in tsv_data:
-            self.assertFalse(re.match(DATE_FORMAT, row[3]) is None)
-            self.assertTrue(row[1] == "True" or row[1] == "False")
+        for row_i, row in enumerate(tsv_data):
+            if row_i == 0:
+                self.assertTrue(row[0] == "person")
+                self.assertTrue(row[1] == "present")
+                self.assertTrue(row[2] == "sensor")
+                self.assertTrue(row[3] == "timestamp")
+            else:
+                self.assertFalse(re.match(DATE_FORMAT, row[3]) is None)
+                self.assertTrue(row[1] == "True" or row[1] == "False")
 
     def test_presence_data_should_have_edit_form(self):
         sensor = self.get_a_sensor_of_type('presence')
@@ -939,9 +945,13 @@ class ApiScalarSensorDataTests(ChainTestCase):
         self.assertIn('tsv', sensor_data.links)
         tsv_data = self.get_resource(sensor_data.links['tsv'].href,
                                      mime_type='text/tab-separated-values')
-        for row in tsv_data:
-            self.assertFalse(re.match(DATE_FORMAT, row[0]) is None)
-            self.assertFalse(re.match(FLOAT_FORMAT, row[1]) is None)
+        for row_i, row in enumerate(tsv_data):
+            if row_i == 0:
+                self.assertTrue(row[0] == "timestamp")
+                self.assertTrue(row[1] == "value")
+            else:
+                self.assertFalse(re.match(DATE_FORMAT, row[0]) is None)
+                self.assertFalse(re.match(FLOAT_FORMAT, row[1]) is None)
 
     def test_sensor_data_should_have_data_type(self):
         sensor = self.get_a_sensor()

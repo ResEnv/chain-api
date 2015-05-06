@@ -183,32 +183,30 @@ class Resource(object):
         self._offset = offset or 0
         self._tsv = tsv
 
-    def serialize_single_tsv(self, embed=True, cache=None, rels=True):
-        '''Serializes this object, assuming that there is a single instance to
-        be serialized. Note that this only gets called from the top-level
-        serialize() method, which handles checking whether we're in the
-        cache'''
-        tsv_row = []
-        for field_name in sorted(self.model_fields):
-            data = self.serialize_field(
+    def preserialize_single_tsv(self, embed=True, cache=None, rels=True):
+        '''Gets the fields of an instance as an object mapping field name
+        to a string representation of the value, prior to serializing TSV.'''
+        data = {}
+        for field_name in self.model_fields:
+            datum = self.serialize_field(
                 getattr(self._obj, field_name))
-            tsv_row.append(str(data))
-        for stub in sorted(self.stub_fields.keys()):
+            data[field_name] = str(datum)
+        for stub in self.stub_fields.keys():
             stub_data = getattr(self._obj, stub)
-            data = getattr(stub_data, self.stub_fields[stub])
-            tsv_row.append(str(data))
+            datum = getattr(stub_data, self.stub_fields[stub])
+            data[stub] = str(datum)
         # check to see whether this object has a geolocation
         try:
             loc = self._obj.geo_location
             if loc is not None:
                 geoLocation = serialize_geo_location(loc)
-                tsv_row.append(str(geoLocation))
+                data["geo_location"] = str(geoLocation)
             else:
-                tsv_row.append("")
+                data["geo_location"] = ""
         except AttributeError:
             # guess this model doesn't support geo_location
             pass
-        return '\t'.join(tsv_row)
+        return data
 
     def serialize_single(self, embed=True, cache=None, rels=True):
         '''Serializes this object, assuming that there is a single instance to
@@ -403,13 +401,22 @@ class Resource(object):
 
     def serialize_list_tsv(self, embed, cache):
         '''Serializes this object, assuming that there is a queryset that needs
-        to be serialized as a collection'''
+        to be serialized as a collection.  Returns a tuple, the first element being the TSV
+        data as a string, the second being a descriptive filename of the tsv'''
         queryset = self.get_queryset()
-        items = [
-            self.__class__(obj=obj, request=self._request, tsv=self._tsv).
-            serialize(cache=cache, embed=False) for obj in queryset]
-
-        return '\r\n'.join(items)
+        field_set = set()
+        rows = []
+        for obj in queryset:
+            data = self.__class__(obj=obj, request=self._request, tsv=self._tsv).preserialize_single_tsv(cache=cache, embed=False)
+            field_set.update(data.keys())
+            rows.append(data)
+        header_row = sorted(field_set)
+        combined = '\t'.join(header_row)
+        for row_data in rows:
+            row = '\t'.join(((row_data[field] if field in row_data else "") for field in header_row))
+            combined += "\r\n" + row
+        filename = self.model.__name__ + "__" + "__".join(("%s_%s" % (key, self._filters[key]) for key in self._filters)) 
+        return (combined, filename)
 
     def serialize_list(self, embed, cache):
         '''Serializes this object, assuming that there is a queryset that needs
@@ -464,7 +471,7 @@ class Resource(object):
         if self._queryset:
             # we don't currently handle cacheing whole collection lists.
             if self._tsv:
-                self._data = self.serialize_list_tsv(embed, cache, *args, **kwargs)
+                return self.serialize_list_tsv(embed, cache, *args, **kwargs)
             else:
                 self._data = self.serialize_list(embed, cache,
                                              *args, **kwargs)
@@ -473,12 +480,8 @@ class Resource(object):
             if (self._obj.__class__, self._obj.id, embed, self._tsv) in cache:
                 return cache[(self._obj.__class__, self._obj.id, embed, self._tsv)]
             else:
-                if self._tsv:
-                    self._data = self.serialize_single_tsv(embed, cache,
-                                                   *args, **kwargs)
-                else:
-                    self._data = self.serialize_single(embed, cache,
-                                                   *args, **kwargs)
+                self._data = self.serialize_single(embed, cache,
+                                               *args, **kwargs)
                 cache[(self._obj.__class__, self._obj.id, embed, self._tsv)] = self._data
 
         return self._data
@@ -630,7 +633,9 @@ class Resource(object):
     def render_response(cls, data, request, use_tsv=False, status=None):
         # TODO: there's got to be a more robust library to parse accept headers
         if use_tsv and status==HTTP_STATUS_SUCCESS:
-            return HttpResponse(data, status=status, content_type="text/tab-separated-values")
+            res = HttpResponse(data[0], status=status, content_type="text/tab-separated-values")
+            res['Content-Disposition'] = "attachment; filename=%s.tsv" % (data[1] or "chain_data")
+            return res
         if 'HTTP_ACCEPT' not in request.META:
             request.META['HTTP_ACCEPT'] = 'application/json'
         for accept in request.META['HTTP_ACCEPT'].split(','):
