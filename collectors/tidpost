@@ -108,23 +108,23 @@ def find_sensor_by_metric(sensor_list, metric):
 
 
 def post_sensor_data(report_data, device, prefix=''):
-#        Example data where "src" is the device name, and the rest are
-#        sensor Metrics.
-#
-#        {
-#            "src": "0x8110",
-#            "via": "0x0000",
-#            "sht_humidity": 15.9,
-#            "bmp_pressure": 911.62,
-#            "battery_voltage": 4.62,
-#            "illuminance": 413,
-#            "sht_temperature": 25.32,
-#            "charge_flags": {
-#                "fault": false,
-#                "charge": false
-#            },
-#            "bmp_temperature": 54.6
-#        }
+    #        Example data where "src" is the device name, and the rest are
+    #        sensor Metrics.
+    #
+    #        {
+    #            "src": "0x8110",
+    #            "via": "0x0000",
+    #            "sht_humidity": 15.9,
+    #            "bmp_pressure": 911.62,
+    #            "battery_voltage": 4.62,
+    #            "illuminance": 413,
+    #            "sht_temperature": 25.32,
+    #            "charge_flags": {
+    #                "fault": false,
+    #                "charge": false
+    #            },
+    #            "bmp_temperature": 54.6
+    #        }
 
     now = datetime.datetime.utcnow()
     sensor_data = {
@@ -147,7 +147,10 @@ def post_sensor_data(report_data, device, prefix=''):
         try:
             unit = TIDMARSH_UNITS[server_metric]
         except KeyError:
-            unit = metric + ' units'
+            # the unit field can be max 30 characters, so truncate the metric
+            # if we need to
+            unit_prefix = metric if len(metric) <= 24 else metric[0:24]
+            unit = unit_prefix + ' units'
 
         # TODO: handle possible change in units
         sensors_coll = device.rels['ch:sensors']
