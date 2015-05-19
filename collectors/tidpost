@@ -20,6 +20,7 @@ import datetime
 import logging
 import coloredlogs
 import time
+from collections import Iterable
 from chain.settings import COLLECTOR_AUTH
 
 logger = logging.getLogger(__name__)
@@ -136,9 +137,10 @@ def post_sensor_data(report_data, device, prefix=''):
         if metric in ['src', 'via']:
             # skip these ones
             continue
-        if metric == 'charge_flags':
-            # treat this sub dict as its own set of data for this device
-            post_sensor_data(data, device, 'charge_flags_')
+        if isinstance(data, Iterable):
+            # treat this sub dict as its own set of data for this device,
+            # prefixed with the base metric name
+            post_sensor_data(data, device, metric + '_')
             continue
 
         # at this point we assume data is a plain value to post
