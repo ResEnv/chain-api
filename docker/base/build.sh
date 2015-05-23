@@ -1,3 +1,3 @@
 #!/bin/bash
 
-sudo docker build -t chain/base .
+docker build -t chain/base .
