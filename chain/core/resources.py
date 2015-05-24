@@ -55,6 +55,11 @@ class ScalarSensorDataResource(Resource):
             },
             'dataType': 'float'
         }
+        if self.tsv_upload_enabled:
+            serialized_data['_links']['uploadTSV'] = {
+                'href': self.get_upload_tsv_href(),
+                'title': 'Upload TSV to create multiple %s instances' % self.resource_type.upper()
+            }
         request_time = timezone.now()
 
         # if the time filters aren't given then use the most recent timespan,
@@ -256,6 +261,11 @@ class PresenceDataResource(Resource):
             },
             'dataType': 'presence'
         }
+        if self.tsv_upload_enabled:
+            serialized_data['_links']['uploadTSV'] = {
+                'href': self.get_upload_tsv_href(),
+                'title': 'Upload TSV to create multiple %s instances' % self.resource_type.upper()
+            }
         request_time = timezone.now()
 
         # if the time filters aren't given then use the most recent timespan,

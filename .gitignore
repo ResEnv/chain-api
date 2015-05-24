@@ -1,3 +1,4 @@
 *.pyc
 localsettings.py
 *.egg-info
+*.*.swp

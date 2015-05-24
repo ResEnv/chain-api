@@ -16,7 +16,7 @@ from chain.core.models import GeoLocation
 from chain.settings import WEBSOCKET_PATH, WEBSOCKET_HOST, \
     ZMQ_PASSTHROUGH_URL_PULL
 import zmq
-import re
+import re, string
 
 
 def capitalize(word):
@@ -168,6 +168,7 @@ class Resource(object):
     stub_fields = {}
     required_fields = []
     page_size = 30
+    tsv_upload_enabled = True # False
 
     def __init__(self, obj=None, queryset=None, data=None, request=None,
                  filters=None, limit=None, offset=None, tsv=False):
@@ -344,12 +345,18 @@ class Resource(object):
         href += '?' + urlencode(query_params)
         return href
 
-    def get_create_href(self):
-        href = full_reverse(self.resource_name + '-create', self._request)
+    def get_sub_href(self, sub):
+        href = full_reverse("%s-%s" % (self.resource_name, sub), self._request)
         query_params = self._filters.items()
         if query_params:
             href += '?' + urlencode(query_params)
         return href
+
+    def get_create_href(self):
+        return self.get_sub_href("create")
+
+    def get_upload_tsv_href(self):
+        return self.get_sub_href("uploadtsv")
 
     def get_tags(self):
         '''Returns a list of tags applicable to this instance of the resource.
@@ -444,10 +451,15 @@ class Resource(object):
                 'createForm': {
                     'href': self.get_create_href(),
                     'title': 'Create %s' % capitalize(self.resource_type)
-                }
+                },
             },
             'totalCount': self.get_total_count()
         }
+        if self.tsv_upload_enabled:
+            serialized_data['_links']['uploadTSV'] = {
+                'href': self.get_upload_tsv_href(),
+                'title': 'Upload TSV to create multiple %s instances' % capitalize(self.resource_type)
+            }
         queryset = self.get_queryset()
         serialized_data['_links']['items'] = [
             self.__class__(obj=obj, request=self._request, tsv=self._tsv).
@@ -630,7 +642,7 @@ class Resource(object):
         return schema
 
     @classmethod
-    def render_response(cls, data, request, use_tsv=False, status=None):
+    def render_response(cls, data, request, use_tsv=False, tsv_upload=False, status=None):
         # TODO: there's got to be a more robust library to parse accept headers
         if use_tsv and status==HTTP_STATUS_SUCCESS:
             res = HttpResponse(data[0], status=status, content_type="text/tab-separated-values")
@@ -648,7 +660,8 @@ class Resource(object):
                                     content_type=accept)
             elif accept == 'text/html':
                 context = {'resource': data,
-                           'json_str': json.dumps(data, indent=2)}
+                           'json_str': json.dumps(data, indent=2),
+                           'tsv_upload': tsv_upload,}
                 template = jinja_env.get_template('resource.html')
                 return HttpResponse(template.render(**context),
                                     status=status,
@@ -791,6 +804,60 @@ class Resource(object):
             return cls.render_response(response_data, request)
 
     @classmethod
+    def upload_file(cls, file_ref, request):
+        expected_header = '\t'.join(cls.get_tsv_upload_fields(request))
+        for lineno, line in enumerate(file_ref):
+            line = string.strip(line, "\n\r")
+            if lineno == 0:
+                # print  "%s vs %s" % (line, expected_header)
+                if line != expected_header:
+                    return render_error(HTTP_STATUS_BAD_REQUEST, "Invalid or missing header line.", request)
+            else:
+                tsv_parts = string.split(line, "\t")
+                cls.create_single_from_tsv_parts(request, tsv_parts)
+        return None
+
+    cached_tsv_upload_fields = None
+    @classmethod
+    def get_tsv_upload_fields(cls, request):
+        if (cls.cached_tsv_upload_fields):
+            return cls.cached_tsv_upload_fields
+        schema = cls.get_schema(request.GET.dict())
+        fields = sorted(schema["properties"].keys())
+        cls.cached_tsv_upload_fields = fields
+        return fields
+
+    @classmethod
+    def create_single_from_tsv_parts(cls, request, tsv_parts):
+        values = [(x if len(x) > 0 else None) for x in tsv_parts]
+        keys = cls.get_tsv_upload_fields(request)
+        keys_values = zip(keys, values)
+        data = {}
+        for key, value in keys_values:
+            if value is not None:
+                data[key] = value
+        return cls.create_single(data, request)
+
+    @classmethod
+    @csrf_exempt
+    def upload_tsv_view(cls, request):
+        if request.method == 'GET':
+            use_tsv = False
+            if TSV_GET_PARAM in request.GET.dict():
+                use_tsv = request.GET.dict()[TSV_GET_PARAM] == "true"
+            schema = "\t".join(cls.get_tsv_upload_fields(request)) + "\n"
+            return cls.render_response(schema, request, use_tsv=use_tsv, tsv_upload=True)
+
+        elif request.method == 'POST':
+            for file_ref_key in request.FILES:
+                err = cls.upload_file(request.FILES[file_ref_key], request)
+                if err is not None:
+                    return err
+            list_href = full_reverse(cls.resource_name + '-list', request)
+            return cls.render_response(list_href, request,
+                                       status=HTTP_STATUS_CREATED)
+
+    @classmethod
     @csrf_exempt
     def create_view(cls, request):
         if request.method == 'GET':
@@ -857,7 +924,7 @@ class Resource(object):
     @classmethod
     def urls(cls):
         base_name = cls.resource_name
-        return patterns('',
+        base_patterns = patterns('',
                         url(r'^$',
                             cls.list_view, name=base_name + '-list'),
                         url(r'^(\d+)$',
@@ -866,6 +933,10 @@ class Resource(object):
                             cls.edit_view, name=base_name + '-edit'),
                         url(r'^create$',
                             cls.create_view, name=base_name + '-create'))
+        if cls.tsv_upload_enabled:
+            base_patterns.append(url(r'^uploadtsv$',
+                cls.upload_tsv_view, name=base_name + '-uploadtsv'))
+        return base_patterns
 
 # Resource URL Setup and Lookup:
 

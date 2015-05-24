@@ -16,6 +16,9 @@
             top: -10px;  /* workaround so hovers don't overlap when the point
                             is near the top */
         }
+        .pad_children > * {
+            margin: 10px;
+        }
     </style>
     <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
     <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
@@ -41,6 +44,16 @@
                 <h3 id="response-title"></h3>
                 <div id="submit-form"></div>
                 <button type="button" class="btn btn-primary btn-lg" id="submit-btn">Submit</button>
+                <div id="tsv" style="display:none;">
+                    <h3>TSV Upload</h3>
+                    <div class="well well-sm pad_children">
+                        <!--<div id="tsv-description">
+                            <a href="{{ tsv_template_download }}">TSV Template</a>
+                        </div>-->
+                        <input type="file" id="upload-tsv-file"/>
+                        <button type="button" class="btn btn-md" id="upload-tsv-btn">Upload TSV</button>
+                    </div>
+                </div>
                 <div id="rendered-response"></div>
             </div>
             <div class="col-md-7">
@@ -52,6 +65,7 @@
 
     <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
     <script src="/static/lib/jquery.js"></script>
+    <script src="/static/jquery.file.upload.js"></script>
     <script src="https://code.jquery.com/ui/1.10.4/jquery-ui.js"></script>
     <!-- Include all compiled plugins (below), or include individual files as needed -->
     <script src="/static/lib/bootstrap/js/bootstrap.min.js"></script>
@@ -62,13 +76,22 @@
     <script src="/static/chainbrowser.js"></script>
 
     <script>
+        var True = true;
+        var False = false;
+        var $tsv = $("#tsv");
         var resource_data = {{ json_str }};
-        $("#raw-response").text(JSON.stringify(resource_data, undefined, 2));
+        var $rawResponse = $("#raw-response").text(JSON.stringify(resource_data, undefined, 2));
         // all of the non-form hal+json responses have a _links field
         if(resource_data._links) {
             $("#response-title").text("Resource");
             $("#submit-btn").hide();
             render_response(resource_data, $("#rendered-response"));
+        }
+        else if ({{ tsv_upload }}) {
+            $("#response-title").hide();
+            $tsv.css("display", "inherit");
+            $rawResponse.text(resource_data);
+            render_tsv_upload($tsv.find("#upload-tsv-file"), $tsv.find("#upload-tsv-btn"));
         }
         else {
             $("#response-title").hide();

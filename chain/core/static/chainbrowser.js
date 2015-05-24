@@ -190,3 +190,19 @@ function render_form(data, form_element, submit_btn) {
         }
     });
 }
+
+function render_tsv_upload($file_selector, $submit_btn) {
+    $submit_btn.click(function() {
+        $file_selector.upload({
+            "url": window.location.href,
+            "timeout": 30000,
+            "done": function(data) {
+                window.location.href = data;
+            },
+            "fail": function(jqXHR, textStatus, errorThrown) {
+                console.error(errorThrown);
+            },
+            "always": function() {}
+        });
+    });
+}
