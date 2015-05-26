@@ -4,6 +4,8 @@ import random
 import json
 import zmq
 import re, string
+import os
+import time
 from django.utils.timezone import make_aware, utc, now
 
 
@@ -207,6 +209,25 @@ class ChainTestCase(TestCase):
 
     def update_resource(self, url, resource):
         return self.post_resource(url, resource, HTTP_STATUS_SUCCESS)
+
+    def post_file(self, url, file_path, mime_type="text/tab-separated-values", expected_status=HTTP_STATUS_CREATED):
+        accept_header = 'application/hal+json' + ',' + ACCEPT_TAIL
+        with open(file_path) as f:
+            response = self.client.post(url, {'name': "upload", 'attachment': f},
+                                        HTTP_ACCEPT=accept_header,
+                                        HTTP_HOST='localhost')
+        self.assertEqual(response.status_code, expected_status)
+        mime_type = response['Content-Type']
+        if mime_type == 'application/hal+json':
+            response_data = json.loads(response.content)
+            if isinstance(response_data, list):
+                return [HALDoc(d) for d in response_data]
+            else:
+                return HALDoc(response_data)
+        elif mime_type == 'application/json':
+            return json.loads(response.content)
+        else:
+            return response.content
 
     def post_resource(self, url, resource, expected_status):
         mime_type = 'application/hal+json'
@@ -952,6 +973,37 @@ class ApiScalarSensorDataTests(ChainTestCase):
             else:
                 self.assertFalse(re.match(DATE_FORMAT, row[0]) is None)
                 self.assertFalse(re.match(FLOAT_FORMAT, row[1]) is None)
+
+    def test_scalar_sensor_data_tsv_upload_format(self):
+        sensor = self.get_a_sensor()
+        sensor_data = self.get_resource(
+            sensor.links['ch:dataHistory'].href)
+        self.assertIn('uploadTSV', sensor_data.links)
+        tsv_format = self.get_resource(sensor_data.links['uploadTSV'].href,
+                                     mime_type='text/tab-separated-values')
+        self.assertEqual(tuple(tsv_format[0]), ("timestamp", "value"))
+
+    def test_scalar_sensor_data_tsv_upload(self):
+        sensor = self.get_a_sensor()
+        sensor_data = self.get_resource(
+            sensor.links['ch:dataHistory'].href)
+        self.assertIn('uploadTSV', sensor_data.links)
+        # Upload file:
+        file_path = os.path.join(os.environ["CHAIN_HOME"], "test_files", "scalar_data.tsv")
+        self.post_file(sensor_data.links['uploadTSV'].href, file_path) 
+        timestamps_added = set()
+        with open(file_path, "r") as f:
+            for i, line in enumerate(f):
+                if i > 0:
+                    timestamps_added.add(string.split(line, "\t")[0])
+        self.assertTrue(len(timestamps_added) > 0)
+        all_history = sensor.links['ch:dataHistory'].href + "&timestamp__gte=0&timestamp__lt=" + str(long(time.time()))
+        # Check to see data points were added:
+        all_data = self.get_resource(all_history)
+        timestamps_found = (x[u'timestamp'].replace("T", " ") for x in all_data[u'data'])
+        for timestamp in timestamps_found:
+            timestamps_added.discard(timestamp)
+        self.assertEqual(len(timestamps_added), 0)
 
     def test_sensor_data_should_have_data_type(self):
         sensor = self.get_a_sensor()

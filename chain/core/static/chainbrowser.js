@@ -197,7 +197,7 @@ function render_tsv_upload($file_selector, $submit_btn) {
             "url": window.location.href,
             "timeout": 30000,
             "done": function(data) {
-                window.location.href = data;
+                window.location.href = data._links.list.href;
             },
             "fail": function(jqXHR, textStatus, errorThrown) {
                 console.error(errorThrown);

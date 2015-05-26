@@ -18,7 +18,6 @@ from chain.settings import WEBSOCKET_PATH, WEBSOCKET_HOST, \
 import zmq
 import re, string
 
-
 def capitalize(word):
     return word[0].upper() + word[1:]
 
@@ -666,6 +665,10 @@ class Resource(object):
                 return HttpResponse(template.render(**context),
                                     status=status,
                                     content_type=accept)
+            elif accept == 'text/tab-separated-values' or accept == 'text/plain':
+                return HttpResponse(str(data),
+                                    status=status,
+                                    content_type=accept)
         err_data = {
             'message': "MIME type not supported.\ Try text/html, \
             application/json, or application/hal+json",
@@ -854,7 +857,14 @@ class Resource(object):
                 if err is not None:
                     return err
             list_href = full_reverse(cls.resource_name + '-list', request)
-            return cls.render_response(list_href, request,
+            status_doc = {
+                    "_links": { 
+                        "list": {
+                            "href": list_href
+                        }
+                    }
+            }
+            return cls.render_response(status_doc, request,
                                        status=HTTP_STATUS_CREATED)
 
     @classmethod
