@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+#coding=utf8
 
 '''tidpost
 
@@ -40,21 +41,20 @@ class TidmarshReceiver:
         return self.subscriber.recv()
 
 
-# the sensors don't self-describe their units, so we map them here. Note that
-# the charge_flags are unpacked
+# the sensors don't self-describe their units, so we map them here. (Legacy
+# protocol only; this is now deprecated as in v2 sensors *do* self-describe
+# their units)
 TIDMARSH_UNITS = {
     "sht_humidity": "percent",
     "bmp_pressure": "hPa",
     "battery_voltage": "volts",
     "illuminance": "lux",
-    "sht_temperature": "celsius",
-    "bmp_temperature": "celsius",
-    "charge_flags_fault": "boolean",
-    "charge_flags_charge": "boolean",
-    "accel_x": "m/s^2",
-    "accel_y": "m/s^2",
-    "accel_z": "m/s^2",
-    "analog": "ADC units"
+    "sht_temperature": "°C",
+    "bmp_temperature": "°C",
+    "accel_x": "g",
+    "accel_y": "g",
+    "accel_z": "g",
+    "analog": "LSB"
 }
 
 
@@ -83,7 +83,25 @@ def main():
             logger.info("Creating device %s" % dev_name)
             dev = devices_coll.create({'name': dev_name}, auth=COLLECTOR_AUTH)
             existing_devices[dev_name] = dev
-        post_sensor_data(dev_json, dev)
+        
+        version = dev_json.get('version', None)
+        if(version == 2 and not dev_json.has_key('data')):
+            # work around broken decoder script that erroneously reported
+            # version 2 in legacy mode (now fixed, but broken versions have
+            # regrettably been in production use)
+            version = 1
+
+        if version == 2:
+            post_sensor_data(dev_json, dev)
+        elif version == 1 or version == None:
+            post_sensor_data_legacy(dev_json, dev)
+        else:
+            logger.warning("Unsupported sensor protocol: %d", version)
+            try:
+                post_sensor_data(dev_json, dev)
+            except Exception as e:
+                logger.exception("Exception decoding unsupported sensor "
+                    "protocol version")
 
 
 def get_api_device_dict(devices_coll):
@@ -107,8 +125,33 @@ def find_sensor_by_metric(sensor_list, metric):
             return sensor
     raise KeyError('"%s" not found' % metric)
 
-
 def post_sensor_data(report_data, device, prefix=''):
+    now = datetime.datetime.utcnow()
+    sensor_data = {
+        'timestamp': now.isoformat() + "+00:00"
+    }
+
+    for metric, data in report_data['data'].items():
+        server_metric = prefix + metric
+        sensors_coll = device.rels['ch:sensors']
+        try:
+            sensor = find_sensor_by_metric(sensors_coll.rels['items'],
+                server_metric)
+        except KeyError:
+            sensor = sensors_coll.create(
+                {'metric': server_metric, 'unit': data['unit']},
+                auth=COLLECTOR_AUTH)
+        history = sensor.rels['ch:dataHistory']
+
+        sensor_data['value'] = data['value']
+        logger.info("Posting %s data: %s (v2)", server_metric, sensor_data)
+        history.create(sensor_data, cache=False, auth=COLLECTOR_AUTH)
+
+def post_sensor_data_legacy(report_data, device, prefix=''):
+    # This method is retained only for compatibility with the previous
+    # protocol.  The new format features self-describing units and
+    # eliminates the nested dictionary case.
+    #
     #        Example data where "src" is the device name, and the rest are
     #        sensor Metrics.
     #
@@ -140,7 +183,7 @@ def post_sensor_data(report_data, device, prefix=''):
         if isinstance(data, Iterable):
             # treat this sub dict as its own set of data for this device,
             # prefixed with the base metric name
-            post_sensor_data(data, device, metric + '_')
+            post_sensor_data_legacy(data, device, metric + '_')
             continue
 
         # at this point we assume data is a plain value to post
@@ -165,7 +208,7 @@ def post_sensor_data(report_data, device, prefix=''):
         history = sensor.rels['ch:dataHistory']
 
         sensor_data['value'] = data
-        logger.info("Posting %s data: %s" % (server_metric, sensor_data))
+        logger.info("Posting %s data: %s (legacy)", server_metric, sensor_data)
         history.create(sensor_data, cache=False, auth=COLLECTOR_AUTH)
 
 
