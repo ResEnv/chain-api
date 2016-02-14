@@ -183,7 +183,7 @@ def post_sensor_data_legacy(report_data, device, prefix=''):
         if isinstance(data, Iterable):
             # treat this sub dict as its own set of data for this device,
             # prefixed with the base metric name
-            post_sensor_data(data, device, metric + '_')
+            post_sensor_data_legacy(data, device, metric + '_')
             continue
 
         # at this point we assume data is a plain value to post
