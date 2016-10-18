@@ -809,7 +809,6 @@ class SiteResource(Resource):
             },
             'devices': []
         }
-        sensor_hash = {}
         for device in devices:
             dev_resource = DeviceResource(obj=device, request=request)
             dev_data = dev_resource.serialize(rels=False)
@@ -824,13 +823,6 @@ class SiteResource(Resource):
                 sensor_data['href'] = sensor_resource.get_single_href()
                 dev_data['sensors'].append(sensor_data)
                 sensor_data['data'] = []
-                sensor_hash[sensor.id] = sensor_data
-
-        #import pdb; pdb.set_trace()
-        for data in db_sensor_data:
-            data_data = ScalarSensorDataResource(
-                obj=data, request=request).serialize(rels=False)
-            sensor_hash[data.sensor_id]['data'].append(data_data)
         return cls.render_response(response, request)
 
     @classmethod

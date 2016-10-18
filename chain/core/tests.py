@@ -591,11 +591,11 @@ class ApiSitesTests(ChainTestCase):
         summary_dev = summary.devices[0]
         self.assertIn('metric', summary_dev['sensors'][0])
 
-    def test_site_summary_should_have_data(self):
+    def test_site_summary_should_have_empty_data(self):
         site = self.get_a_site()
         summary = self.get_resource(site.links['ch:siteSummary'].href)
         summary_dev = summary.devices[0]
-        self.assertIn('value', summary_dev['sensors'][0]['data'][0])
+        self.assertEqual(0, len(summary_dev['sensors'][0]['data']))
 
     def test_site_summary_resources_should_have_href(self):
         site = self.get_a_site()
