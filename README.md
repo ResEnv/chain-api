@@ -803,6 +803,20 @@ then whenever you have a version to push to production just:
     git push production
 
 
+Troubleshooting
+---------------
+
+If you get permissions problems (your database user can't access/modify tables it's supposed to),
+you may see errors like "permission denied for relation type ...". In that case log into the
+database with the root user, connect to the database, and grant the permissions explicitly:
+
+```
+> sudo su - postgres
+> psql
+psql> \c chain
+psql> GRANT ALL ON ALL TABLES IN SCHEMA public to chain;
+```
+
 
 [ssfrr]: http://ssfrr.com
 [resenv]: http://resenv.media.mit.edu
