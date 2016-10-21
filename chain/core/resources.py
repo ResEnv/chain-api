@@ -793,15 +793,12 @@ class SiteResource(Resource):
 
     @classmethod
     def site_summary_view(cls, request, id):
-        time_begin = timezone.now() - timedelta(hours=2)
         #filters = request.GET.dict()
         devices = Device.objects.filter(site_id=id).select_related(
             'sensors',
             'sensors__metric',
             'sensors__unit'
         )
-        db_sensor_data = ScalarData.objects.filter(sensor__device__site_id=id,
-                                                   timestamp__gt=time_begin)
         response = {
             '_links': {
                 'self': {'href': full_reverse('site-summary', request,
