@@ -17,7 +17,7 @@ from chain.settings import WEBSOCKET_PATH, WEBSOCKET_HOST, \
     ZMQ_PASSTHROUGH_URL_PULL
 import zmq
 import re
-
+from pytz import AmbiguousTimeError
 
 def capitalize(word):
     return word[0].upper() + word[1:]
@@ -757,6 +757,10 @@ class Resource(object):
             return render_error(
                 400, 'Error storing object. Either required fields are '
                 'missing data or a matching object already exists',
+                request)
+        except AmbiguousTimeError:
+            return render_error(
+                400, 'Error storing object. Timestamp is ambiguous',
                 request)
         response_data = new_resource.serialize()
         tags = new_resource.get_tags()

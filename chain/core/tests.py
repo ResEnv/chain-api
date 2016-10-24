@@ -4,7 +4,7 @@ import random
 import json
 import zmq
 from django.utils.timezone import make_aware, utc, now
-
+from pytz import AmbiguousTimeError
 
 fake_zmq_socket = None
 
@@ -349,6 +349,26 @@ class SafePostTests(ChainTestCase):
         self.assertEqual(response.status_code, HTTP_STATUS_BAD_REQUEST)
         self.assertEqual(response['Content-Type'], "application/json")
 
+    def test_ambiguous_timestamps_should_not_crash_server(self):
+        sensor = self.get_a_sensor()
+        sensor_data = self.get_resource(
+            sensor.links['ch:dataHistory'].href)
+        data_url = sensor_data.links.createForm.href
+        data = {
+            'value': 20,
+            'timestamp': datetime(2015, 11, 1, 1, 0, 0).isoformat()
+            }
+        mime_type = 'application/hal+json'
+        accept_header = mime_type + ',' + ACCEPT_TAIL
+        try:
+            response = self.client.post(data_url, 
+                                        json.dumps(data),
+                                        content_type=mime_type,
+                                        HTTP_ACCEPT=accept_header,
+                                        HTTP_HOST='localhost')
+        except AmbiguousTimeError:
+            self.assertTrue(False)
+        self.assertEqual(response.status_code, HTTP_STATUS_BAD_REQUEST)
 
 class ApiRootTests(ChainTestCase):
 
