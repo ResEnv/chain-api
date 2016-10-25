@@ -361,7 +361,7 @@ class SafePostTests(ChainTestCase):
         mime_type = 'application/hal+json'
         accept_header = mime_type + ',' + ACCEPT_TAIL
         try:
-            response = self.client.post(data_url, 
+            response = self.client.post(data_url,
                                         json.dumps(data),
                                         content_type=mime_type,
                                         HTTP_ACCEPT=accept_header,
@@ -369,6 +369,7 @@ class SafePostTests(ChainTestCase):
         except AmbiguousTimeError:
             self.assertTrue(False)
         self.assertEqual(response.status_code, HTTP_STATUS_BAD_REQUEST)
+        self.assertEqual(response['Content-Type'], "application/json")
 
 class ApiRootTests(ChainTestCase):
 
