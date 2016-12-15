@@ -5,6 +5,9 @@ from chain.influx_client import InfluxClient, HTTP_STATUS_SUCCESSFUL_WRITE
 from chain.core.resources import influx_client
 import sys
 
+# needs to be run from the manage.py shell context
+
+# start_time is UTC unix timestamp, delta is in days
 def get_points(start_time, delta, amount):
     start_time = datetime.utcfromtimestamp(
         float(start_time)).replace(tzinfo=timezone.utc)
