@@ -50,11 +50,11 @@ from chain.core.models import GeoLocation
 from chain.core.resources import DeviceResource
 from chain.core.api import HTTP_STATUS_SUCCESS, HTTP_STATUS_CREATED
 from chain.core.hal import HALDoc
-from chain.core.resources import influx_client
+from chain.core import resources
 from chain.localsettings import INFLUX_HOST, INFLUX_PORT, INFLUX_MEASUREMENT
 from chain.influx_client import InfluxClient
 
-influx_client = InfluxClient(INFLUX_HOST, INFLUX_PORT, 'test', INFLUX_MEASUREMENT)
+resources.influx_client = InfluxClient(INFLUX_HOST, INFLUX_PORT, 'test', INFLUX_MEASUREMENT)
 
 HTTP_STATUS_NOT_ACCEPTABLE = 406
 HTTP_STATUS_NOT_FOUND = 404
@@ -185,7 +185,7 @@ class ChainTestCase(TestCase):
                 timestamp=now() - timedelta(minutes=1),
                 value=23.0))
         for data in self.scalar_data:
-            influx_client.post(data.sensor_id, data.value, data.timestamp)
+            resources.influx_client.post(data.sensor_id, data.value, data.timestamp)
             data.save()
 
     def get_resource(self, url, mime_type='application/hal+json',
@@ -293,7 +293,7 @@ class ScalarSensorDataTest(ChainTestCase):
     def test_data_can_be_added(self):
         data = ScalarData(sensor=self.sensors[0], value=25)
         data.save()
-        influx_client.post(data.sensor_id, data.value, data.timestamp)
+        resources.influx_client.post(data.sensor_id, data.value, data.timestamp)
         self.assertEqual(data.value, 25)
 
 

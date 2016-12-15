@@ -1,5 +1,4 @@
 import requests
-from dateutil.parser import parse
 from pytz import UTC
 from datetime import datetime
 from django.db import IntegrityError
@@ -19,7 +18,7 @@ class InfluxClient(object):
         # Persist TCP connection
         self._session = requests
         self._url = 'http://' + self._host + ':' + self._port
-        
+
         if self._database not in self.get_databases():
             self.get('CREATE DATABASE ' + self._database)
 
@@ -38,7 +37,7 @@ class InfluxClient(object):
                                                     value)
         if timestamp:
             data += ' ' + str(timestamp)
-        response = self.request('POST', 
+        response = self.request('POST',
                                 self._url + '/write',
                                 {'db': self._database},
                                 data)
@@ -55,9 +54,9 @@ class InfluxClient(object):
             response = self.request('GET',
                                     self._url + '/query',
                                     {'q': query})
-                                
+
         return response
-    
+
     def get_sensor_data(self, filters):
         timestamp_gte = InfluxClient.convert_timestamp(filters['timestamp__gte'])
         timestamp_lt = InfluxClient.convert_timestamp(filters['timestamp__lt'])
@@ -68,7 +67,7 @@ class InfluxClient(object):
 
         result = self.get_values(self.get(query, True))
         return result
-    
+
     def get_databases(self):
         db={}
         response = self.get('SHOW DATABASES', False)
@@ -79,12 +78,16 @@ class InfluxClient(object):
         json = response.json()
         if len(json['results'])==0:
             return []
+        if 'series' not in json['results'][0]:
+            return []
+        if len(json['results'][0]['series']) == 0:
+            return []
         series = json['results'][0]['series'][0]
         values = series['values']
         columns = series['columns']
         result = [dict(itertools.izip(columns, values[i])) for i in range(len(values))]
         return result
-        
+
 
     @classmethod
     def convert_timestamp(cls, timestamp):
