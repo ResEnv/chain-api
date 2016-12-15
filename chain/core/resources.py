@@ -9,7 +9,11 @@ from django.conf.urls import include, patterns, url
 from django.utils import timezone
 from datetime import timedelta, datetime
 import calendar
+from chain.localsettings import INFLUX_HOST, INFLUX_PORT, INFLUX_DATABASE, INFLUX_MEASUREMENT
+from chain.influx_client import InfluxClient
+from django.views.decorators.csrf import csrf_exempt
 
+influx_client = InfluxClient(INFLUX_HOST, INFLUX_PORT, INFLUX_DATABASE, INFLUX_MEASUREMENT)
 
 class ScalarSensorDataResource(Resource):
     model = ScalarData
@@ -26,6 +30,11 @@ class ScalarSensorDataResource(Resource):
         if 'queryset' in kwargs:
             # we want to default to the last page, not the first page
             pass
+    
+    def save(self):
+        super(ScalarSensorDataResource, self).save()
+        response = influx_client.post(self._obj.sensor_id, self._obj.value, self._obj.timestamp)
+        return response
 
     def serialize_list(self, embed, cache):
         '''a "list" of SensorData resources is actually represented
@@ -55,6 +64,7 @@ class ScalarSensorDataResource(Resource):
         # if the time filters aren't given then use the most recent timespan,
         # if they are given, then we need to convert them from unix time to use
         # in the queryset filter
+
         if 'timestamp__gte' in self._filters:
             try:
                 page_start = datetime.utcfromtimestamp(
@@ -80,13 +90,12 @@ class ScalarSensorDataResource(Resource):
         self._filters['timestamp__gte'] = page_start
         self._filters['timestamp__lt'] = page_end
 
-        objs = self._queryset.filter(**self._filters).order_by('timestamp')
-
+        objs = influx_client.get_sensor_data(self._filters)
         serialized_data = self.add_page_links(serialized_data, href,
                                               page_start, page_end)
         serialized_data['data'] = [{
-            'value': obj.value,
-            'timestamp': obj.timestamp.isoformat()}
+            'value': obj['value'],
+            'timestamp': obj['time']}
             for obj in objs]
         return serialized_data
 
