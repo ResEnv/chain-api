@@ -735,6 +735,13 @@ class ApiDeviceTests(ChainTestCase):
             self.assertEqual(new_device['name'],
                              fake_zmq_socket.sent_msgs[tag][0]['name'])
 
+    def test_device_should_be_deactivatable(self):
+        device = self.get_a_device()
+        edit_href = device.links.editForm.href
+        device['active'] = False
+        response = self.update_resource(edit_href, device)
+        self.assertEqual(response.active, device['active'])
+
 
 class ApiScalarSensorTests(ChainTestCase):
 
@@ -803,6 +810,13 @@ class ApiScalarSensorTests(ChainTestCase):
         response = self.update_resource(edit_href, new_sensor)
         self.assertEqual(response.metric, new_sensor['metric'])
         self.assertEqual(response.unit, new_sensor['unit'])
+
+    def test_sensor_should_be_deactivatable(self):
+        sensor = self.get_a_sensor()
+        edit_href = sensor.links.editForm.href
+        sensor['active'] = False
+        response = self.update_resource(edit_href, sensor)
+        self.assertEqual(response.active, sensor['active'])
 
 
 class ApiPresenceSensorTests(ChainTestCase):

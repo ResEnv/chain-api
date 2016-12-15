@@ -34,6 +34,7 @@ class Device(models.Model):
     floor = models.CharField(max_length=10, blank=True)
     room = models.CharField(max_length=255, blank=True)
     geo_location = models.OneToOneField(GeoLocation, null=True, blank=True)
+    active = models.BooleanField(default=True)
 
     class Meta:
         unique_together = ['site', 'name', 'building', 'floor', 'room']
@@ -83,6 +84,7 @@ class ScalarSensor(models.Model):
     unit = models.ForeignKey(Unit, related_name='sensors')
     metadata = models.CharField(max_length=255, blank=True)
     geo_location = models.OneToOneField(GeoLocation, null=True, blank=True)
+    active = models.BooleanField(default=True)
 
     class Meta:
         unique_together = ['device', 'metric']

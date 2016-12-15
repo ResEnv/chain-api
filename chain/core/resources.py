@@ -152,6 +152,7 @@ class ScalarSensorResource(Resource):
     resource_name = 'scalar_sensors'
     resource_type = 'scalar_sensor'
     required_fields = ['metric', 'unit']
+    model_fields = ['active']
 
     # for now, name is hardcoded as the only attribute of metric and unit
     stub_fields = {'metric': 'name', 'unit': 'name'}
@@ -719,7 +720,7 @@ class DeviceResource(Resource):
     resource_name = 'devices'
     resource_type = 'device'
     required_fields = ['name']
-    model_fields = ['name', 'description', 'building', 'floor', 'room']
+    model_fields = ['name', 'description', 'building', 'floor', 'room', 'active']
     ''''ch:sensors': CollectionField(ScalarSensorResource,
                                       reverse_name='device'),
         'ch:sensors': CollectionField(PresenceSensorResource,
