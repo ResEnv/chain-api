@@ -2,7 +2,7 @@ from chain.core.api import Resource, ResourceField, CollectionField
 from chain.core.api import full_reverse
 from chain.core.api import CHAIN_CURIES
 from chain.core.api import BadRequestException
-from chain.core.api import register_resource
+from chain.core.api import register_resource, get_filtered_fields
 from chain.core.models import Site, Device, ScalarSensor, ScalarData, \
     PresenceSensor, PresenceData, Person
 from django.conf.urls import include, patterns, url
@@ -12,8 +12,23 @@ import calendar
 from chain.localsettings import INFLUX_HOST, INFLUX_PORT, INFLUX_DATABASE, INFLUX_MEASUREMENT
 from chain.influx_client import InfluxClient
 from django.views.decorators.csrf import csrf_exempt
+from django.utils.dateparse import parse_datetime
+from itertools import count
 
 influx_client = InfluxClient(INFLUX_HOST, INFLUX_PORT, INFLUX_DATABASE, INFLUX_MEASUREMENT)
+#FIXME (might want to do this differently)
+id = count(1)
+
+class AttrDict(dict):
+
+    def __getattr__(self, key):
+        if key not in self:
+            raise AttributeError(key)
+        return self[key]
+    
+    def __setattr__(self, key, value):
+        self[key] = value
+        
 
 class ScalarSensorDataResource(Resource):
     model = ScalarData
@@ -31,8 +46,44 @@ class ScalarSensorDataResource(Resource):
             # we want to default to the last page, not the first page
             pass
     
+    @classmethod
+    def sanitize_field_value(cls, field_name, value):
+        if field_name == 'value':
+            try:
+                return float(value)
+            except ValueError:
+                #TODO: throw some error
+                return
+        if field_name == 'timestamp':
+            try:
+                return parse_datetime(value)
+            except ValueError:
+                #TODO: throw error
+                return
+    
+    def deserialize(self):
+        if self._obj:
+            return self._obj
+        new_obj_data = AttrDict()
+        filtered_fields = get_filtered_fields(self._filters)
+        for field_name in [f for f in self.model_fields
+                          if f in self._data and f not in filtered_fields]:
+            value = self.sanitize_field_value(field_name, self._data[field_name])
+            new_obj_data[field_name] = value
+        new_obj_data.update(self._filters)
+        if 'timestamp' not in new_obj_data:
+            # use timezone-aware datetime
+            new_obj_data['timestamp'] = timezone.now()
+        # self._obj is a dictionary
+        self._obj = new_obj_data
+        # id in original table
+        self._obj.id = next(id)
+        return new_obj_data
+
     def save(self):
-        super(ScalarSensorDataResource, self).save()
+        if not self._obj:
+            self.deserialize()
+        #super(ScalarSensorDataResource, self).save()
         response = influx_client.post(self._obj.sensor_id, self._obj.value, self._obj.timestamp)
         return response
 
@@ -176,11 +227,13 @@ class ScalarSensorResource(Resource):
         data['sensor-type'] = "scalar"
         if embed:
             data['dataType'] = 'float'
-            last_data = self._obj.scalar_data.order_by(
-                'timestamp').reverse()[:1]
+            last_data = influx_client.get_last_sensor_data(self._obj.id)
+            #last_data = self._obj.scalar_data.order_by(
+            #    'timestamp').reverse()[:1]
             if last_data:
-                data['value'] = last_data[0].value
-                data['updated'] = last_data[0].timestamp.isoformat()
+                # column name returned by last() selector is last
+                data['value'] = last_data[0]['last']
+                data['updated'] = last_data[0]['time']
         return data
 
     def get_tags(self):

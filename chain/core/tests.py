@@ -5,6 +5,7 @@ import json
 import zmq
 from django.utils.timezone import make_aware, utc, now
 from pytz import AmbiguousTimeError
+import re
 
 fake_zmq_socket = None
 
@@ -176,17 +177,17 @@ class ChainTestCase(TestCase):
         self.scalar_data = []
         for sensor in self.sensors:
             sensor.save()
-            self.scalar_data.append(ScalarData(
-                sensor=sensor,
-                timestamp=now() - timedelta(minutes=2),
-                value=22.0))
-            self.scalar_data.append(ScalarData(
-                sensor=sensor,
-                timestamp=now() - timedelta(minutes=1),
-                value=23.0))
+            self.scalar_data.append({
+                'sensor': sensor,
+                'timestamp': now() - timedelta(minutes=2),
+                'value': 22.0})
+            self.scalar_data.append({
+                'sensor': sensor,
+                'timestamp': now() - timedelta(minutes=1),
+                'value': 23.0})
         for data in self.scalar_data:
-            resources.influx_client.post(data.sensor_id, data.value, data.timestamp)
-            data.save()
+            resources.influx_client.post(data['sensor'].id, data['value'], data['timestamp'])
+            #data.save()
 
     def get_resource(self, url, mime_type='application/hal+json',
                      expect_status_code=HTTP_STATUS_SUCCESS,
@@ -975,12 +976,15 @@ class ApiScalarSensorDataTests(ChainTestCase):
             'value': 23,
             'timestamp': timestamp.isoformat()
         }
+        sensor_id = re.search(r'[^=]*$', data_url).group(0)
         self.create_resource(data_url, data)
-        db_data = ScalarData.objects.get(
-            sensor__metric__name=sensor.metric,
-            sensor__device__name=device.name,
-            timestamp=timestamp)
-        self.assertEqual(db_data.value, data['value'])
+        filters = {
+            'sensor_id': sensor_id,
+            'timestamp__gte': timestamp,
+            'timestamp__lt': timestamp + timedelta(seconds=1)
+        }
+        db_data = resources.influx_client.get_sensor_data(filters)[0]
+        self.assertEqual(db_data['value'], data['value'])
 
     def test_lists_of_sensor_data_should_be_postable(self):
         device = self.get_a_device()

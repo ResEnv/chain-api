@@ -46,6 +46,7 @@ class InfluxClient(object):
         return response
 
     def get(self, query, database=False):
+        # database arguement should be true for any sensor data queries
         if database:
             response = self.request('GET',
                                     self._url + '/query',
@@ -64,7 +65,12 @@ class InfluxClient(object):
                                                                                                     filters['sensor_id'],
                                                                                                     timestamp_gte,
                                                                                                     timestamp_lt)
+        result = self.get_values(self.get(query, True))
+        return result
 
+    def get_last_sensor_data(self, sensor_id):
+        query = "SELECT LAST(value) FROM {0} WHERE sensor_id = \'{1}\'".format(self._measurement,
+                                                                           sensor_id)
         result = self.get_values(self.get(query, True))
         return result
 
