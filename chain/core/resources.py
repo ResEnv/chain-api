@@ -19,6 +19,7 @@ influx_client = InfluxClient(INFLUX_HOST, INFLUX_PORT, INFLUX_DATABASE, INFLUX_M
 #FIXME (might want to do this differently)
 id = count(1)
 
+#TODO: Move this somewhere else
 class AttrDict(dict):
 
     def __getattr__(self, key):
@@ -31,13 +32,14 @@ class AttrDict(dict):
         
 
 class ScalarSensorDataResource(Resource):
-    model = ScalarData
+    #model = ScalarData
     display_field = 'timestamp'
     resource_name = 'scalar_data'
     resource_type = 'scalar_data'
     model_fields = ['timestamp', 'value']
     required_fields = ['value']
-    queryset = ScalarData.objects
+    #FIXME
+    queryset = ScalarData.objects 
     default_timespan = timedelta(hours=6)
 
     def __init__(self, *args, **kwargs):

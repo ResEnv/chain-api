@@ -981,7 +981,7 @@ class ApiScalarSensorDataTests(ChainTestCase):
         filters = {
             'sensor_id': sensor_id,
             'timestamp__gte': timestamp,
-            'timestamp__lt': timestamp + timedelta(seconds=1)
+            'timestamp__lt': timestamp + timedelta(seconds=0.1)
         }
         db_data = resources.influx_client.get_sensor_data(filters)[0]
         self.assertEqual(db_data['value'], data['value'])
@@ -992,6 +992,7 @@ class ApiScalarSensorDataTests(ChainTestCase):
         sensor_data = self.get_resource(
             sensor.links['ch:dataHistory'].href)
         data_url = sensor_data.links.createForm.href
+        sensor_id = re.search(r'[^=]*$', data_url).group(0)
         basetime = make_aware(datetime(2013, 1, 1, 0, 0, 0), utc)
         timestamps = [basetime + timedelta(seconds=i) for i in range(0, 3)]
         values = range(0, 3)
@@ -1000,12 +1001,14 @@ class ApiScalarSensorDataTests(ChainTestCase):
             'timestamp': timestamp.isoformat()
         } for value, timestamp in zip(values, timestamps)]
         self.create_resource(data_url, data)
+        filters = {
+            'sensor_id': sensor_id
+        }
         for i in range(0, 3):
-            db_data = ScalarData.objects.get(
-                sensor__metric__name=sensor.metric,
-                sensor__device__name=device.name,
-                timestamp=timestamps[i])
-            self.assertEqual(db_data.value, values[i])
+            filters['timestamp__gte'] = timestamps[i]
+            filters['timestamp__lt'] = timestamps[i] + timedelta(seconds=0.1)
+            db_data = resources.influx_client.get_sensor_data(filters)[0]
+            self.assertEqual(db_data['value'], values[i])
 
     def test_posting_data_should_send_zmq_msgs(self):
         fake_zmq_socket.clear()
