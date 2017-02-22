@@ -45,7 +45,7 @@ class FakeZMQSocket(object):
 # anything that imports chain.api should come after this
 zmq.Context = FakeZMQContext
 
-from chain.core.models import ScalarData, Unit, Metric, Device, ScalarSensor, Site, \
+from chain.core.models import Unit, Metric, Device, ScalarSensor, Site, \
     PresenceSensor, Person
 from chain.core.models import GeoLocation
 from chain.core.resources import DeviceResource
@@ -187,7 +187,6 @@ class ChainTestCase(TestCase):
                 'value': 23.0})
         for data in self.scalar_data:
             resources.influx_client.post(data['sensor'].id, data['value'], data['timestamp'])
-            #data.save()
 
     def get_resource(self, url, mime_type='application/hal+json',
                      expect_status_code=HTTP_STATUS_SUCCESS,
@@ -292,10 +291,13 @@ class ChainTestCase(TestCase):
 class ScalarSensorDataTest(ChainTestCase):
 
     def test_data_can_be_added(self):
-        data = ScalarData(sensor=self.sensors[0], value=25)
-        data.save()
-        resources.influx_client.post(data.sensor_id, data.value, data.timestamp)
-        self.assertEqual(data.value, 25)
+        data = {
+            'sensor_id': self.sensors[0].id,
+            'value': 25,
+            'timestamp': now()
+        }
+        resources.influx_client.post(data['sensor_id'], data['value'], data['timestamp'])
+        self.assertEqual(data['value'], 25)
 
 
 class BasicHALJSONTests(ChainTestCase):

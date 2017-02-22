@@ -3,7 +3,7 @@ from chain.core.api import full_reverse
 from chain.core.api import CHAIN_CURIES
 from chain.core.api import BadRequestException
 from chain.core.api import register_resource, get_filtered_fields
-from chain.core.models import Site, Device, ScalarSensor, ScalarData, \
+from chain.core.models import Site, Device, ScalarSensor, \
     PresenceSensor, PresenceData, Person
 from django.conf.urls import include, patterns, url
 from django.utils import timezone
@@ -13,86 +13,58 @@ from chain.localsettings import INFLUX_HOST, INFLUX_PORT, INFLUX_DATABASE, INFLU
 from chain.influx_client import InfluxClient
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.dateparse import parse_datetime
-from itertools import count
 
 influx_client = InfluxClient(INFLUX_HOST, INFLUX_PORT, INFLUX_DATABASE, INFLUX_MEASUREMENT)
-#FIXME (might want to do this differently)
-id = count(1)
-
-#TODO: Move this somewhere else
-class AttrDict(dict):
-
-    def __getattr__(self, key):
-        if key not in self:
-            raise AttributeError(key)
-        return self[key]
-    
-    def __setattr__(self, key, value):
-        self[key] = value
         
-
 class ScalarSensorDataResource(Resource):
-    #model = ScalarData
     display_field = 'timestamp'
     resource_name = 'scalar_data'
     resource_type = 'scalar_data'
     model_fields = ['timestamp', 'value']
     required_fields = ['value']
-    #FIXME
-    queryset = ScalarData.objects 
+    # set queryset to True for ScalarSensorDataResource so that serialize_list gets called
+    queryset = True
     default_timespan = timedelta(hours=6)
 
     def __init__(self, *args, **kwargs):
         super(ScalarSensorDataResource, self).__init__(*args, **kwargs)
+        if self._data:
+            # deserialize data
+            self.sensor_id = self._filters.get('sensor_id')
+            self.value = self.sanitize_field_value('value', self._data.get('value'))
+            self.timestamp = self.sanitize_field_value('timestamp', self._data.get('timestamp'))
+            self._data = self.serialize_single()
         if 'queryset' in kwargs:
             # we want to default to the last page, not the first page
             pass
-    
+
+    def serialize_single(self, embed=True, cache=None, rels=True):
+        data = {}
+        for field_name in self.model_fields:
+            data[field_name] = self.serialize_field(getattr(self, field_name))
+        return data
+
     @classmethod
     def sanitize_field_value(cls, field_name, value):
         if field_name == 'value':
-            try:
-                return float(value)
-            except ValueError:
-                #TODO: throw some error
-                return
+            return float(value)
         if field_name == 'timestamp':
-            try:
-                return parse_datetime(value)
-            except ValueError:
-                #TODO: throw error
-                return
-    
-    def deserialize(self):
-        if self._obj:
-            return self._obj
-        new_obj_data = AttrDict()
-        filtered_fields = get_filtered_fields(self._filters)
-        for field_name in [f for f in self.model_fields
-                          if f in self._data and f not in filtered_fields]:
-            value = self.sanitize_field_value(field_name, self._data[field_name])
-            new_obj_data[field_name] = value
-        new_obj_data.update(self._filters)
-        if 'timestamp' not in new_obj_data:
-            # use timezone-aware datetime
-            new_obj_data['timestamp'] = timezone.now()
-        # self._obj is a dictionary
-        self._obj = new_obj_data
-        # id in original table
-        self._obj.id = next(id)
-        return new_obj_data
+            from django.db import models
+            if value == None:
+                return timezone.now()
+            timestamp = parse_datetime(value)
+            if timezone.is_aware(timestamp):
+                return timestamp
+            return timezone.make_aware(timestamp, timezone.get_current_timezone())
+            
 
     def save(self):
-        if not self._obj:
-            self.deserialize()
-        #super(ScalarSensorDataResource, self).save()
-        response = influx_client.post(self._obj.sensor_id, self._obj.value, self._obj.timestamp)
+        response = influx_client.post(self.sensor_id, self.value, self.timestamp)
         return response
 
     def serialize_list(self, embed, cache):
         '''a "list" of SensorData resources is actually represented
         as a single resource with a list of data points'''
-
         if not embed:
             return super(
                 ScalarSensorDataResource,
@@ -180,7 +152,6 @@ class ScalarSensorDataResource(Resource):
         '''Serialize this resource for a stream'''
         data = self.serialize_single(rels=False)
         data['_links'] = {
-            'self': {'href': self.get_single_href()},
             'ch:sensor': {'href': full_reverse(
                 'scalar_sensors-single', self._request,
                 args=(self._filters['sensor_id'],))}
@@ -188,11 +159,11 @@ class ScalarSensorDataResource(Resource):
         return data
 
     def get_tags(self):
-        if not self._obj:
+        if not self.sensor_id:
             raise ValueError(
-                'Tried to called get_tags on a resource without an object')
+                'Tried to called get_tags on a resource without an id')
         db_sensor = ScalarSensor.objects.select_related('device').get(
-            id=self._obj.sensor_id)
+            id=self.sensor_id)
         return ['sensor-%d' % db_sensor.id,
                 'device-%d' % db_sensor.device_id,
                 'site-%d' % db_sensor.device.site_id]
@@ -230,8 +201,6 @@ class ScalarSensorResource(Resource):
         if embed:
             data['dataType'] = 'float'
             last_data = influx_client.get_last_sensor_data(self._obj.id)
-            #last_data = self._obj.scalar_data.order_by(
-            #    'timestamp').reverse()[:1]
             if last_data:
                 # column name returned by last() selector is last
                 data['value'] = last_data[0]['last']

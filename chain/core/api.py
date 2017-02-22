@@ -426,7 +426,6 @@ class Resource(object):
                 self._data = self.serialize_single(embed, cache,
                                                    *args, **kwargs)
                 cache[(self._obj.__class__, self._obj.id, embed)] = self._data
-
         return self._data
 
     def stub_object_finding(self, obj, field_name, field_value):
