@@ -179,6 +179,12 @@ class Resource(object):
         self._request = request
         self._limit = limit or self.page_size
         self._offset = offset or 0
+        if self._queryset:
+            self._schema = 'list'
+        elif self._obj:
+            self._schema = 'object'
+        else:
+            self._schema = 'data'
 
     def serialize_single(self, embed=True, cache=None, rels=True):
         '''Serializes this object, assuming that there is a single instance to
@@ -414,19 +420,23 @@ class Resource(object):
         # object may be in the cache in both the embedded and non-embedded
         # forms, but that is likely a small price to pay for simplicity
 
-        if self._queryset:
+        if self._schema == 'list':
             # we don't currently handle cacheing whole collection lists.
             self._data = self.serialize_list(embed, cache,
                                              *args, **kwargs)
 
-        elif self._obj:
-            if (self._obj.__class__, self._obj.id, embed) in cache:
-                return cache[(self._obj.__class__, self._obj.id, embed)]
+        elif self._schema == 'object':
+            cache_key = self.get_cache_key()
+            if (cache_key, embed) in cache:
+                return cache[(cache_key, embed)]
             else:
                 self._data = self.serialize_single(embed, cache,
                                                    *args, **kwargs)
-                cache[(self._obj.__class__, self._obj.id, embed)] = self._data
+                cache[(cache_key, embed)] = self._data
         return self._data
+
+    def get_cache_key(self):
+        return self._obj.__class__, self._obj.id
 
     def stub_object_finding(self, obj, field_name, field_value):
         '''Looks up the matching related field, and creates it if it doesn't
@@ -510,6 +520,7 @@ class Resource(object):
 
         new_obj_data.update(self._filters)
         self._obj = self.model(**new_obj_data)
+        self._schema = 'object'
         return self._obj
 
     def update(self, data):

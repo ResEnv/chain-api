@@ -33,7 +33,8 @@ class ScalarSensorDataResource(Resource):
             self.sensor_id = self._filters.get('sensor_id')
             self.value = self.sanitize_field_value('value', self._data.get('value'))
             self.timestamp = self.sanitize_field_value('timestamp', self._data.get('timestamp'))
-            self._data = self.serialize_single()
+            # treat raw sensor data like an object
+            self._schema = 'object'
         if 'queryset' in kwargs:
             # we want to default to the last page, not the first page
             pass
@@ -123,6 +124,9 @@ class ScalarSensorDataResource(Resource):
             'timestamp': obj['time']}
             for obj in objs]
         return serialized_data
+    
+    def get_cache_key(self):
+        return self.sensor_id, self.timestamp
 
     def format_time(self, timestamp):
         return calendar.timegm(timestamp.timetuple())
@@ -157,6 +161,10 @@ class ScalarSensorDataResource(Resource):
                 args=(self._filters['sensor_id'],))}
         }
         return data
+
+    def get_single_href(self):
+        return full_reverse(self.resource_name + '-single',
+                            self._request, args=(self.sensor_id,self.timestamp))
 
     def get_tags(self):
         if not self.sensor_id:
