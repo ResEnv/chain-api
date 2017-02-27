@@ -2,7 +2,7 @@ from chain.core.api import Resource, ResourceField, CollectionField
 from chain.core.api import full_reverse
 from chain.core.api import CHAIN_CURIES
 from chain.core.api import BadRequestException
-from chain.core.api import register_resource, get_filtered_fields
+from chain.core.api import register_resource
 from chain.core.models import Site, Device, ScalarSensor, \
     PresenceSensor, PresenceData, Person
 from django.conf.urls import include, patterns, url
@@ -22,7 +22,7 @@ class ScalarSensorDataResource(Resource):
     resource_type = 'scalar_data'
     model_fields = ['timestamp', 'value']
     required_fields = ['value']
-    # set queryset to True for ScalarSensorDataResource so that serialize_list gets called
+    # set queryset to True because list_view expects queryset
     queryset = True
     default_timespan = timedelta(hours=6)
 
@@ -33,7 +33,7 @@ class ScalarSensorDataResource(Resource):
             self.sensor_id = self._filters.get('sensor_id')
             self.value = self.sanitize_field_value('value', self._data.get('value'))
             self.timestamp = self.sanitize_field_value('timestamp', self._data.get('timestamp'))
-            # treat raw sensor data like an object
+            # treat sensor data like an object
             self._schema = 'object'
         if 'queryset' in kwargs:
             # we want to default to the last page, not the first page
