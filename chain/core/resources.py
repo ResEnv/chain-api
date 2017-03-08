@@ -22,19 +22,17 @@ class ScalarSensorDataResource(Resource):
     resource_type = 'scalar_data'
     model_fields = ['timestamp', 'value']
     required_fields = ['value']
-    # set queryset to True because list_view expects queryset
-    queryset = True
     default_timespan = timedelta(hours=6)
 
     def __init__(self, *args, **kwargs):
         super(ScalarSensorDataResource, self).__init__(*args, **kwargs)
-        if self._data:
+        if self._state == 'data':
             # deserialize data
             self.sensor_id = self._filters.get('sensor_id')
             self.value = self.sanitize_field_value('value', self._data.get('value'))
             self.timestamp = self.sanitize_field_value('timestamp', self._data.get('timestamp'))
             # treat sensor data like an object
-            self._schema = 'object'
+            self._state = 'object'
         if 'queryset' in kwargs:
             # we want to default to the last page, not the first page
             pass

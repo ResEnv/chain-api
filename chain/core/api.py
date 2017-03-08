@@ -106,7 +106,7 @@ class CollectionField(object):
         self._reverse_name = reverse_name
         self._child_resource_class = child_resource_class
         self._embed = embed
-
+    
     def serialize(self, parent, request, cache):
         queryset = self._child_resource_class.queryset
 
@@ -114,7 +114,7 @@ class CollectionField(object):
         # children, and not all the resources
 
         parent_filter = {self._reverse_name + '_id': parent._obj.id}
-        return self._child_resource_class(queryset=queryset, request=request,
+        return self._child_resource_class(is_list=True, request=request,
                                           filters=parent_filter).serialize(
                                               embed=self._embed, cache=cache)
 
@@ -167,24 +167,29 @@ class Resource(object):
     required_fields = []
     page_size = 30
 
-    def __init__(self, obj=None, queryset=None, data=None, request=None,
+    def __init__(self, obj=None, is_list=None, data=None, request=None,
                  filters=None, limit=None, offset=None):
-        if len([arg for arg in [obj, queryset, data] if arg]) != 1:
+        if len([arg for arg in [obj, is_list, data] if arg]) != 1:
             logging.error(
                 'Exactly 1 object, queryset, or primitive data is required')
-        self._queryset = queryset
-        self._data = data
-        self._obj = obj
+        if obj:
+            self._state = 'object'
+            self._obj = obj
+        elif is_list:
+            self._state = 'list'
+            self._queryset = self.__class__.queryset
+        else:
+            self._state = 'data'
+            self._data = data
+
         self._filters = filters or {}
         self._request = request
         self._limit = limit or self.page_size
         self._offset = offset or 0
-        if self._queryset:
-            self._schema = 'list'
-        elif self._obj:
-            self._schema = 'object'
-        else:
-            self._schema = 'data'
+    
+    @classmethod
+    def get_object_by_id(cls, id):
+        return cls.queryset.get(id=id)
 
     def serialize_single(self, embed=True, cache=None, rels=True):
         '''Serializes this object, assuming that there is a single instance to
@@ -420,12 +425,12 @@ class Resource(object):
         # object may be in the cache in both the embedded and non-embedded
         # forms, but that is likely a small price to pay for simplicity
 
-        if self._schema == 'list':
+        if self._state == 'list':
             # we don't currently handle cacheing whole collection lists.
             self._data = self.serialize_list(embed, cache,
                                              *args, **kwargs)
 
-        elif self._schema == 'object':
+        elif self._state == 'object':
             cache_key = self.get_cache_key()
             if (cache_key, embed) in cache:
                 return cache[(cache_key, embed)]
@@ -487,7 +492,7 @@ class Resource(object):
     def deserialize(self):
         '''Deserializes this instance and returns the object representation'''
 
-        if self._obj:
+        if self._state == 'object':
             return self._obj
         new_obj_data = {}
 
@@ -520,7 +525,7 @@ class Resource(object):
 
         new_obj_data.update(self._filters)
         self._obj = self.model(**new_obj_data)
-        self._schema = 'object'
+        self._state = 'object'
         return self._obj
 
     def update(self, data):
@@ -548,7 +553,7 @@ class Resource(object):
         self._obj.save()
 
     def save(self):
-        if not self._obj:
+        if not getattr(self, '_obj', False):
             # here we're using the side-effect of serialization that we save
             # the object after deserialization
             self.deserialize()
@@ -627,7 +632,7 @@ class Resource(object):
             except ValueError:
                 pass
         try:
-            response_data = cls(queryset=cls.queryset, request=request,
+            response_data = cls(is_list=True, request=request,
                                 filters=filters, offset=offset,
                                 limit=limit).serialize()
             return cls.render_response(response_data, request)
@@ -694,7 +699,7 @@ class Resource(object):
     @classmethod
     def single_view(cls, request, id):
         try:
-            response_data = cls(obj=cls.queryset.get(id=id),
+            response_data = cls(obj=cls.get_object_by_id(id),
                                 request=request).serialize()
             return cls.render_response(response_data, request)
         except cls.model.DoesNotExist:
@@ -704,14 +709,14 @@ class Resource(object):
     @csrf_exempt
     def edit_view(cls, request, id):
         if request.method == 'GET':
-            resource = cls(obj=cls.queryset.get(id=id), request=request)
+            resource = cls(obj=cls.get_object_by_id(id), request=request)
             schema = resource.get_filled_schema()
             return cls.render_response(schema, request)
 
         elif request.method == 'POST':
             # if not request.user.is_authenticated():
             #    return render_401(request)
-            resource = cls(obj=cls.queryset.get(id=id), request=request)
+            resource = cls(obj=cls.get_object_by_id(id), request=request)
             try:
                 data = json.loads(request.body)
             except ValueError:
