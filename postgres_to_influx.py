@@ -24,15 +24,15 @@ def get_points(offset, limit=None):
         data = ScalarData.objects.order_by('timestamp')[offset:offset+limit]
 
     if len(data)<BATCH_SIZE:
-        status_code = post_points_wrapper(data)
+        post_points_wrapper(data)
     else:
         count = 0
         while count < len(data):
             if len(data) - count >= BATCH_SIZE:
-                post_points(data[count:count+BATCH_SIZE])
+                post_points_wrapper(data, count, BATCH_SIZE)
                 count += BATCH_SIZEx
             else:
-                post_points(data[count:])
+                post_points_wrapper(data, count, len(data)-1)
           
         
     return 
