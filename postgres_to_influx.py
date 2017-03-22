@@ -1,79 +1,60 @@
 from chain.core.models import ScalarData
 from django.utils import timezone
-from datetime import timedelta, datetime
+from datetime import datetime
 from chain.influx_client import InfluxClient, HTTP_STATUS_SUCCESSFUL_WRITE
 from chain.core.resources import influx_client
-import sys
 
-# needs to be run from the manage.py shell context
+# needs to be run from the manage.py shell context. Entry point is
+# `migrate_data`
 
 BATCH_SIZE = 5000
 FIRST_TIMESTAMP = datetime.utcfromtimestamp(
     float(1481811788574987776)/1e9).replace(tzinfo=timezone.utc)
 
-def get_points(offset, limit=None):
+
+def migrate_data(offset, limit=float('inf')):
     '''Returns objects between offset and offset+limit'''
-    if limit == None:
-        data = ScalarData.objects.filter(
+    queryset = ScalarData.objects.filter(
         timestamp__lt=FIRST_TIMESTAMP.isoformat()).order_by('timestamp')
-        print('Start moving objects[{0}:]'.format(offset))
-    else:
-        print('Start moving objects[{0}:{1}]'.format(
-            offset,
-            offset+limit))
-        data = ScalarData.objects.order_by('timestamp')[offset:offset+limit]
+    moved = 0
+    while moved < limit:
+        n = min(BATCH_SIZE, limit - moved)
+        batch_begin = offset+moved
+        batch_end = offset+moved+n
+        print('Start moving objects[{0}:{1}]...'.format(
+            batch_begin,
+            batch_end))
+        moved_count = post_points(queryset[batch_begin:batch_end])
+        print('Moved objects[{0}:{1}]\n'.format(
+            batch_begin,
+            batch_begin+moved_count))
+        moved += moved_count
+        if moved_count < n:
+            # we moved fewer then we requested, we must be done
+            break
 
-    if len(data)<BATCH_SIZE:
-        post_points_wrapper(data)
-    else:
-        count = 0
-        while count < len(data):
-            if len(data) - count >= BATCH_SIZE:
-                post_points_wrapper(data, count, BATCH_SIZE)
-                count += BATCH_SIZEx
-            else:
-                post_points_wrapper(data, count, len(data)-1)
-          
-        
-    return 
 
-def post_points_wrapper(data, offset, limit):
-    print('Moving objects[{0}:{1}]'.format(
-        offset,
-        offset+limit))
-    status_code = post_points(data[offset:offset+limit])
-    if status_code != HTTP_STATUS_SUCCESSFUL_WRITE:
-        print('Failed to move objects[{0}:{1}]'.format(
-            offset,
-            offset+limit))
-    else:
-        print('Moved objects[{0}:{1}]'.format(
-            offset,
-            offset+limit))
-    
-def post_points(list_of_points):
-    '''Posts a list of data points to postgres and returns status
-    code of request'''
+def post_points(queryset):
+    """Performs the Postgres query and posts the data to influx. Returns the
+    number of data points copied"""
     data = ''
-    for point in list_of_points:
+    datacount = 0
+    for point in queryset:
         timestamp = InfluxClient.convert_timestamp(point.timestamp)
         data += '{0},sensor_id={1} value={2} {3}\n'.format(
             influx_client._measurement,
             point.sensor_id,
             point.value,
             timestamp)
+        datacount += 1
     response = influx_client.request('POST',
-                                    influx_client._url + '/write',
-                                    {'db': influx_client._database},
-                                    data)
-    return response.status_code
-
-
-if __name__ == "__main__":
-    if len(sys.argv)==3:
-        get_points(sys.argv[1],sys.argv[2])
-    elif len(sys.argv)==2:
-        get_points(sys.argv[1])
-    else:
-         print('usage: %s <offset> [limit]' % sys.argv[0])
-         sys.exit(1)
+                                     influx_client._url + '/write',
+                                     {'db': influx_client._database},
+                                     data)
+    # print the timestamp of the last point so we get some sense of where we
+    # are
+    print("[{0}] ".format(point.timestamp))
+    if response.status_code != HTTP_STATUS_SUCCESSFUL_WRITE:
+        raise RuntimeError("Influx returned status {0}".format(
+            response.status_code))
+    return datacount
