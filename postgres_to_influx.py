@@ -7,25 +7,26 @@ import sys
 
 # needs to be run from the manage.py shell context
 
-# start_time is UTC unix timestamp, delta is in days
-def get_points(start_time, delta, amount):
-    start_time = datetime.utcfromtimestamp(
-        float(start_time)).replace(tzinfo=timezone.utc)
-    end_time = start_time + timedelta(days=delta)
-    data = ScalarData.objects.filter(
-        timestamp__gte=start_time.isoformat(),
-        timestamp__lt=end_time.isoformat())
-    count = 0
-    while count<len(data):
-        if len(data) - count >= amount:
-            post_points(data[count:count+amount])
-            count += amount
-        else:
-            post_points(data[count:])
-            break
-
+def get_points(offset, limit):
+    '''Returns objects between offset and offset+limit'''
+    print('Start moving objects[{0}:{1}]'.format(
+        offset,
+        offset+limit))
+    data = ScalarData.objects.all()[offset:offset+limit]
+    status_code = post_points(data)
+    if status_code != HTTP_STATUS_SUCCESSFUL_WRITE:
+        print('Failed to move objects[{0}:{1}]'.format(
+            offset,
+            offset+limit))
+    else:
+        print('Moved objects[{0}:{1}]'.format(
+            offset,
+            offset+limit))
+    return 
 
 def post_points(list_of_points):
+    '''Posts a list of data points to postgres and returns status
+    code of request'''
     data = ''
     for point in list_of_points:
         print point['timestamp']
@@ -39,9 +40,7 @@ def post_points(list_of_points):
                                     influx_client._url + '/write',
                                     {'db': influx_client._database},
                                     data)
-    if response.status_code != HTTP_STATUS_SUCCESSFUL_WRITE:
-        pass
-    return response
+    return response.status_code
 
 
 if __name__ == "__main__":
