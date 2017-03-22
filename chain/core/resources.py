@@ -3,7 +3,7 @@ from chain.core.api import full_reverse
 from chain.core.api import CHAIN_CURIES
 from chain.core.api import BadRequestException
 from chain.core.api import register_resource
-from chain.core.models import Site, Device, ScalarSensor, ScalarData, \
+from chain.core.models import Site, Device, ScalarSensor, \
     PresenceSensor, PresenceData, Person
 from django.conf.urls import include, patterns, url
 from django.utils import timezone
@@ -12,34 +12,58 @@ import calendar
 from chain.localsettings import INFLUX_HOST, INFLUX_PORT, INFLUX_DATABASE, INFLUX_MEASUREMENT
 from chain.influx_client import InfluxClient
 from django.views.decorators.csrf import csrf_exempt
+from django.utils.dateparse import parse_datetime
 
 influx_client = InfluxClient(INFLUX_HOST, INFLUX_PORT, INFLUX_DATABASE, INFLUX_MEASUREMENT)
-
+        
 class ScalarSensorDataResource(Resource):
-    model = ScalarData
     display_field = 'timestamp'
     resource_name = 'scalar_data'
     resource_type = 'scalar_data'
     model_fields = ['timestamp', 'value']
     required_fields = ['value']
-    queryset = ScalarData.objects
     default_timespan = timedelta(hours=6)
 
     def __init__(self, *args, **kwargs):
         super(ScalarSensorDataResource, self).__init__(*args, **kwargs)
+        if self._state == 'data':
+            # deserialize data
+            self.sensor_id = self._filters.get('sensor_id')
+            self.value = self.sanitize_field_value('value', self._data.get('value'))
+            self.timestamp = self.sanitize_field_value('timestamp', self._data.get('timestamp'))
+            # treat sensor data like an object
+            self._state = 'object'
         if 'queryset' in kwargs:
             # we want to default to the last page, not the first page
             pass
-    
+
+    def serialize_single(self, embed=True, cache=None, rels=True):
+        data = {}
+        for field_name in self.model_fields:
+            data[field_name] = self.serialize_field(getattr(self, field_name))
+        return data
+
+    @classmethod
+    def sanitize_field_value(cls, field_name, value):
+        if field_name == 'value':
+            return float(value)
+        if field_name == 'timestamp':
+            from django.db import models
+            if value == None:
+                return timezone.now()
+            timestamp = parse_datetime(value)
+            if timezone.is_aware(timestamp):
+                return timestamp
+            return timezone.make_aware(timestamp, timezone.get_current_timezone())
+            
+
     def save(self):
-        super(ScalarSensorDataResource, self).save()
-        response = influx_client.post(self._obj.sensor_id, self._obj.value, self._obj.timestamp)
+        response = influx_client.post(self.sensor_id, self.value, self.timestamp)
         return response
 
     def serialize_list(self, embed, cache):
         '''a "list" of SensorData resources is actually represented
         as a single resource with a list of data points'''
-
         if not embed:
             return super(
                 ScalarSensorDataResource,
@@ -98,6 +122,9 @@ class ScalarSensorDataResource(Resource):
             'timestamp': obj['time']}
             for obj in objs]
         return serialized_data
+    
+    def get_cache_key(self):
+        return self.sensor_id, self.timestamp
 
     def format_time(self, timestamp):
         return calendar.timegm(timestamp.timetuple())
@@ -127,19 +154,22 @@ class ScalarSensorDataResource(Resource):
         '''Serialize this resource for a stream'''
         data = self.serialize_single(rels=False)
         data['_links'] = {
-            'self': {'href': self.get_single_href()},
             'ch:sensor': {'href': full_reverse(
                 'scalar_sensors-single', self._request,
                 args=(self._filters['sensor_id'],))}
         }
         return data
 
+    def get_single_href(self):
+        return full_reverse(self.resource_name + '-single',
+                            self._request, args=(self.sensor_id,self.timestamp))
+
     def get_tags(self):
-        if not self._obj:
+        if not self.sensor_id:
             raise ValueError(
-                'Tried to called get_tags on a resource without an object')
+                'Tried to called get_tags on a resource without an id')
         db_sensor = ScalarSensor.objects.select_related('device').get(
-            id=self._obj.sensor_id)
+            id=self.sensor_id)
         return ['sensor-%d' % db_sensor.id,
                 'device-%d' % db_sensor.device_id,
                 'site-%d' % db_sensor.device.site_id]
@@ -176,11 +206,11 @@ class ScalarSensorResource(Resource):
         data['sensor-type'] = "scalar"
         if embed:
             data['dataType'] = 'float'
-            last_data = self._obj.scalar_data.order_by(
-                'timestamp').reverse()[:1]
+            last_data = influx_client.get_last_sensor_data(self._obj.id)
             if last_data:
-                data['value'] = last_data[0].value
-                data['updated'] = last_data[0].timestamp.isoformat()
+                # column name returned by last() selector is last
+                data['value'] = last_data[0]['last']
+                data['updated'] = last_data[0]['time']
         return data
 
     def get_tags(self):

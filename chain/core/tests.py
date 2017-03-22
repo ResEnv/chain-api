@@ -5,6 +5,7 @@ import json
 import zmq
 from django.utils.timezone import make_aware, utc, now
 from pytz import AmbiguousTimeError
+import re
 
 fake_zmq_socket = None
 
@@ -44,7 +45,7 @@ class FakeZMQSocket(object):
 # anything that imports chain.api should come after this
 zmq.Context = FakeZMQContext
 
-from chain.core.models import ScalarData, Unit, Metric, Device, ScalarSensor, Site, \
+from chain.core.models import Unit, Metric, Device, ScalarSensor, Site, \
     PresenceSensor, Person
 from chain.core.models import GeoLocation
 from chain.core.resources import DeviceResource
@@ -176,17 +177,16 @@ class ChainTestCase(TestCase):
         self.scalar_data = []
         for sensor in self.sensors:
             sensor.save()
-            self.scalar_data.append(ScalarData(
-                sensor=sensor,
-                timestamp=now() - timedelta(minutes=2),
-                value=22.0))
-            self.scalar_data.append(ScalarData(
-                sensor=sensor,
-                timestamp=now() - timedelta(minutes=1),
-                value=23.0))
+            self.scalar_data.append({
+                'sensor': sensor,
+                'timestamp': now() - timedelta(minutes=2),
+                'value': 22.0})
+            self.scalar_data.append({
+                'sensor': sensor,
+                'timestamp': now() - timedelta(minutes=1),
+                'value': 23.0})
         for data in self.scalar_data:
-            resources.influx_client.post(data.sensor_id, data.value, data.timestamp)
-            data.save()
+            resources.influx_client.post(data['sensor'].id, data['value'], data['timestamp'])
 
     def get_resource(self, url, mime_type='application/hal+json',
                      expect_status_code=HTTP_STATUS_SUCCESS,
@@ -291,10 +291,13 @@ class ChainTestCase(TestCase):
 class ScalarSensorDataTest(ChainTestCase):
 
     def test_data_can_be_added(self):
-        data = ScalarData(sensor=self.sensors[0], value=25)
-        data.save()
-        resources.influx_client.post(data.sensor_id, data.value, data.timestamp)
-        self.assertEqual(data.value, 25)
+        data = {
+            'sensor_id': self.sensors[0].id,
+            'value': 25,
+            'timestamp': now()
+        }
+        resources.influx_client.post(data['sensor_id'], data['value'], data['timestamp'])
+        self.assertEqual(data['value'], 25)
 
 
 class BasicHALJSONTests(ChainTestCase):
@@ -975,12 +978,15 @@ class ApiScalarSensorDataTests(ChainTestCase):
             'value': 23,
             'timestamp': timestamp.isoformat()
         }
+        sensor_id = re.search(r'[^=]*$', data_url).group(0)
         self.create_resource(data_url, data)
-        db_data = ScalarData.objects.get(
-            sensor__metric__name=sensor.metric,
-            sensor__device__name=device.name,
-            timestamp=timestamp)
-        self.assertEqual(db_data.value, data['value'])
+        filters = {
+            'sensor_id': sensor_id,
+            'timestamp__gte': timestamp,
+            'timestamp__lt': timestamp + timedelta(seconds=0.1)
+        }
+        db_data = resources.influx_client.get_sensor_data(filters)[0]
+        self.assertEqual(db_data['value'], data['value'])
 
     def test_lists_of_sensor_data_should_be_postable(self):
         device = self.get_a_device()
@@ -988,6 +994,7 @@ class ApiScalarSensorDataTests(ChainTestCase):
         sensor_data = self.get_resource(
             sensor.links['ch:dataHistory'].href)
         data_url = sensor_data.links.createForm.href
+        sensor_id = re.search(r'[^=]*$', data_url).group(0)
         basetime = make_aware(datetime(2013, 1, 1, 0, 0, 0), utc)
         timestamps = [basetime + timedelta(seconds=i) for i in range(0, 3)]
         values = range(0, 3)
@@ -996,12 +1003,14 @@ class ApiScalarSensorDataTests(ChainTestCase):
             'timestamp': timestamp.isoformat()
         } for value, timestamp in zip(values, timestamps)]
         self.create_resource(data_url, data)
+        filters = {
+            'sensor_id': sensor_id
+        }
         for i in range(0, 3):
-            db_data = ScalarData.objects.get(
-                sensor__metric__name=sensor.metric,
-                sensor__device__name=device.name,
-                timestamp=timestamps[i])
-            self.assertEqual(db_data.value, values[i])
+            filters['timestamp__gte'] = timestamps[i]
+            filters['timestamp__lt'] = timestamps[i] + timedelta(seconds=0.1)
+            db_data = resources.influx_client.get_sensor_data(filters)[0]
+            self.assertEqual(db_data['value'], values[i])
 
     def test_posting_data_should_send_zmq_msgs(self):
         fake_zmq_socket.clear()
