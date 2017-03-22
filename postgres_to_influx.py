@@ -1,3 +1,4 @@
+from __future__ import print_function
 from chain.core.models import ScalarData
 from django.utils import timezone
 from datetime import datetime
@@ -7,7 +8,7 @@ from chain.core.resources import influx_client
 # needs to be run from the manage.py shell context. Entry point is
 # `migrate_data`
 
-BATCH_SIZE = 5000
+BATCH_SIZE = 10000
 FIRST_TIMESTAMP = datetime.utcfromtimestamp(
     float(1481811788574987776)/1e9).replace(tzinfo=timezone.utc)
 
@@ -22,10 +23,9 @@ def migrate_data(offset, limit=float('inf')):
         batch_begin = offset+moved
         batch_end = offset+moved+n
         print('Start moving objects[{0}:{1}]...'.format(
-            batch_begin,
-            batch_end))
+              batch_begin, batch_end), end='')
         moved_count = post_points(queryset[batch_begin:batch_end])
-        print('Moved objects[{0}:{1}]\n'.format(
+        print('Moved objects[{0}:{1}]'.format(
             batch_begin,
             batch_begin+moved_count))
         moved += moved_count
@@ -53,7 +53,7 @@ def post_points(queryset):
                                      data)
     # print the timestamp of the last point so we get some sense of where we
     # are
-    print("[{0}] ".format(point.timestamp))
+    print("[{0}] ".format(point.timestamp), end='')
     if response.status_code != HTTP_STATUS_SUCCESSFUL_WRITE:
         raise RuntimeError("Influx returned status {0}".format(
             response.status_code))
