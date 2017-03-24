@@ -15,7 +15,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.dateparse import parse_datetime
 
 influx_client = InfluxClient(INFLUX_HOST, INFLUX_PORT, INFLUX_DATABASE, INFLUX_MEASUREMENT)
-        
+
 class ScalarSensorDataResource(Resource):
     display_field = 'timestamp'
     resource_name = 'scalar_data'
@@ -55,7 +55,7 @@ class ScalarSensorDataResource(Resource):
             if timezone.is_aware(timestamp):
                 return timestamp
             return timezone.make_aware(timestamp, timezone.get_current_timezone())
-            
+
 
     def save(self):
         response = influx_client.post(self.sensor_id, self.value, self.timestamp)
@@ -122,7 +122,7 @@ class ScalarSensorDataResource(Resource):
             'timestamp': obj['time']}
             for obj in objs]
         return serialized_data
-    
+
     def get_cache_key(self):
         return self.sensor_id, self.timestamp
 
@@ -206,11 +206,15 @@ class ScalarSensorResource(Resource):
         data['sensor-type'] = "scalar"
         if embed:
             data['dataType'] = 'float'
-            last_data = influx_client.get_last_sensor_data(self._obj.id)
-            if last_data:
-                # column name returned by last() selector is last
-                data['value'] = last_data[0]['last']
-                data['updated'] = last_data[0]['time']
+            # this is hammering the influx server, we should switch it
+            # over to doing a single bulk query. For now disabling the
+            # data to get things up and running
+
+            #last_data = influx_client.get_last_sensor_data(self._obj.id)
+            #if last_data:
+            #    # column name returned by last() selector is last
+            #    data['value'] = last_data[0]['last']
+            #    data['updated'] = last_data[0]['time']
         return data
 
     def get_tags(self):
