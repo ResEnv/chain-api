@@ -1,9 +1,11 @@
 from __future__ import print_function
 from chain.core.models import ScalarData
 from django.utils import timezone
+from django.db import models
 from datetime import datetime
 from chain.influx_client import InfluxClient, HTTP_STATUS_SUCCESSFUL_WRITE
 from chain.core.resources import influx_client
+from sys import stdout
 
 # needs to be run from the manage.py shell context. Entry point is
 # `migrate_data`
@@ -15,22 +17,25 @@ FIRST_TIMESTAMP = datetime.utcfromtimestamp(
 
 def migrate_data(offset, limit=float('inf')):
     '''Returns objects between offset and offset+limit'''
-    queryset = ScalarData.objects.filter(
-        timestamp__lt=FIRST_TIMESTAMP.isoformat()).order_by('timestamp')
+    #queryset = ScalarData.objects.filter(
+    #    timestamp__lt=FIRST_TIMESTAMP.isoformat())
+    #print('Calculating min and max IDs...')
+    #min_max = queryset.aggregate(min=models.Min('id'), max=models.Max('id'))
+    #min_id = min_max['min']
+    #max_id = min_max['max']
+    min_id = 0
+    max_id = 1068348868
+    print('Got min ID {0} and max ID {0}'.format(min_id, max_id))
     moved = 0
-    while moved < limit:
-        n = min(BATCH_SIZE, limit - moved)
-        batch_begin = offset+moved
-        batch_end = offset+moved+n
+    for i in range(min_id, max_id+1, BATCH_SIZE):
         print('Start moving objects[{0}:{1}]...'.format(
-              batch_begin, batch_end), end='')
-        moved_count = post_points(queryset[batch_begin:batch_end])
-        print('Moved objects[{0}:{1}]'.format(
-            batch_begin,
-            batch_begin+moved_count))
+              i, i+BATCH_SIZE), end='')
+        stdout.flush()
+        moved_count = post_points(ScalarData.objects.filter(id__range=(i, i+BATCH_SIZE-1)))
+        print('Moved {0} objects'.format(moved_count))
+        stdout.flush()
         moved += moved_count
-        if moved_count < n:
-            # we moved fewer then we requested, we must be done
+        if moved >= limit:
             break
 
 
@@ -54,6 +59,7 @@ def post_points(queryset):
     # print the timestamp of the last point so we get some sense of where we
     # are
     print("[{0}] ".format(point.timestamp), end='')
+    stdout.flush()
     if response.status_code != HTTP_STATUS_SUCCESSFUL_WRITE:
         raise RuntimeError("Influx returned status {0}".format(
             response.status_code))
