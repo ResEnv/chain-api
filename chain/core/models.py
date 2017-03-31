@@ -97,27 +97,6 @@ class ScalarSensor(models.Model):
         return self.metric.name
 
 
-class ScalarData(models.Model):
-    '''A data point representing scalar sensor data, such as temperature,
-    humidity, etc.'''
-    # Django automatically creates indices on foreign keys
-    sensor = models.ForeignKey(ScalarSensor, related_name='scalar_data')
-    timestamp = models.DateTimeField(default=timezone.now, blank=True,
-                                     db_index=True)
-    value = models.FloatField()
-
-    class Meta:
-        verbose_name_plural = "scalar data"
-        index_together = [['sensor', 'timestamp']]
-
-    def __repr__(self):
-        return 'ScalarData(timestamp=%r, value=%r, sensor=%r)' % (
-            self.timestamp, self.value, self.sensor)
-
-    def __str__(self):
-        return '%.3f %s' % (self.value, self.sensor.unit)
-
-
 class Person(models.Model):
     '''A Person involved with the site. Some sensors might detect presence of a
     person, so they can reference this model with person-specific
