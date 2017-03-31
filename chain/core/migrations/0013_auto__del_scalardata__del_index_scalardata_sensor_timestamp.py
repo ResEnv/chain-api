@@ -12,7 +12,8 @@ class Migration(SchemaMigration):
         db.delete_table(u'core_scalardata')
 
         # Removing index on 'ScalarData', fields ['sensor', 'timestamp']
-        db.delete_index(u'core_scalardata', ['sensor_id', 'timestamp'])
+        # commented because it errors out that this index isn't found...
+        # db.delete_index(u'core_scalardata', ['sensor_id', 'timestamp'])
 
 
     def backwards(self, orm):
