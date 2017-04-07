@@ -30,11 +30,13 @@ class InfluxClient(object):
                                          headers=headers)
         return response
 
-    def post(self, sensor_id, value, timestamp=None):
+    def post(self, site_id, device_id, sensor_id, value, timestamp=None):
         timestamp = InfluxClient.convert_timestamp(timestamp)
-        data = '{0},sensor_id={1} value={2}'.format(self._measurement,
-                                                    sensor_id,
-                                                    value)
+        data = '{0},sensor_id={1},site_id={2},device_id={3} value={4}'.format(self._measurement,
+                                                                              sensor_id,
+                                                                              site_id,
+                                                                              device_id,
+                                                                              value)
         if timestamp:
             data += ' ' + str(timestamp)
         response = self.request('POST',
@@ -74,6 +76,12 @@ class InfluxClient(object):
         result = self.get_values(self.get(query, True))
         return result
 
+    def get_last_data_from_all_sensors(self, site_id):
+        query = "SELECT LAST(*) FROM {0} WHERE site_id = \'{1}\' GROUP BY sensor_id".format(self._measurement,
+                                                                                           site_id)
+        result = self.get_values(self.get(query, True))
+        return result
+
     def get_databases(self):
         db={}
         response = self.get('SHOW DATABASES', False)
@@ -88,10 +96,20 @@ class InfluxClient(object):
             return []
         if len(json['results'][0]['series']) == 0:
             return []
-        series = json['results'][0]['series'][0]
-        values = series['values']
-        columns = series['columns']
-        result = [dict(itertools.izip(columns, values[i])) for i in range(len(values))]
+        if 'tags' in json['results'][0]['series'][0]:
+            series = json['results'][0]['series']
+            result = []
+            for d in series:
+                values = d['values'][0]
+                columns = d['columns']
+                data = dict(itertools.izip(columns,values))
+                data.update(d['tags'])
+                result.append(data)
+        else:
+            series = json['results'][0]['series'][0]
+            values = series['values']
+            columns = series['columns']
+            result = [dict(itertools.izip(columns, values[i])) for i in range(len(values))]
         return result
 
 

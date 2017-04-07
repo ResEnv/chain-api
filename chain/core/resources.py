@@ -31,6 +31,10 @@ class ScalarSensorDataResource(Resource):
             self.sensor_id = self._filters.get('sensor_id')
             self.value = self.sanitize_field_value('value', self._data.get('value'))
             self.timestamp = self.sanitize_field_value('timestamp', self._data.get('timestamp'))
+            # add ids up the hierarchy
+            sensor = ScalarSensor.objects.filter(id=self.sensor_id).select_related('device')[0]
+            self.device_id = sensor.device.id
+            self.site_id = sensor.device.site.id
             # treat sensor data like an object
             self._state = 'object'
         if 'queryset' in kwargs:
@@ -58,7 +62,7 @@ class ScalarSensorDataResource(Resource):
 
 
     def save(self):
-        response = influx_client.post(self.sensor_id, self.value, self.timestamp)
+        response = influx_client.post(self.site_id, self.device_id, self.sensor_id, self.value, self.timestamp)
         return response
 
     def serialize_list(self, embed, cache):
@@ -209,12 +213,14 @@ class ScalarSensorResource(Resource):
             # this is hammering the influx server, we should switch it
             # over to doing a single bulk query. For now disabling the
             # data to get things up and running
-
-            #last_data = influx_client.get_last_sensor_data(self._obj.id)
-            #if last_data:
-            #    # column name returned by last() selector is last
-            #    data['value'] = last_data[0]['last']
-            #    data['updated'] = last_data[0]['time']
+            if not kwargs.get('include_data', True):
+                return data
+            else:
+                last_data = influx_client.get_last_sensor_data(self._obj.id)
+                if last_data:
+                    # column name returned by last() selector is last
+                    data['value'] = last_data[0]['last']
+                    data['updated'] = last_data[0]['time']
         return data
 
     def get_tags(self):
@@ -850,6 +856,10 @@ class SiteResource(Resource):
             },
             'devices': []
         }
+        sensor_data_list = influx_client.get_last_data_from_all_sensors(id)
+        sensor_data_dict = {}
+        for data_point in sensor_data_list:
+            sensor_data_dict[int(data_point['sensor_id'])] = (data_point['last_value'], data_point['time'])
         for device in devices:
             dev_resource = DeviceResource(obj=device, request=request)
             dev_data = dev_resource.serialize(rels=False)
@@ -860,7 +870,9 @@ class SiteResource(Resource):
                 sensor_resource = ScalarSensorResource(
                     obj=sensor,
                     request=request)
-                sensor_data = sensor_resource.serialize(rels=False)
+                sensor_data = sensor_resource.serialize(rels=False, include_data=False)
+                sensor_data['value'] = sensor_data_dict[sensor.id][0]
+                sensor_data['updated'] = sensor_data_dict[sensor.id][1]
                 sensor_data['href'] = sensor_resource.get_single_href()
                 dev_data['sensors'].append(sensor_data)
                 sensor_data['data'] = []

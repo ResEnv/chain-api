@@ -191,7 +191,7 @@ class Resource(object):
     def get_object_by_id(cls, id):
         return cls.queryset.get(id=id)
 
-    def serialize_single(self, embed=True, cache=None, rels=True):
+    def serialize_single(self, embed=True, cache=None, rels=True, *args, **kwargs):
         '''Serializes this object, assuming that there is a single instance to
         be serialized. Note that this only gets called from the top-level
         serialize() method, which handles checking whether we're in the
