@@ -32,9 +32,9 @@ class ScalarSensorDataResource(Resource):
             self.value = self.sanitize_field_value('value', self._data.get('value'))
             self.timestamp = self.sanitize_field_value('timestamp', self._data.get('timestamp'))
             # add ids up the hierarchy
-            sensor = ScalarSensor.objects.filter(id=self.sensor_id).select_related('device')[0]
+            sensor = ScalarSensor.objects.select_related('device').get(id=self.sensor_id)
             self.device_id = sensor.device.id
-            self.site_id = sensor.device.site.id
+            self.site_id = sensor.device.site_id
             # treat sensor data like an object
             self._state = 'object'
         if 'queryset' in kwargs:
