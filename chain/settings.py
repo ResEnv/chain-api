@@ -102,6 +102,11 @@ INSTALLED_APPS = (
     # 'django.contrib.admindocs',
 )
 
+
+# don't run each migration, just use syncdb to get to the final state
+# from http://stackoverflow.com/questions/25161425/disable-migrations-when-running-unit-tests-in-django-1-7
+SOUTH_TESTS_MIGRATE = False
+
 # tell the debug toolbar not to try to be too clever
 DEBUG_TOOLBAR_PATCH_SETTINGS = False
 # used to decide whether to display the debug toolbar
