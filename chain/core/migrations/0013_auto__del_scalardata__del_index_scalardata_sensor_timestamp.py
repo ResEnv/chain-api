@@ -9,7 +9,11 @@ class Migration(SchemaMigration):
 
     def forwards(self, orm):
         # Deleting model 'ScalarData'
-        db.delete_table(u'core_scalardata')
+        response = raw_input('Really delete ScalarData table? This will delete all your sensor data from Postgres (y/N): ')
+        if len(response) > 0 and response[0].lower() == 'y':
+            db.delete_table(u'core_scalardata')
+        else:
+            raise ValueError('User aborted migration')
 
         # Removing index on 'ScalarData', fields ['sensor', 'timestamp']
         # commented because it errors out that this index isn't found...
@@ -17,9 +21,6 @@ class Migration(SchemaMigration):
 
 
     def backwards(self, orm):
-        # Adding index on 'ScalarData', fields ['sensor', 'timestamp']
-        db.create_index(u'core_scalardata', ['sensor_id', 'timestamp'])
-
         # Adding model 'ScalarData'
         db.create_table(u'core_scalardata', (
             ('timestamp', self.gf('django.db.models.fields.DateTimeField')(default=datetime.datetime.now, blank=True, db_index=True)),
@@ -28,6 +29,9 @@ class Migration(SchemaMigration):
             ('value', self.gf('django.db.models.fields.FloatField')()),
         ))
         db.send_create_signal(u'core', ['ScalarData'])
+
+        # Adding index on 'ScalarData', fields ['sensor', 'timestamp']
+        db.create_index(u'core_scalardata', ['sensor_id', 'timestamp'])
 
 
     models = {
