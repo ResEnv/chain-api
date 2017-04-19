@@ -871,8 +871,12 @@ class SiteResource(Resource):
                     obj=sensor,
                     request=request)
                 sensor_data = sensor_resource.serialize(rels=False, include_data=False)
-                sensor_data['value'] = sensor_data_dict[sensor.id][0]
-                sensor_data['updated'] = sensor_data_dict[sensor.id][1]
+                try:
+                    sensor_data['value'] = sensor_data_dict[sensor.id][0]
+                    sensor_data['updated'] = sensor_data_dict[sensor.id][1]
+                except KeyError:
+                    # looks like we don't have any data for this sensor
+                    pass
                 sensor_data['href'] = sensor_resource.get_single_href()
                 dev_data['sensors'].append(sensor_data)
                 sensor_data['data'] = []
