@@ -186,7 +186,11 @@ class ChainTestCase(TestCase):
                 'timestamp': now() - timedelta(minutes=1),
                 'value': 23.0})
         for data in self.scalar_data:
-            resources.influx_client.post(data['sensor'].id, data['value'], data['timestamp'])
+            resources.influx_client.post(data['sensor'].device.site.id,
+                                         data['sensor'].device.id,
+                                         data['sensor'].id,
+                                         data['value'],
+                                         data['timestamp'])
 
     def get_resource(self, url, mime_type='application/hal+json',
                      expect_status_code=HTTP_STATUS_SUCCESS,
@@ -292,11 +296,15 @@ class ScalarSensorDataTest(ChainTestCase):
 
     def test_data_can_be_added(self):
         data = {
-            'sensor_id': self.sensors[0].id,
+            'sensor': self.sensors[0],
             'value': 25,
             'timestamp': now()
         }
-        resources.influx_client.post(data['sensor_id'], data['value'], data['timestamp'])
+        resources.influx_client.post(data['sensor'].device.site.id,
+                                     data['sensor'].device.id,
+                                     data['sensor'].id,
+                                     data['value'],
+                                     data['timestamp'])
         self.assertEqual(data['value'], 25)
 
 
@@ -959,7 +967,7 @@ class ApiScalarSensorDataTests(ChainTestCase):
             sensor.links['ch:dataHistory'].href)
         self.assertIn('timestamp', sensor_data.data[0])
         self.assertIn('value', sensor_data.data[0])
-
+    
     def test_sensor_data_should_have_data_type(self):
         sensor = self.get_a_sensor()
         sensor_data = self.get_resource(
