@@ -62,7 +62,7 @@ class ScalarSensorDataResource(Resource):
 
 
     def save(self):
-        response = influx_client.post(self.site_id, self.device_id, self.sensor_id, self.value, self.timestamp)
+        response = influx_client.post_data(self.site_id, self.device_id, self.sensor_id, self.value, self.timestamp)
         return response
 
     def serialize_list(self, embed, cache):

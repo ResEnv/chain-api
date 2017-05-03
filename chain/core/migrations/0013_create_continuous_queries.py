@@ -13,18 +13,39 @@ class Migration(DataMigration):
         # Note: Don't use "from appname.models import ModelName". 
         # Use orm.ModelName to refer to models in this application,
         # and orm['appname.ModelName'] for models in other applications.
-        influx_client.get('''
-           CREATE CONTINUOUS QUERY "cq_1h" ON "{0}" 
-               RESAMPLE EVERY 1h 
-               BEGIN 
-                   SELECT max("value"), min("value"), mean("value"), count("value") 
-                   INTO "sensordata_1h" FROM "{1}" GROUP BY sensor_id,time(1h),*
-               END
-           '''.format(INFLUX_DATABASE, INFLUX_MEASUREMENT), True)
-
+        influx_client.post('query', '''
+             CREATE CONTINUOUS QUERY "cq_1h" ON "{0}" 
+                 RESAMPLE EVERY 1h 
+                 BEGIN 
+                     SELECT max("value"), min("value"), mean("value"), count("value"), sum("value")  
+                     INTO "sensordata_1h" FROM "{1}" GROUP BY "sensor_id", time(1h), *
+                 END
+             '''.format(INFLUX_DATABASE, INFLUX_MEASUREMENT), True)
+        influx_client.post('query', '''
+            CREATE CONTINUOUS QUERY "cq_1d" ON "{0}"
+                RESAMPLE FOR 2d
+                BEGIN
+                    SELECT max("max"), min("min"), sum("sum")/sum("count") as "mean", sum("count") as "count", sum("sum")
+                    INTO "sensordata_1d" FROM "sensordata_1h" GROUP BY "sensor_id", time(1d), *
+                END
+            '''.format(INFLUX_DATABASE), True)
+        influx_client.post('query', '''
+            CREATE CONTINUOUS QUERY "cq_1w" ON "{0}"
+                RESAMPLE FOR 2w
+                BEGIN
+                    SELECT max("max"), min("min"), sum("sum")/sum("count") as "mean", sum("count") as "count", sum("sum")
+                    INTO "sensordata_1w" FROM "sensordata_1d" GROUP BY "sensor_id", time(1w), *
+                END
+            '''.format(INFLUX_DATABASE), True)
+    
     def backwards(self, orm):
         "Write your backwards methods here."
-        influx_client.get('DROP CONTINUOUS QUERY \"cq_1h\" on \"{}\"'.format(INFLUX_DATABASE), True)
+        influx_client.post('query',
+                           'DROP CONTINUOUS QUERY "cq_1h" on "{}"'.format(INFLUX_DATABASE), True)
+        influx_client.post('query',
+                           'DROP CONTINUOUS QUERY "cq_1d" on "{}"'.format(INFLUX_DATABASE), True)
+        influx_client.post('query',
+                           'DROP CONTINUOUS QUERY "cq_1w" on "{}"'.format(INFLUX_DATABASE), True)
 
     models = {
         u'core.device': {

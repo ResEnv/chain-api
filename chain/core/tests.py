@@ -186,11 +186,11 @@ class ChainTestCase(TestCase):
                 'timestamp': now() - timedelta(minutes=1),
                 'value': 23.0})
         for data in self.scalar_data:
-            resources.influx_client.post(data['sensor'].device.site.id,
-                                         data['sensor'].device.id,
-                                         data['sensor'].id,
-                                         data['value'],
-                                         data['timestamp'])
+            resources.influx_client.post_data(data['sensor'].device.site.id,
+                                              data['sensor'].device.id,
+                                              data['sensor'].id,
+                                              data['value'],
+                                              data['timestamp'])
 
     def get_resource(self, url, mime_type='application/hal+json',
                      expect_status_code=HTTP_STATUS_SUCCESS,
@@ -300,11 +300,11 @@ class ScalarSensorDataTest(ChainTestCase):
             'value': 25,
             'timestamp': now()
         }
-        resources.influx_client.post(data['sensor'].device.site.id,
-                                     data['sensor'].device.id,
-                                     data['sensor'].id,
-                                     data['value'],
-                                     data['timestamp'])
+        resources.influx_client.post_data(data['sensor'].device.site.id,
+                                          data['sensor'].device.id,
+                                          data['sensor'].id,
+                                          data['value'],
+                                          data['timestamp'])
         self.assertEqual(data['value'], 25)
 
 

@@ -30,7 +30,20 @@ class InfluxClient(object):
                                          headers=headers)
         return response
 
-    def post(self, site_id, device_id, sensor_id, value, timestamp=None):
+    def post(self, endpoint, data, query=False):
+        if endpoint == 'write':
+            url = self._url + '/write'
+        else:
+            url = self._url + '/query'
+        if query:
+            data = {'q': data}
+        response = self.request('POST',
+                                url,
+                                {'db': self._database},
+                                data)
+        return response
+
+    def post_data(self, site_id, device_id, sensor_id, value, timestamp=None):
         timestamp = InfluxClient.convert_timestamp(timestamp)
         data = '{0},sensor_id={1},site_id={2},device_id={3} value={4}'.format(self._measurement,
                                                                               sensor_id,
@@ -39,10 +52,7 @@ class InfluxClient(object):
                                                                               value)
         if timestamp:
             data += ' ' + str(timestamp)
-        response = self.request('POST',
-                                self._url + '/write',
-                                {'db': self._database},
-                                data)
+        response = self.post('write', data)
         if response.status_code != HTTP_STATUS_SUCCESSFUL_WRITE:
             raise IntegrityError('Error storing data')
         return response
