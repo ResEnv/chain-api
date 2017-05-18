@@ -57,3 +57,7 @@ INFLUX_PORT = '8086'
 INFLUX_DATABASE = 'chain'
 # the measurement (like a table) where the scalar sensor data will be stored
 INFLUX_MEASUREMENT = 'sensordata'
+# measurements for aggregated data
+INFLUX_MEASUREMENT_1H = 'sensordata_1h'
+INFLUX_MEASUREMENT_1D = 'sensordata_1d'
+INFLUX_MEASUREMENT_1W = 'sensordata_1w'

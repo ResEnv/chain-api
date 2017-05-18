@@ -10,11 +10,15 @@ HTTP_STATUS_SUCCESSFUL_WRITE = 204
 
 class InfluxClient(object):
 
-    def __init__(self, host, port, database, measurement):
+    def __init__(self, host, port, database, measurement, 
+                 measurement_1h, measurement_1d, measurement_1w):
         self._host = host
         self._port = port
         self._database = database
         self._measurement = measurement
+        self._measurement_1h = measurement_1h
+        self._measurement_1d = measurement_1d
+        self._measurement_1w = measurement_1w
         # Persist TCP connection
         self._session = requests
         self._url = 'http://' + self._host + ':' + self._port
@@ -73,7 +77,16 @@ class InfluxClient(object):
     def get_sensor_data(self, filters):
         timestamp_gte = InfluxClient.convert_timestamp(filters['timestamp__gte'])
         timestamp_lt = InfluxClient.convert_timestamp(filters['timestamp__lt'])
-        query = "SELECT * FROM {0} WHERE sensor_id = \'{1}\' AND time >= {2} AND time < {3}".format(self._measurement,
+        if 'aggtime' not in filters:
+            measurement = self._measurement
+        elif filters['aggtime'] == '1h':
+            measurement = self._measurement_1h
+        elif filters['aggtime'] == '1d':
+            measurement = self._measurement_1d
+        else:
+            measurement = self._measurement_1w
+        
+        query = "SELECT * FROM {0} WHERE sensor_id = \'{1}\' AND time >= {2} AND time < {3}".format(measurement,
                                                                                                     filters['sensor_id'],
                                                                                                     timestamp_gte,
                                                                                                     timestamp_lt)

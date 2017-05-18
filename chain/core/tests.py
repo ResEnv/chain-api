@@ -52,10 +52,13 @@ from chain.core.resources import DeviceResource
 from chain.core.api import HTTP_STATUS_SUCCESS, HTTP_STATUS_CREATED
 from chain.core.hal import HALDoc
 from chain.core import resources
-from chain.localsettings import INFLUX_HOST, INFLUX_PORT, INFLUX_MEASUREMENT
+from chain.localsettings import INFLUX_HOST, INFLUX_PORT, INFLUX_MEASUREMENT, \
+INFLUX_MEASUREMENT_1H, INFLUX_MEASUREMENT_1D, INFLUX_MEASUREMENT_1W
 from chain.influx_client import InfluxClient
 
-resources.influx_client = InfluxClient(INFLUX_HOST, INFLUX_PORT, 'test', INFLUX_MEASUREMENT)
+resources.influx_client = InfluxClient(INFLUX_HOST, INFLUX_PORT, 'test', 
+                                       INFLUX_MEASUREMENT, INFLUX_MEASUREMENT_1H,
+                                       INFLUX_MEASUREMENT_1D, INFLUX_MEASUREMENT_1W)
 
 HTTP_STATUS_NOT_ACCEPTABLE = 406
 HTTP_STATUS_NOT_FOUND = 404
@@ -191,6 +194,7 @@ class ChainTestCase(TestCase):
                                               data['sensor'].id,
                                               data['value'],
                                               data['timestamp'])
+
 
     def get_resource(self, url, mime_type='application/hal+json',
                      expect_status_code=HTTP_STATUS_SUCCESS,
@@ -1103,6 +1107,55 @@ class ApiScalarSensorDataTests(ChainTestCase):
             # Timestamp edge cases were handled correctly
         except Exception:
             self.assertTrue(False)  # Timestamp edge cases crashed the server
+
+
+class ApiAggregateScalarSensorDataTests(ChainTestCase):
+
+    def setUp(self):
+        super(ApiAggregateScalarSensorDataTests, self).setUp()
+        time_end = now() + timedelta(days=1)
+        time_begin = time_end - timedelta(days=7)
+        time_end = time_end.strftime("%Y-%m-%d")
+        time_begin = time_begin.strftime("%Y-%m-%d")
+        resources.influx_client.post('query', '''
+            SELECT max("value"), min("value"), mean("value"), count("value"), sum("value")
+            INTO "{0}" FROM "{1}" WHERE "time" < '{2}' AND "time" >= '{3}'
+            GROUP BY "sensor_id", time(1h), *'''.format(INFLUX_MEASUREMENT_1H,
+                                                        INFLUX_MEASUREMENT,
+                                                        time_end,
+                                                        time_begin), True)
+        resources.influx_client.post('query', '''
+            SELECT max("max"), min("min"), sum("sum")/sum("count") as "mean", sum("count") as "count", sum("sum")
+            INTO "{0}" FROM "{1}" WHERE "time" < '{2}' AND "time" >= '{3}'
+            GROUP BY "sensor_id", time(1d), *'''.format(INFLUX_MEASUREMENT_1D,
+                                                        INFLUX_MEASUREMENT_1H,
+                                                        time_end,
+                                                        time_begin), True)
+        resources.influx_client.post('query', '''
+            SELECT max("max"), min("min"), sum("sum")/sum("count") as "mean", sum("count") as "count", sum("sum")
+            INTO "{0}" FROM "{1}" WHERE "time" < '{2}' AND "time" >= '{3}'
+            GROUP BY "sensor_id", time(1w), *'''.format(INFLUX_MEASUREMENT_1W,
+                                                        INFLUX_MEASUREMENT_1D,
+                                                        time_end,
+                                                        time_begin), True)
+
+
+    def test_aggregate_sensor_data_should_have_data_type(self):
+        sensor = self.get_a_sensor()
+        sensor_data = self.get_resource(
+            sensor.links['ch:aggregateData'].href)
+        self.assertIn('dataType', sensor_data)
+        self.assertEqual('float', sensor_data.dataType)
+
+    def test_aggregate_sensor_data_should_have_timestamp_and_statistics(self):
+        sensor = self.get_a_sensor()
+        sensor_data = self.get_resource(
+            sensor.links['ch:aggregateData'].href)
+        self.assertIn('timestamp', sensor_data.data[0])
+        self.assertIn('min', sensor_data.data[0])
+        self.assertIn('max', sensor_data.data[0])
+        self.assertIn('mean', sensor_data.data[0])
+        self.assertIn('count', sensor_data.data[0])
 
 
 # these tests are testing specific URL conventions within this application
