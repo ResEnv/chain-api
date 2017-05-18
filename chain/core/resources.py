@@ -21,6 +21,8 @@ class ScalarSensorDataResource(Resource):
     resource_name = 'scalar_data'
     resource_type = 'scalar_data'
     model_fields = ['timestamp', 'value']
+    schema_type = {'timestamp': ('string', 'date-time'),
+                   'value': ('number', None)}
     required_fields = ['value']
     default_timespan = timedelta(hours=6)
 
@@ -177,6 +179,20 @@ class ScalarSensorDataResource(Resource):
         return ['sensor-%d' % db_sensor.id,
                 'device-%d' % db_sensor.device_id,
                 'site-%d' % db_sensor.device.site_id]
+
+    @classmethod
+    def get_field_schema_type(cls, field_name):
+        if field_name in cls.model_fields:
+            return cls.schema_type[field_name]
+        else:
+            raise NotImplementedError(
+                "tried to look up field %s but didn't know where" % field_name)
+    
+    @classmethod
+    def model_has_field(cls, field_name):
+        if field_name in cls.model_fields:
+            return True
+        return False
 
 
 class ScalarSensorResource(Resource):
