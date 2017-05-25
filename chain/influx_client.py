@@ -3,6 +3,7 @@ from pytz import UTC
 from datetime import datetime
 from django.db import IntegrityError
 import itertools
+from chain.core.api import BadRequestException
 
 EPOCH = UTC.localize(datetime.utcfromtimestamp(0))
 
@@ -79,13 +80,16 @@ class InfluxClient(object):
         timestamp_lt = InfluxClient.convert_timestamp(filters['timestamp__lt'])
         if 'aggtime' not in filters:
             measurement = self._measurement
-        elif filters['aggtime'] == '1h':
+        # arguements are unicode strings
+        elif filters['aggtime'] == u'1h':
             measurement = self._measurement_1h
-        elif filters['aggtime'] == '1d':
+        elif filters['aggtime'] == u'1d':
             measurement = self._measurement_1d
-        else:
+        elif filters['aggtime'] == u'1w':
             measurement = self._measurement_1w
-        
+        else:
+            raise BadRequestException('Invalid arguement for aggtime')
+
         query = "SELECT * FROM {0} WHERE sensor_id = \'{1}\' AND time >= {2} AND time < {3}".format(measurement,
                                                                                                     filters['sensor_id'],
                                                                                                     timestamp_gte,

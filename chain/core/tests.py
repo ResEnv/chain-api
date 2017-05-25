@@ -6,6 +6,7 @@ import zmq
 from django.utils.timezone import make_aware, utc, now
 from pytz import AmbiguousTimeError
 import re
+import time
 
 fake_zmq_socket = None
 
@@ -1139,23 +1140,53 @@ class ApiAggregateScalarSensorDataTests(ChainTestCase):
                                                         time_end,
                                                         time_begin), True)
 
+    def test_aggregate_sensor_data_query_should_include_arguement(self):
+        sensor = self.get_a_sensor()
+        try:
+            self.get_resource(
+                sensor.links['ch:aggregateData'].href,
+                expect_status_code=HTTP_STATUS_BAD_REQUEST,
+                check_mime_type=False)
+        except Exception:
+            self.assertTrue(False)
 
     def test_aggregate_sensor_data_should_have_data_type(self):
         sensor = self.get_a_sensor()
         sensor_data = self.get_resource(
-            sensor.links['ch:aggregateData'].href)
+            sensor.links['ch:aggregateData'].href.replace('{&aggtime}', '&aggtime=1h'))
         self.assertIn('dataType', sensor_data)
         self.assertEqual('float', sensor_data.dataType)
 
     def test_aggregate_sensor_data_should_have_timestamp_and_statistics(self):
         sensor = self.get_a_sensor()
-        sensor_data = self.get_resource(
-            sensor.links['ch:aggregateData'].href)
-        self.assertIn('timestamp', sensor_data.data[0])
-        self.assertIn('min', sensor_data.data[0])
-        self.assertIn('max', sensor_data.data[0])
-        self.assertIn('mean', sensor_data.data[0])
-        self.assertIn('count', sensor_data.data[0])
+        href = sensor.links['ch:aggregateData'].href
+        params = ['1h', '1d', '1w']
+        time_end = now() + timedelta(days=1)
+        time_begin = time_end - timedelta(days=7)
+        time_end = time.mktime(time_end.timetuple())
+        time_begin = time.mktime(time_begin.timetuple())
+        for param in params:
+            # make sure there is data
+            sensor_data = self.get_resource(
+                href.replace('{&aggtime}', '&aggtime=' + param) + 
+                '&timestamp__gte={0}&timestamp__lt={1}'.format(time_begin, time_end))
+            self.assertIn('timestamp', sensor_data.data[0])
+            self.assertIn('min', sensor_data.data[0])
+            self.assertIn('max', sensor_data.data[0])
+            self.assertIn('mean', sensor_data.data[0])
+            self.assertIn('count', sensor_data.data[0])
+            
+    def test_aggregate_sensor_data_invalid_arguements(self):
+        sensor = self.get_a_sensor()
+        href = sensor.links['ch:aggregateData'].href
+        try:
+            self.get_resource(
+                href.replace('{&aggtime}', '&aggtime=1s'),
+                expect_status_code=HTTP_STATUS_BAD_REQUEST,
+                check_mime_type=False)
+            
+        except Exception:
+            self.assertTrue(False)
 
 
 # these tests are testing specific URL conventions within this application
