@@ -9,16 +9,13 @@ from django.conf.urls import include, patterns, url
 from django.utils import timezone
 from datetime import timedelta, datetime
 import calendar
-from chain.localsettings import INFLUX_HOST, INFLUX_PORT, INFLUX_DATABASE, INFLUX_MEASUREMENT, \
-INFLUX_MEASUREMENT_1H, INFLUX_MEASUREMENT_1D, INFLUX_MEASUREMENT_1W
+from chain.localsettings import INFLUX_HOST, INFLUX_PORT, INFLUX_DATABASE, INFLUX_MEASUREMENT
 from chain.influx_client import InfluxClient
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.dateparse import parse_datetime
 
 
-influx_client = InfluxClient(INFLUX_HOST, INFLUX_PORT, INFLUX_DATABASE,
-                             INFLUX_MEASUREMENT, INFLUX_MEASUREMENT_1H,
-                             INFLUX_MEASUREMENT_1D, INFLUX_MEASUREMENT_1W)
+influx_client = InfluxClient(INFLUX_HOST, INFLUX_PORT, INFLUX_DATABASE, INFLUX_MEASUREMENT)
 
 class SensorDataResource(Resource):
 

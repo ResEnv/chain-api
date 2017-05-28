@@ -4,8 +4,7 @@ from south.db import db
 from south.v2 import DataMigration
 from django.db import models
 from chain.core.resources import influx_client
-from chain.localsettings import INFLUX_DATABASE, INFLUX_MEASUREMENT, \
-    INFLUX_MEASUREMENT_1H, INFLUX_MEASUREMENT_1D, INFLUX_MEASUREMENT_1W
+from chain.localsettings import INFLUX_DATABASE, INFLUX_MEASUREMENT
 
 class Migration(DataMigration):
 
@@ -21,7 +20,7 @@ class Migration(DataMigration):
                      SELECT max("value"), min("value"), mean("value"), count("value"), sum("value")  
                      INTO "{1}" FROM "{2}" GROUP BY "sensor_id", time(1h), *
                  END
-             '''.format(INFLUX_DATABASE, INFLUX_MEASUREMENT_1H, INFLUX_MEASUREMENT), True)
+             '''.format(INFLUX_DATABASE, INFLUX_MEASUREMENT + '_1h', INFLUX_MEASUREMENT), True)
         influx_client.post('query', '''
             CREATE CONTINUOUS QUERY "cq_1d" ON "{0}"
                 RESAMPLE FOR 2d
@@ -29,7 +28,7 @@ class Migration(DataMigration):
                     SELECT max("max"), min("min"), sum("sum")/sum("count") as "mean", sum("count") as "count", sum("sum")
                     INTO "{1}" FROM "{2}" GROUP BY "sensor_id", time(1d), *
                 END
-            '''.format(INFLUX_DATABASE, INFLUX_MEASUREMENT_1D, INFLUX_MEASUREMENT_1H), True)
+            '''.format(INFLUX_DATABASE, INFLUX_MEASUREMENT + '_1d', INFLUX_MEASUREMENT + '_1h'), True)
         influx_client.post('query', '''
             CREATE CONTINUOUS QUERY "cq_1w" ON "{0}"
                 RESAMPLE FOR 2w
@@ -37,7 +36,7 @@ class Migration(DataMigration):
                     SELECT max("max"), min("min"), sum("sum")/sum("count") as "mean", sum("count") as "count", sum("sum")
                     INTO "{1}" FROM "{2}" GROUP BY "sensor_id", time(1w), *
                 END
-            '''.format(INFLUX_DATABASE, INFLUX_MEASUREMENT_1W, INFLUX_MEASUREMENT_1D), True)
+            '''.format(INFLUX_DATABASE, INFLUX_MEASUREMENT + '_1w', INFLUX_MEASUREMENT + '_1d'), True)
     
     def backwards(self, orm):
         "Write your backwards methods here."

@@ -11,15 +11,11 @@ HTTP_STATUS_SUCCESSFUL_WRITE = 204
 
 class InfluxClient(object):
 
-    def __init__(self, host, port, database, measurement, 
-                 measurement_1h, measurement_1d, measurement_1w):
+    def __init__(self, host, port, database, measurement):
         self._host = host
         self._port = port
         self._database = database
         self._measurement = measurement
-        self._measurement_1h = measurement_1h
-        self._measurement_1d = measurement_1d
-        self._measurement_1w = measurement_1w
         # Persist TCP connection
         self._session = requests
         self._url = 'http://' + self._host + ':' + self._port
@@ -82,11 +78,11 @@ class InfluxClient(object):
             measurement = self._measurement
         # arguements are unicode strings
         elif filters['aggtime'] == u'1h':
-            measurement = self._measurement_1h
+            measurement = self._measurement + '_1h'
         elif filters['aggtime'] == u'1d':
-            measurement = self._measurement_1d
+            measurement = self._measurement + '_1d'
         elif filters['aggtime'] == u'1w':
-            measurement = self._measurement_1w
+            measurement = self._measurement + '_1w'
         else:
             raise BadRequestException('Invalid arguement for aggtime')
 

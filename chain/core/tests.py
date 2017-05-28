@@ -53,13 +53,11 @@ from chain.core.resources import DeviceResource
 from chain.core.api import HTTP_STATUS_SUCCESS, HTTP_STATUS_CREATED
 from chain.core.hal import HALDoc
 from chain.core import resources
-from chain.localsettings import INFLUX_HOST, INFLUX_PORT, INFLUX_MEASUREMENT, \
-INFLUX_MEASUREMENT_1H, INFLUX_MEASUREMENT_1D, INFLUX_MEASUREMENT_1W
+from chain.localsettings import INFLUX_HOST, INFLUX_PORT, INFLUX_MEASUREMENT
 from chain.influx_client import InfluxClient
 
 resources.influx_client = InfluxClient(INFLUX_HOST, INFLUX_PORT, 'test', 
-                                       INFLUX_MEASUREMENT, INFLUX_MEASUREMENT_1H,
-                                       INFLUX_MEASUREMENT_1D, INFLUX_MEASUREMENT_1W)
+                                       INFLUX_MEASUREMENT)
 
 HTTP_STATUS_NOT_ACCEPTABLE = 406
 HTTP_STATUS_NOT_FOUND = 404
@@ -1121,22 +1119,22 @@ class ApiAggregateScalarSensorDataTests(ChainTestCase):
         resources.influx_client.post('query', '''
             SELECT max("value"), min("value"), mean("value"), count("value"), sum("value")
             INTO "{0}" FROM "{1}" WHERE "time" < '{2}' AND "time" >= '{3}'
-            GROUP BY "sensor_id", time(1h), *'''.format(INFLUX_MEASUREMENT_1H,
+            GROUP BY "sensor_id", time(1h), *'''.format(INFLUX_MEASUREMENT + '_1h',
                                                         INFLUX_MEASUREMENT,
                                                         time_end,
                                                         time_begin), True)
         resources.influx_client.post('query', '''
             SELECT max("max"), min("min"), sum("sum")/sum("count") as "mean", sum("count") as "count", sum("sum")
             INTO "{0}" FROM "{1}" WHERE "time" < '{2}' AND "time" >= '{3}'
-            GROUP BY "sensor_id", time(1d), *'''.format(INFLUX_MEASUREMENT_1D,
-                                                        INFLUX_MEASUREMENT_1H,
+            GROUP BY "sensor_id", time(1d), *'''.format(INFLUX_MEASUREMENT + '_1d',
+                                                        INFLUX_MEASUREMENT + '_1h',
                                                         time_end,
                                                         time_begin), True)
         resources.influx_client.post('query', '''
             SELECT max("max"), min("min"), sum("sum")/sum("count") as "mean", sum("count") as "count", sum("sum")
             INTO "{0}" FROM "{1}" WHERE "time" < '{2}' AND "time" >= '{3}'
-            GROUP BY "sensor_id", time(1w), *'''.format(INFLUX_MEASUREMENT_1W,
-                                                        INFLUX_MEASUREMENT_1D,
+            GROUP BY "sensor_id", time(1w), *'''.format(INFLUX_MEASUREMENT + '_1w',
+                                                        INFLUX_MEASUREMENT + '_1d',
                                                         time_end,
                                                         time_begin), True)
 
@@ -1184,7 +1182,7 @@ class ApiAggregateScalarSensorDataTests(ChainTestCase):
                 href.replace('{&aggtime}', '&aggtime=1s'),
                 expect_status_code=HTTP_STATUS_BAD_REQUEST,
                 check_mime_type=False)
-            
+
         except Exception:
             self.assertTrue(False)
 
