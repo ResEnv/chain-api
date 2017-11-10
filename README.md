@@ -440,21 +440,21 @@ with embedded items would look like:
   "_embedded": {
     "items": [
       {
-        "_links" {
+        "_links": {
           "self": {"href": "/children/382"}
         },
         "name": "Child 1",
         "age": 13
       },
       {
-        "_links" {
+        "_links": {
           "self": {"href": "/children/8371"}
         },
         "name": "Child 2",
         "age": 16
       },
       {
-        "_links" {
+        "_links": {
           "self": {"href": "/children/716"}
         },
         "name": "Child 3",
@@ -525,7 +525,7 @@ resource, e.g. GET /orders/123 might return:
   "_links": {
     "self": { "href": "/orders/123" },
     "rel:basket": { "href": "/baskets/98712" },
-    "rel:customer": { "href": "/customers/7809" }
+    "rel:customer": { "href": "/customers/7809" },
     "curies": [{
         "name": "rel",
         "href": "http://docs.example.org/rels/{rel}",
