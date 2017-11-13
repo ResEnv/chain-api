@@ -105,7 +105,7 @@ class InfluxClient(object):
             series = response.json()['results'][0]['series'][0]
             retries -= 1
         if 'values' not in series:
-            raise TimeoutError("Timed out waiting for InfluxDB to initialize")
+            raise Exception("Timed out waiting for InfluxDB to initialize")
 
         return [sub[0] for sub in series['values']]
 
