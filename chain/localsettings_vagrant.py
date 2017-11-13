@@ -50,3 +50,10 @@ WEBSOCKET_HOST = None
 # front end webserver (e.g. nginx) configuration. Note this configuration has
 # the trailing but not leading slash
 WEBSOCKET_PATH = 'ws/'
+
+INFLUX_HOST = 'localhost'
+# default influx port
+INFLUX_PORT = '8086'
+INFLUX_DATABASE = 'chain'
+# the measurement (like a table) where the scalar sensor data will be stored
+INFLUX_MEASUREMENT = 'sensordata'

@@ -4,16 +4,17 @@ from south.db import db
 from south.v2 import SchemaMigration
 from django.db import models
 
-
 class Migration(SchemaMigration):
 
     def forwards(self, orm):
         # Deleting model 'ScalarData'
-        response = raw_input('Really delete ScalarData table? This will delete all your sensor data from Postgres (y/N): ')
-        if len(response) > 0 and response[0].lower() == 'y':
-            db.delete_table(u'core_scalardata')
-        else:
-            raise ValueError('User aborted migration')
+        if db.execute(u'SELECT * FROM core_scalardata LIMIT 1'):
+            # there's data in the ScalarData table, check with the user
+            response = raw_input('Really delete ScalarData table? This will delete all your sensor data from Postgres (y/N): ')
+            if len(response) > 0 and response[0].lower() == 'y':
+                db.delete_table(u'core_scalardata')
+            else:
+                raise ValueError('User aborted migration')
 
         # Removing index on 'ScalarData', fields ['sensor', 'timestamp']
         # commented because it errors out that this index isn't found...

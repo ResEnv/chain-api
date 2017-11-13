@@ -3,6 +3,7 @@ from pytz import UTC
 from datetime import datetime
 from django.db import IntegrityError
 import itertools
+from time import sleep
 
 EPOCH = UTC.localize(datetime.utcfromtimestamp(0))
 
@@ -93,10 +94,20 @@ class InfluxClient(object):
         return result
 
     def get_databases(self):
-        db={}
-        response = self.get('SHOW DATABASES', False)
-        values = response.json()['results'][0]['series'][0]['values']
-        return [sub[0] for sub in values]
+        # wait up to 15 seconds
+        retries = 15
+        series = {}
+        # when influx first boots up the `values` field doesn't appear in the
+        # result, so retry a few times
+        while 'values' not in series and retries > 0:
+            sleep(1)
+            response = self.get('SHOW DATABASES', False)
+            series = response.json()['results'][0]['series'][0]
+            retries -= 1
+        if 'values' not in series:
+            raise TimeoutError("Timed out waiting for InfluxDB to initialize")
+
+        return [sub[0] for sub in series['values']]
 
     def get_values(self,response):
         json = response.json()

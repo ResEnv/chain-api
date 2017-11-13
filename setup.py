@@ -34,5 +34,6 @@ setup(
         'flask==0.10.1',
         'websocket-client==0.12.0',
         'python-dateutil',
+        'pytz'
     ]
 )

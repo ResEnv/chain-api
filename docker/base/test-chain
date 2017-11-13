@@ -1,6 +1,6 @@
 #!/bin/bash
 
-/opt/startup
+$CHAIN_HOME/docker/base/startup
 
 cd $CHAIN_HOME
 ./manage.py test chain

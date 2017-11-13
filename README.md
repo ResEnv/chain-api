@@ -582,31 +582,47 @@ representation. After subscribing to a stream, clients can match incoming
 resource descriptions by using the `self` link as the key into the hash.
 
 
-Dev Server Initial Setup
-========================
+# Dev Environment Initial Setup
+
+_Note that these instructions are not super well-maintained, please file issues or PRs if things don't work and we'll try to fix the instructions_
+
+People working on Chain-API work both in Vagrant and Docker.
+In both cases you'll start by cloning the repository to your development machine:
+
+    git clone https://github.com/ResEnv/chain-api.git
+
+Git will create a folder called chain-api and check out the code into
+it.
+
+## Vagrant-Based Development
 
 To develop for Chain API the best way is with a virtual machine. The following
 instructions should guide you through setting up a development environment that
 should match the production machine.
 
 First you'll want to make sure that both Virtualbox and Vagrant are installed,
-as well as git.
-
-Then clone the code from the repository with:
-
-    git clone https://github.com/ssfrr/chain-api.git
-
-Git will create a folder called chain-api and check out the code into
-it.
-
-from within that folder run "vagrant up" and it should instantiate the virtual
-machine.
+as well as git. Then from within the repository root folder run "vagrant up" and it should instantiate the virtual machine.
 
 after the machine is up you can run "vagrant ssh" to ssh into the new VM. From
 there you can follow the below instructions on setting up a Chain API server.
 
-Chain API Server Setup Instructions
-===================================
+## Docker-Based Development
+
+_These instructions were run with docker version 17.10.0-ce_
+
+Make sure you have the Docker daemon and client installed and that the daemon is running (on systemd systems this will be `systemctl start docker`). Then run `./build-all.sh` from the `docker` directory. You might also need to add your user to the `docker` group with `sudo usermod -aG docker <username>`
+
+The build script will create 3 docker images:
+* `chain/base` - the base image with all the things the chain service needs. It checks out its own copy of the chain repo in `/opt/chain-api`
+* `chain/dev` - similar to the base image except that it uses the checked-out repository on the host machine, which can make development more convenient because you don't have to rebuild the docker image when you make changes. Rememeber you'll need a valid `localsettings.py` in your `chain` directory.
+* `chain/data_img` - this can serve as a persistent datastore (by hosting the postgres database) so you can keep your data even when you kill and restart the docker box running the actual chain process.
+
+If you want to run a shell on the box for testing (e.g. trying out new versions of packages), you can run `docker run -it chain/base /bin/bash`. This will launch the container and drop you into a shell.
+
+The docker configuration creates an .htpassword file with username `yoda` and password `123` that you can use to `POST` data to the API.
+
+
+# Chain API Production Server Setup Instructions
 
 Currently Chain API is supported on Ubuntu Precise (12.04 LTS)
 Install dependencies with manifest.sh

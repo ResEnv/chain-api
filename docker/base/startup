@@ -10,6 +10,8 @@ fi
 /etc/init.d/postgresql start
 su - postgres -c "psql -U postgres -c \"CREATE USER yoda PASSWORD '123' SUPERUSER;\" && createdb chain"
 
+/etc/init.d/influxdb start
+
 ORIGIN=$(pwd)
 cd $CHAIN_HOME
 
