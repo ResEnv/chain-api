@@ -18,25 +18,25 @@ class Migration(DataMigration):
                  RESAMPLE EVERY 1h 
                  BEGIN 
                      SELECT max("value"), min("value"), mean("value"), count("value"), sum("value")  
-                     INTO "sensordata_1h" FROM "{1}" GROUP BY "sensor_id", time(1h), *
+                     INTO "{1}" FROM "{2}" GROUP BY "sensor_id", time(1h), *
                  END
-             '''.format(INFLUX_DATABASE, INFLUX_MEASUREMENT), True)
+             '''.format(INFLUX_DATABASE, INFLUX_MEASUREMENT + '_1h', INFLUX_MEASUREMENT), True)
         influx_client.post('query', '''
             CREATE CONTINUOUS QUERY "cq_1d" ON "{0}"
                 RESAMPLE FOR 2d
                 BEGIN
                     SELECT max("max"), min("min"), sum("sum")/sum("count") as "mean", sum("count") as "count", sum("sum")
-                    INTO "sensordata_1d" FROM "sensordata_1h" GROUP BY "sensor_id", time(1d), *
+                    INTO "{1}" FROM "{2}" GROUP BY "sensor_id", time(1d), *
                 END
-            '''.format(INFLUX_DATABASE), True)
+            '''.format(INFLUX_DATABASE, INFLUX_MEASUREMENT + '_1d', INFLUX_MEASUREMENT + '_1h'), True)
         influx_client.post('query', '''
             CREATE CONTINUOUS QUERY "cq_1w" ON "{0}"
                 RESAMPLE FOR 2w
                 BEGIN
                     SELECT max("max"), min("min"), sum("sum")/sum("count") as "mean", sum("count") as "count", sum("sum")
-                    INTO "sensordata_1w" FROM "sensordata_1d" GROUP BY "sensor_id", time(1w), *
+                    INTO "{1}" FROM "{2}" GROUP BY "sensor_id", time(1w), *
                 END
-            '''.format(INFLUX_DATABASE), True)
+            '''.format(INFLUX_DATABASE, INFLUX_MEASUREMENT + '_1w', INFLUX_MEASUREMENT + '_1d'), True)
     
     def backwards(self, orm):
         "Write your backwards methods here."

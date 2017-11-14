@@ -14,9 +14,39 @@ from chain.influx_client import InfluxClient
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.dateparse import parse_datetime
 
+
 influx_client = InfluxClient(INFLUX_HOST, INFLUX_PORT, INFLUX_DATABASE, INFLUX_MEASUREMENT)
 
-class ScalarSensorDataResource(Resource):
+class SensorDataResource(Resource):
+
+    def __init__(self, *args, **kwargs):
+        super(SensorDataResource, self).__init__(*args, **kwargs)
+
+    def format_time(self, timestamp):
+        return calendar.timegm(timestamp.timetuple())
+
+    def add_page_links(self, data, href, page_start, page_end):
+        timespan = page_end - page_start
+        data['_links']['previous'] = {
+            'href': self.update_href(
+                href, timestamp__gte=self.format_time(page_start - timespan),
+                timestamp__lt=self.format_time(page_start)),
+            'title': '%s to %s' % (page_start - timespan, page_start),
+        }
+        data['_links']['self'] = {
+            'href': self.update_href(
+                href, timestamp__gte=self.format_time(page_start),
+                timestamp__lt=self.format_time(page_end)),
+        }
+        data['_links']['next'] = {
+            'href': self.update_href(
+                href, timestamp__gte=self.format_time(page_end),
+                timestamp__lt=self.format_time(page_end + timespan)),
+            'title': '%s to %s' % (page_end, page_end + timespan),
+        }
+        return data
+
+class ScalarSensorDataResource(SensorDataResource):
     display_field = 'timestamp'
     resource_name = 'scalar_data'
     resource_type = 'scalar_data'
@@ -132,30 +162,6 @@ class ScalarSensorDataResource(Resource):
     def get_cache_key(self):
         return self.sensor_id, self.timestamp
 
-    def format_time(self, timestamp):
-        return calendar.timegm(timestamp.timetuple())
-
-    def add_page_links(self, data, href, page_start, page_end):
-        timespan = page_end - page_start
-        data['_links']['previous'] = {
-            'href': self.update_href(
-                href, timestamp__gte=self.format_time(page_start - timespan),
-                timestamp__lt=self.format_time(page_start)),
-            'title': '%s to %s' % (page_start - timespan, page_start),
-        }
-        data['_links']['self'] = {
-            'href': self.update_href(
-                href, timestamp__gte=self.format_time(page_start),
-                timestamp__lt=self.format_time(page_end)),
-        }
-        data['_links']['next'] = {
-            'href': self.update_href(
-                href, timestamp__gte=self.format_time(page_end),
-                timestamp__lt=self.format_time(page_end + timespan)),
-            'title': '%s to %s' % (page_end, page_end + timespan),
-        }
-        return data
-
     def serialize_stream(self):
         '''Serialize this resource for a stream'''
         data = self.serialize_single(rels=False)
@@ -195,6 +201,92 @@ class ScalarSensorDataResource(Resource):
         return False
 
 
+class AggregateScalarSensorDataResource(SensorDataResource):
+
+    resource_name = 'aggregate_data'
+    resource_type = 'aggregate_data'
+    model_fields = ['timestamp', 'max', 'min', 'mean', 'count']
+    default_timespan = timedelta(hours=6)
+
+    def __init__(self, *args, **kwargs):
+        super(AggregateScalarSensorDataResource, self).__init__(*args, **kwargs)
+
+    def get_list_href(self, embed=False):
+        href = super(AggregateScalarSensorDataResource, self).get_list_href()
+        if not embed:
+            href += '{&aggtime}'
+        return href
+
+    def serialize_list(self, embed, cache):
+        if not embed:
+            return super(
+                AggregateScalarSensorDataResource,
+                self).serialize_list(
+                embed,
+                cache)
+
+        if 'aggtime' not in self._filters:
+            raise BadRequestException(
+                "Missing aggtime arguement")
+
+        href = self.get_list_href(True)
+
+        serialized_data = {
+            '_links': {
+                'curies': CHAIN_CURIES
+            },
+            'dataType': 'float'
+        }
+        request_time = timezone.now()
+
+        if 'timestamp__gte' in self._filters:
+            try:
+                page_start = datetime.utcfromtimestamp(
+                    float(self._filters['timestamp__gte'])).replace(
+                        tzinfo=timezone.utc)
+            except ValueError:
+                raise BadRequestException(
+                    "Invalid timestamp format for lower bound of date range.")
+        else:
+            page_start = request_time - self.default_timespan
+
+        if 'timestamp__lt' in self._filters:
+            try:
+                page_end = datetime.utcfromtimestamp(
+                    float(self._filters['timestamp__lt'])).replace(
+                        tzinfo=timezone.utc)
+            except ValueError:
+                raise BadRequestException(
+                    "Invalid timestamp format for upper bound of date range.")
+        else:
+            page_end = request_time
+
+        self._filters['timestamp__gte'] = page_start
+        self._filters['timestamp__lt'] = page_end
+        objs = influx_client.get_sensor_data(self._filters)
+
+        serialized_data = self.add_page_links(serialized_data, href,
+                                              page_start, page_end)
+        serialized_data['data'] = [{
+            'max': obj['max'],
+            'min': obj['min'],
+            'mean': obj['mean'],
+            'count': obj['count'],
+            'timestamp': obj['time']}
+            for obj in objs]
+        
+        return serialized_data
+
+
+    @classmethod
+    def urls(cls):
+        base_name = cls.resource_name
+        return patterns('',
+                        url(r'^$',
+                            cls.list_view, name=base_name + '-list'))
+
+
+
 class ScalarSensorResource(Resource):
 
     model = ScalarSensor
@@ -210,6 +302,8 @@ class ScalarSensorResource(Resource):
     related_fields = {
         'ch:dataHistory': CollectionField(ScalarSensorDataResource,
                                           reverse_name='sensor'),
+        'ch:aggregateData': CollectionField(AggregateScalarSensorDataResource,
+                                            reverse_name='sensor'),
         'ch:device': ResourceField('chain.core.resources.DeviceResource',
                                    'device')
     }
@@ -246,7 +340,7 @@ class ScalarSensorResource(Resource):
                 'site-%s' % self._obj.device.site_id]
 
 
-class PresenceDataResource(Resource):
+class PresenceDataResource(SensorDataResource):
     model = PresenceData
     display_field = 'timestamp'
     resource_name = 'presencedata'
@@ -375,30 +469,6 @@ class PresenceDataResource(Resource):
             obj=obj,
             request=self._request)
         return psensor_resource.get_single_href()
-
-    def format_time(self, timestamp):
-        return calendar.timegm(timestamp.timetuple())
-
-    def add_page_links(self, data, href, page_start, page_end):
-        timespan = page_end - page_start
-        data['_links']['previous'] = {
-            'href': self.update_href(
-                href, timestamp__gte=self.format_time(page_start - timespan),
-                timestamp__lt=self.format_time(page_start)),
-            'title': '%s to %s' % (page_start - timespan, page_start),
-        }
-        data['_links']['self'] = {
-            'href': self.update_href(
-                href, timestamp__gte=self.format_time(page_start),
-                timestamp__lt=self.format_time(page_end)),
-        }
-        data['_links']['next'] = {
-            'href': self.update_href(
-                href, timestamp__gte=self.format_time(page_end),
-                timestamp__lt=self.format_time(page_end + timespan)),
-            'title': '%s to %s' % (page_end, page_end + timespan),
-        }
-        return data
 
     def serialize_stream(self):
         '''Serialize this resource for a stream'''
@@ -953,6 +1023,7 @@ urls += patterns('',
 
 resources = [
     ScalarSensorDataResource,
+    AggregateScalarSensorDataResource,
     ScalarSensorResource,
     PresenceDataResource,
     PresenceSensorResource,
