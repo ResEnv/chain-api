@@ -46,6 +46,21 @@ class SensorDataResource(Resource):
         }
         return data
 
+    # shoot to return about 500 values per page
+    def default_timespan(self):
+        aggtime = self._filters.get('aggtime', None)
+        if aggtime is None:
+            return timedelta(hours=6)
+        elif aggtime == '1h':
+            return timedelta(hours=500)
+        elif aggtime == '1d':
+            return timedelta(days=500)
+        elif aggtime == '1w':
+            return timedelta(weeks=500)
+        else:
+            raise BadRequestException('Invalid argument for aggtime. Must be 1h, 1d, or 1w')
+
+
 class ScalarSensorDataResource(SensorDataResource):
     display_field = 'timestamp'
     resource_name = 'scalar_data'
@@ -54,7 +69,6 @@ class ScalarSensorDataResource(SensorDataResource):
     schema_type = {'timestamp': ('string', 'date-time'),
                    'value': ('number', None)}
     required_fields = ['value']
-    default_timespan = timedelta(hours=6)
 
     def __init__(self, *args, **kwargs):
         super(ScalarSensorDataResource, self).__init__(*args, **kwargs)
@@ -134,7 +148,7 @@ class ScalarSensorDataResource(SensorDataResource):
                 raise BadRequestException(
                     "Invalid timestamp format for lower bound of date range.")
         else:
-            page_start = request_time - self.default_timespan
+            page_start = request_time - self.default_timespan()
 
         if 'timestamp__lt' in self._filters:
             try:
@@ -193,7 +207,7 @@ class ScalarSensorDataResource(SensorDataResource):
         else:
             raise NotImplementedError(
                 "tried to look up field %s but didn't know where" % field_name)
-    
+
     @classmethod
     def model_has_field(cls, field_name):
         if field_name in cls.model_fields:
@@ -206,7 +220,6 @@ class AggregateScalarSensorDataResource(SensorDataResource):
     resource_name = 'aggregate_data'
     resource_type = 'aggregate_data'
     model_fields = ['timestamp', 'max', 'min', 'mean', 'count']
-    default_timespan = timedelta(hours=6)
 
     def __init__(self, *args, **kwargs):
         super(AggregateScalarSensorDataResource, self).__init__(*args, **kwargs)
@@ -248,7 +261,7 @@ class AggregateScalarSensorDataResource(SensorDataResource):
                 raise BadRequestException(
                     "Invalid timestamp format for lower bound of date range.")
         else:
-            page_start = request_time - self.default_timespan
+            page_start = request_time - self.default_timespan()
 
         if 'timestamp__lt' in self._filters:
             try:
@@ -274,7 +287,7 @@ class AggregateScalarSensorDataResource(SensorDataResource):
             'count': obj['count'],
             'timestamp': obj['time']}
             for obj in objs]
-        
+
         return serialized_data
 
 
@@ -348,7 +361,6 @@ class PresenceDataResource(SensorDataResource):
     model_fields = ['timestamp', 'present', 'person', 'sensor']
     required_fields = ['person', 'sensor', 'present']
     queryset = PresenceData.objects
-    default_timespan = timedelta(hours=6)
 
     def __init__(self, *args, **kwargs):
         super(PresenceDataResource, self).__init__(*args, **kwargs)
@@ -419,7 +431,7 @@ class PresenceDataResource(SensorDataResource):
                 raise BadRequestException(
                     "Invalid timestamp format for lower bound of date range.")
         else:
-            page_start = request_time - self.default_timespan
+            page_start = request_time - self.default_timespan()
 
         if 'timestamp__lt' in self._filters:
             try:

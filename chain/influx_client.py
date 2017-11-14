@@ -85,7 +85,7 @@ class InfluxClient(object):
         elif filters['aggtime'] == u'1w':
             measurement = self._measurement + '_1w'
         else:
-            raise BadRequestException('Invalid arguement for aggtime')
+            raise BadRequestException('Invalid argument for aggtime. Must be 1h, 1d, or 1w')
 
         query = "SELECT * FROM {0} WHERE sensor_id = \'{1}\' AND time >= {2} AND time < {3}".format(measurement,
                                                                                                     filters['sensor_id'],

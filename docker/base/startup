@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# exit on first error
+set -e
+
 # Set up post-gres user if not setup:
 if [ "$(ls -A /var/lib/postgresql)" ]; then
     echo "Data exists."

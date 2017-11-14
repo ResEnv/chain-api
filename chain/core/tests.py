@@ -56,7 +56,7 @@ from chain.core import resources
 from chain.localsettings import INFLUX_HOST, INFLUX_PORT, INFLUX_MEASUREMENT
 from chain.influx_client import InfluxClient
 
-resources.influx_client = InfluxClient(INFLUX_HOST, INFLUX_PORT, 'test', 
+resources.influx_client = InfluxClient(INFLUX_HOST, INFLUX_PORT, 'test',
                                        INFLUX_MEASUREMENT)
 
 HTTP_STATUS_NOT_ACCEPTABLE = 406
@@ -970,7 +970,7 @@ class ApiScalarSensorDataTests(ChainTestCase):
             sensor.links['ch:dataHistory'].href)
         self.assertIn('timestamp', sensor_data.data[0])
         self.assertIn('value', sensor_data.data[0])
-    
+
     def test_sensor_data_should_have_data_type(self):
         sensor = self.get_a_sensor()
         sensor_data = self.get_resource(
@@ -1160,20 +1160,20 @@ class ApiAggregateScalarSensorDataTests(ChainTestCase):
         href = sensor.links['ch:aggregateData'].href
         params = ['1h', '1d', '1w']
         time_end = now() + timedelta(days=1)
-        time_begin = time_end - timedelta(days=7)
+        time_begin = time_end - timedelta(days=9)
         time_end = time.mktime(time_end.timetuple())
         time_begin = time.mktime(time_begin.timetuple())
         for param in params:
             # make sure there is data
             sensor_data = self.get_resource(
-                href.replace('{&aggtime}', '&aggtime=' + param) + 
+                href.replace('{&aggtime}', '&aggtime=' + param) +
                 '&timestamp__gte={0}&timestamp__lt={1}'.format(time_begin, time_end))
             self.assertIn('timestamp', sensor_data.data[0])
             self.assertIn('min', sensor_data.data[0])
             self.assertIn('max', sensor_data.data[0])
             self.assertIn('mean', sensor_data.data[0])
             self.assertIn('count', sensor_data.data[0])
-            
+
     def test_aggregate_sensor_data_invalid_arguements(self):
         sensor = self.get_a_sensor()
         href = sensor.links['ch:aggregateData'].href
