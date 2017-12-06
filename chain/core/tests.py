@@ -47,7 +47,7 @@ class FakeZMQSocket(object):
 zmq.Context = FakeZMQContext
 
 from chain.core.models import Unit, Metric, Device, ScalarSensor, Site, \
-    PresenceSensor, Person
+    PresenceSensor, Person, Metadata
 from chain.core.models import GeoLocation
 from chain.core.resources import DeviceResource
 from chain.core.api import HTTP_STATUS_SUCCESS, HTTP_STATUS_CREATED
@@ -146,6 +146,7 @@ class ChainTestCase(TestCase):
         ]
         for loc in self.geo_locations:
             loc.save()
+        self.metadata = []
         self.sites = [
             Site(name='Test Site 1',
                  geo_location=self.geo_locations[0],
@@ -156,6 +157,13 @@ class ChainTestCase(TestCase):
         ]
         for site in self.sites:
             site.save()
+            self.metadata.append(Metadata(value="Test Metadata 1",
+                                          timestamp=now().isoformat(),
+                                          content_object=site))
+            self.metadata.append(Metadata(value="Test Metadata 2",
+                                          timestamp=now().isoformat(),
+                                          content_object=site))
+
         num_devices = 2 * len(self.sites)
         self.devices = [Device(name='Thermostat %d' % i,
                                site=self.sites[i % len(self.sites)])
@@ -170,6 +178,13 @@ class ChainTestCase(TestCase):
         self.sensors = []
         for device in self.devices:
             device.save()
+            self.metadata.append(Metadata(value="Test Metadata 1",
+                                          timestamp=now().isoformat(),
+                                          content_object=device))
+            self.metadata.append(Metadata(value="Test Metadata 2",
+                                          timestamp=now().isoformat(),
+                                          content_object=device))
+
             self.sensors.append(ScalarSensor(device=device,
                                              metric=self.temp_metric,
                                              unit=self.unit))
@@ -179,6 +194,13 @@ class ChainTestCase(TestCase):
         self.scalar_data = []
         for sensor in self.sensors:
             sensor.save()
+            self.metadata.append(Metadata(value="Test Metadata 1",
+                                          timestamp=now().isoformat(),
+                                          content_object=sensor))
+            self.metadata.append(Metadata(value="Test Metadata 1",
+                                          timestamp=now().isoformat(),
+                                          content_object=sensor))
+
             self.scalar_data.append({
                 'sensor': sensor,
                 'timestamp': now() - timedelta(minutes=2),
@@ -193,6 +215,8 @@ class ChainTestCase(TestCase):
                                               data['sensor'].id,
                                               data['value'],
                                               data['timestamp'])
+        for metadata in self.metadata:
+            metadata.save()
 
 
     def get_resource(self, url, mime_type='application/hal+json',
@@ -293,6 +317,13 @@ class ChainTestCase(TestCase):
             if sensor['sensor-type'] == sensor_type:
                 return sensor
         return self.create_a_sensor_of_type(sensor_type)
+
+    def get_metadata(self):
+        site = self.get_a_site()
+        return self.get_resource(site.links['ch:metadata'].href)
+
+    def get_site_device_sensor(self):
+        return [self.get_a_site(), self.get_a_device(), self.get_a_sensor()]
 
 
 class ScalarSensorDataTest(ChainTestCase):
@@ -1185,6 +1216,48 @@ class ApiAggregateScalarSensorDataTests(ChainTestCase):
 
         except Exception:
             self.assertTrue(False)
+
+class ApiMetadataTests(ChainTestCase):
+
+    def test_nonexistant_metadata_should_return_404(self):
+        metadata = self.get_metadata()
+        self.get_resource(metadata.links.items[0].href \
+            + "NONEXISTANT_RESOURCE", expect_status_code=HTTP_STATUS_NOT_FOUND, \
+            check_mime_type=False)
+
+    def test_site_device_sensor_should_have_metadata_link(self):
+        resources = self.get_site_device_sensor()
+        for resource in resources:
+            self.assertIn('ch:metadata', resource.links)
+            self.assertEqual('Metadata', resource.links['ch:metadata'].title)
+
+    def test_metadata_should_be_postable_to_site_device_resource(self):
+        resources = self.get_site_device_sensor()
+        for i, resource in enumerate(resources):
+            metadata = self.get_resource(resource.links['ch:metadata'].href)
+            metadata_url = metadata.links.createForm.href
+            new_metadata = {
+                "value": "Unit Test Metadata",
+                "timestamp": now().isoformat()
+            }
+            self.create_resource(metadata_url, new_metadata)
+            # ids contain object_id and type_id
+            ids = re.findall('\w+=(\d+)', metadata_url)
+            db_metadata = Metadata.objects.get(content_type__pk=ids[1], object_id=ids[0], value=new_metadata['value'])
+            self.assertEqual(db_metadata.value, new_metadata['value'])
+
+    def test_posting_metadata_should_be_sanitize_args_for_response(self):
+        resources = self.get_site_device_sensor()
+        for i, resource in enumerate(resources):
+            metadata = self.get_resource(resource.links['ch:metadata'].href)
+            metadata_url = metadata.links.createForm.href
+            new_metadata = {
+                "value": 123,
+                "timestamp": now().isoformat()
+            }
+            response = self.create_resource(metadata_url, new_metadata)
+            self.assertEqual(type(response.value), unicode)
+            self.assertEqual(response.value, '123')
 
 
 # these tests are testing specific URL conventions within this application

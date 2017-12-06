@@ -18,6 +18,9 @@ from chain.settings import WEBSOCKET_PATH, WEBSOCKET_HOST, \
 import zmq
 import re
 from pytz import AmbiguousTimeError
+from django.contrib.contenttypes.models import ContentType
+from django.utils import six
+from django.utils.encoding import smart_text
 
 def capitalize(word):
     return word[0].upper() + word[1:]
@@ -112,8 +115,9 @@ class CollectionField(object):
 
         # generate a filter on the child collection so we get the actual
         # children, and not all the resources
-
-        parent_filter = {self._reverse_name + '_id': parent._obj.id}
+        parent_filter = self._child_resource_class.get_parent_filter(self._reverse_name,
+                                                                     parent._obj.id,
+                                                                     parent.get_content_type_id())
         return self._child_resource_class(is_list=True, request=request,
                                           filters=parent_filter).serialize(
                                               embed=self._embed, cache=cache)
@@ -190,6 +194,16 @@ class Resource(object):
     @classmethod
     def get_object_by_id(cls, id):
         return cls.queryset.get(id=id)
+
+    def get_content_type_id(self):
+        return ContentType.objects.get_for_model(self.model).id
+
+    def get_filters(self):
+        return self._filters
+
+    @classmethod
+    def get_parent_filter(cls, parent_name, parent_id, parent_type_id):
+        return {parent_name + '_id': parent_id}
 
     def serialize_single(self, embed=True, cache=None, rels=True, *args, **kwargs):
         '''Serializes this object, assuming that there is a single instance to
@@ -268,15 +282,16 @@ class Resource(object):
         except AttributeError:
             pass
         qs = self._queryset
-        if self._filters:
-            qs = qs.filter(**self._filters)
+        filters = self.get_filters()
+        if filters:
+            qs = qs.filter(**filters)
         self._total_count = qs.count()
         return self._total_count
 
     def get_queryset(self):
         '''Returns the queryset resulting from this request, including
         all filtering, and pagination'''
-        queryset = self._queryset.filter(**self._filters)
+        queryset = self._queryset.filter(**self.get_filters())
         return queryset[self._offset:self._offset + self._limit]
 
     def get_single_href(self):
@@ -487,6 +502,11 @@ class Resource(object):
                 raise BadRequestException(
                     "The url to the given resource does not exist.")
             return lookup
+        # TextField missing to_python in Django 1.6
+        elif field_class == models.TextField:
+            if isinstance(value, six.string_types) or value is None:
+                return value
+            return smart_text(value)
         return field.to_python(value)
 
     def deserialize(self):
@@ -523,7 +543,7 @@ class Resource(object):
         # the query string may contain more object data, for instance if
         # we're posting to a child collection resource
 
-        new_obj_data.update(self._filters)
+        new_obj_data.update(self.get_filters())
         self._obj = self.model(**new_obj_data)
         self._state = 'object'
         return self._obj

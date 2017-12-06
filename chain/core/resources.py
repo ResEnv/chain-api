@@ -4,7 +4,7 @@ from chain.core.api import CHAIN_CURIES
 from chain.core.api import BadRequestException
 from chain.core.api import register_resource
 from chain.core.models import Site, Device, ScalarSensor, \
-    PresenceSensor, PresenceData, Person
+    PresenceSensor, PresenceData, Person, Metadata
 from django.conf.urls import include, patterns, url
 from django.utils import timezone
 from datetime import timedelta, datetime
@@ -13,9 +13,38 @@ from chain.localsettings import INFLUX_HOST, INFLUX_PORT, INFLUX_DATABASE, INFLU
 from chain.influx_client import InfluxClient
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.dateparse import parse_datetime
+from django.contrib.contenttypes.models import ContentType
 
 
 influx_client = InfluxClient(INFLUX_HOST, INFLUX_PORT, INFLUX_DATABASE, INFLUX_MEASUREMENT)
+
+class MetadataResource(Resource):
+
+    model = Metadata
+    display_field = 'timestamp'
+    resource_name = 'metadata'
+    resource_type = 'metadata'
+    required_fields = ['value']
+    model_fields = ['timestamp', 'value']
+    queryset = Metadata.objects
+
+    def get_filters(self):
+        if self._filters:
+            filters = {}
+            if 'object_id' in self._filters and 'type_id' in self._filters:
+                filters['object_id'] = self._filters['object_id']
+                filters['content_type'] = ContentType.objects.get_for_id(self._filters['type_id'])
+                return filters
+            else:
+                raise BadRequestException(
+                    "Invalid arguement for metadata. Must supply object_id and type_id.")
+        return {}
+
+    @classmethod
+    def get_parent_filter(cls, parent_name, parent_id, parent_type_id):
+        return {"object_id": parent_id,
+                "type_id": parent_type_id}
+
 
 class SensorDataResource(Resource):
 
@@ -318,7 +347,9 @@ class ScalarSensorResource(Resource):
         'ch:aggregateData': CollectionField(AggregateScalarSensorDataResource,
                                             reverse_name='sensor'),
         'ch:device': ResourceField('chain.core.resources.DeviceResource',
-                                   'device')
+                                   'device'),
+        'ch:metadata': CollectionField(MetadataResource,
+                                       reverse_name='sensor')
     }
 
     def serialize_single(self, embed, cache, *args, **kwargs):
@@ -532,7 +563,9 @@ class PresenceSensorResource(Resource):
         'ch:dataHistory': CollectionField(PresenceDataResource,
                                           reverse_name='sensor'),
         'ch:device': ResourceField('chain.core.resources.DeviceResource',
-                                   'device')
+                                   'device'),
+        'ch:metadata': CollectionField(MetadataResource,
+                                       reverse_name='sensor')
     }
 
     def serialize_single(self, embed, cache, *args, **kwargs):
@@ -615,7 +648,9 @@ class PersonResource(Resource):
     related_fields = {
         'ch:presence-data': CollectionField(PresenceDataResource,
                                             reverse_name='person'),
-        'ch:site': ResourceField('chain.core.resources.SiteResource', 'site')
+        'ch:site': ResourceField('chain.core.resources.SiteResource', 'site'),
+        'ch:metadata': CollectionField(MetadataResource,
+                                       reverse_name='person')
     }
     queryset = Person.objects
 
@@ -866,7 +901,9 @@ class DeviceResource(Resource):
     related_fields = {
         'ch:sensors': CollectionField(MixedSensorResource,
                                       reverse_name='device'),
-        'ch:site': ResourceField('chain.core.resources.SiteResource', 'site')
+        'ch:site': ResourceField('chain.core.resources.SiteResource', 'site'),
+        'ch:metadata': CollectionField(MetadataResource,
+                                       reverse_name='device')
     }
     queryset = Device.objects
 
@@ -889,7 +926,9 @@ class SiteResource(Resource):
     required_fields = ['name']
     related_fields = {
         'ch:devices': CollectionField(DeviceResource, reverse_name='site'),
-        'ch:people': CollectionField(PersonResource, reverse_name='site')
+        'ch:people': CollectionField(PersonResource, reverse_name='site'),
+        'ch:metadata': CollectionField(MetadataResource,
+                                       reverse_name='site')
     }
     queryset = Site.objects
 
@@ -1034,6 +1073,7 @@ urls += patterns('',
                  )
 
 resources = [
+    MetadataResource,
     ScalarSensorDataResource,
     AggregateScalarSensorDataResource,
     ScalarSensorResource,
