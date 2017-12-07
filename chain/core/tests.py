@@ -1246,7 +1246,7 @@ class ApiMetadataTests(ChainTestCase):
             db_metadata = Metadata.objects.get(content_type__pk=ids[1], object_id=ids[0], value=new_metadata['value'])
             self.assertEqual(db_metadata.value, new_metadata['value'])
 
-    def test_posting_metadata_should_be_sanitize_args_for_response(self):
+    def test_posting_metadata_should_sanitize_args_for_response(self):
         resources = self.get_site_device_sensor()
         for i, resource in enumerate(resources):
             metadata = self.get_resource(resource.links['ch:metadata'].href)
