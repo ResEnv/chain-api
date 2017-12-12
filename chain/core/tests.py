@@ -1219,12 +1219,6 @@ class ApiAggregateScalarSensorDataTests(ChainTestCase):
 
 class ApiMetadataTests(ChainTestCase):
 
-    def test_nonexistant_metadata_should_return_404(self):
-        metadata = self.get_metadata()
-        self.get_resource(metadata.links.items[0].href \
-            + "NONEXISTANT_RESOURCE", expect_status_code=HTTP_STATUS_NOT_FOUND, \
-            check_mime_type=False)
-
     def test_site_device_sensor_should_have_metadata_link(self):
         resources = self.get_site_device_sensor()
         for resource in resources:
@@ -1237,14 +1231,16 @@ class ApiMetadataTests(ChainTestCase):
             metadata = self.get_resource(resource.links['ch:metadata'].href)
             metadata_url = metadata.links.createForm.href
             new_metadata = {
+                "key": "Test",
                 "value": "Unit Test Metadata",
                 "timestamp": now().isoformat()
             }
             self.create_resource(metadata_url, new_metadata)
             # ids contain object_id and type_id
             ids = re.findall('\w+=(\d+)', metadata_url)
-            db_metadata = Metadata.objects.get(content_type__pk=ids[1], object_id=ids[0], value=new_metadata['value'])
+            db_metadata = Metadata.objects.get(content_type__pk=ids[0], object_id=ids[1], value=new_metadata['value'])
             self.assertEqual(db_metadata.value, new_metadata['value'])
+            self.assertEqual(db_metadata.key, new_metadata['key'])
 
     def test_posting_metadata_should_sanitize_args_for_response(self):
         resources = self.get_site_device_sensor()
@@ -1252,12 +1248,80 @@ class ApiMetadataTests(ChainTestCase):
             metadata = self.get_resource(resource.links['ch:metadata'].href)
             metadata_url = metadata.links.createForm.href
             new_metadata = {
+                "key": "Test",
                 "value": 123,
                 "timestamp": now().isoformat()
             }
             response = self.create_resource(metadata_url, new_metadata)
             self.assertEqual(type(response.value), unicode)
             self.assertEqual(response.value, '123')
+
+    def test_metadata_query_should_return_most_recent_key_value(self):
+        device = self.get_a_device()
+        metadata = self.get_resource(device.links['ch:metadata'].href)
+        metadata_url = metadata.links.createForm.href
+        new_time = now()
+        old_time = new_time - timedelta(minutes=2)
+        new_metadata = [
+            {
+                "key": "Test",
+                "value": "Old Metadata",
+                "timestamp": old_time.isoformat()
+            },
+            {
+                "key": "Test",
+                "value": "New Metadata",
+                "timestamp": new_time.isoformat()
+            }
+        ]
+        self.create_resource(metadata_url, new_metadata)
+        # query again
+        metadata = self.get_resource(device.links['ch:metadata'].href)
+        self.assertIn('data', metadata)
+        self.assertEqual(type(metadata.data), list)
+        self.assertGreater(len(metadata.data), 0)
+        data_not_found = True
+        for data in metadata.data:
+            if data['key'] == 'Test':
+                self.assertEqual(data['value'], 'New Metadata')
+                data_not_found = False
+        if data_not_found:
+            self.assertTrue(False)
+
+    def test_edit_metadata_should_create_new_metadata(self):
+        device = self.get_a_device()
+        metadata = self.get_resource(device.links['ch:metadata'].href)
+        metadata_url = metadata.links.createForm.href
+        new_time = now()
+        old_time = new_time - timedelta(days=2)
+        old_metadata = {
+            "key": "Reference",
+            "value": "Old Reference",
+            "timestamp": old_time.isoformat()
+        }
+        new_metadata = {
+            "key": "Reference",
+            "value": "New Reference",
+            "timestamp": new_time.isoformat()
+        }
+        response = self.create_resource(metadata_url, old_metadata)
+        old_id = re.search(r'(\d+)$', response.links.self.href).group(0)
+        edit_url = response.links.editForm.href
+        new_response = self.create_resource(edit_url, new_metadata)
+        new_id = re.search(r'(\d+)$', new_response.links.self.href).group(0)
+        self.assertNotEqual(old_id, new_id)
+        db_old_metadata = Metadata.objects.get(id=old_id)
+        db_new_metadata = Metadata.objects.get(id=new_id)
+        for field in old_metadata:
+            db_value = getattr(db_old_metadata, field)
+            if field == 'timestamp':
+                db_value = db_value.isoformat()
+            self.assertEqual(old_metadata[field], db_value)
+        for field in new_metadata:
+            db_value = getattr(db_new_metadata, field)
+            if field == 'timestamp':
+                db_value = db_value.isoformat()
+            self.assertEqual(new_metadata[field], db_value)
 
 
 # these tests are testing specific URL conventions within this application

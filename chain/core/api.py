@@ -109,18 +109,32 @@ class CollectionField(object):
         self._reverse_name = reverse_name
         self._child_resource_class = child_resource_class
         self._embed = embed
+
+    def create_parent_filter(self, parent):
+        return {self._reverse_name + '_id': parent._obj.id}
     
     def serialize(self, parent, request, cache):
         queryset = self._child_resource_class.queryset
 
         # generate a filter on the child collection so we get the actual
         # children, and not all the resources
-        parent_filter = self._child_resource_class.get_parent_filter(self._reverse_name,
-                                                                     parent._obj.id,
-                                                                     parent.get_content_type_id())
+
+        parent_filter = self.create_parent_filter(parent)
         return self._child_resource_class(is_list=True, request=request,
                                           filters=parent_filter).serialize(
                                               embed=self._embed, cache=cache)
+
+class MetadataCollectionField(CollectionField):
+
+    '''A MetadataCollection field is a field on a resource that points to a
+    metadata collection'''
+
+    def __init__(self, child_resource_class, embed=False):
+        self._child_resource_class = child_resource_class
+        self._embed = embed
+
+    def create_parent_filter(self, parent):
+        return {'object_id': parent._obj.id, 'content_type_id': parent.get_content_type_id()}
 
 
 class ResourceField(object):
@@ -197,13 +211,6 @@ class Resource(object):
 
     def get_content_type_id(self):
         return ContentType.objects.get_for_model(self.model).id
-
-    def get_filters(self):
-        return self._filters
-
-    @classmethod
-    def get_parent_filter(cls, parent_name, parent_id, parent_type_id):
-        return {parent_name + '_id': parent_id}
 
     def serialize_single(self, embed=True, cache=None, rels=True, *args, **kwargs):
         '''Serializes this object, assuming that there is a single instance to
@@ -282,16 +289,15 @@ class Resource(object):
         except AttributeError:
             pass
         qs = self._queryset
-        filters = self.get_filters()
-        if filters:
-            qs = qs.filter(**filters)
+        if self._filters:
+            qs = qs.filter(**self._filters)
         self._total_count = qs.count()
         return self._total_count
 
     def get_queryset(self):
         '''Returns the queryset resulting from this request, including
         all filtering, and pagination'''
-        queryset = self._queryset.filter(**self.get_filters())
+        queryset = self._queryset.filter(**self._filters)
         return queryset[self._offset:self._offset + self._limit]
 
     def get_single_href(self):
@@ -543,7 +549,7 @@ class Resource(object):
         # the query string may contain more object data, for instance if
         # we're posting to a child collection resource
 
-        new_obj_data.update(self.get_filters())
+        new_obj_data.update(self._filters)
         self._obj = self.model(**new_obj_data)
         self._state = 'object'
         return self._obj
@@ -734,31 +740,35 @@ class Resource(object):
             return cls.render_response(schema, request)
 
         elif request.method == 'POST':
-            # if not request.user.is_authenticated():
-            #    return render_401(request)
-            resource = cls(obj=cls.get_object_by_id(id), request=request)
-            try:
-                data = json.loads(request.body)
-            except ValueError:
-                return render_error(
-                    HTTP_STATUS_BAD_REQUEST,
-                    "The edit operation could not be performed because the data provided in the request body cannot be parsed as legal JSON.",
-                    request)
-            try:
-                resource.update(data)
-            except IntegrityError:
-                return render_error(
-                    400, 'Error storing object. Either required fields are '
-                    'missing data or a matching object already exists',
-                    request)
-            response_data = resource.serialize()
-            # push to the appropriate streams
-            tags = resource.get_tags()
-            if tags:
-                stream_data = json.dumps(resource.serialize_stream())
-            for tag in tags:
-                zmq_socket.send_string(tag + ' ' + stream_data)
-            return cls.render_response(response_data, request)
+            return cls.edit_view_post_helper(request, id)
+
+    @classmethod
+    def edit_view_post_helper(cls, request, id):
+        # if not request.user.is_authenticated():
+        #    return render_401(request)
+        resource = cls(obj=cls.get_object_by_id(id), request=request)
+        try:
+            data = json.loads(request.body)
+        except ValueError:
+            return render_error(
+                HTTP_STATUS_BAD_REQUEST,
+                "The edit operation could not be performed because the data provided in the request body cannot be parsed as legal JSON.",
+                request)
+        try:
+            resource.update(data)
+        except IntegrityError:
+            return render_error(
+                400, 'Error storing object. Either required fields are '
+                'missing data or a matching object already exists',
+                request)
+        response_data = resource.serialize()
+        # push to the appropriate streams
+        tags = resource.get_tags()
+        if tags:
+            stream_data = json.dumps(resource.serialize_stream())
+        for tag in tags:
+            zmq_socket.send_string(tag + ' ' + stream_data)
+        return cls.render_response(response_data, request)
 
     @classmethod
     @csrf_exempt

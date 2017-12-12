@@ -1,4 +1,5 @@
-from chain.core.api import Resource, ResourceField, CollectionField
+from chain.core.api import Resource, ResourceField, CollectionField, \
+    MetadataCollectionField
 from chain.core.api import full_reverse
 from chain.core.api import CHAIN_CURIES
 from chain.core.api import BadRequestException
@@ -13,7 +14,7 @@ from chain.localsettings import INFLUX_HOST, INFLUX_PORT, INFLUX_DATABASE, INFLU
 from chain.influx_client import InfluxClient
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.dateparse import parse_datetime
-from django.contrib.contenttypes.models import ContentType
+import json
 
 
 influx_client = InfluxClient(INFLUX_HOST, INFLUX_PORT, INFLUX_DATABASE, INFLUX_MEASUREMENT)
@@ -24,26 +25,70 @@ class MetadataResource(Resource):
     display_field = 'timestamp'
     resource_name = 'metadata'
     resource_type = 'metadata'
-    required_fields = ['value']
-    model_fields = ['timestamp', 'value']
+    required_fields = ['key', 'value']
+    model_fields = ['timestamp', 'key', 'value']
     queryset = Metadata.objects
 
-    def get_filters(self):
-        if self._filters:
-            filters = {}
-            if 'object_id' in self._filters and 'type_id' in self._filters:
-                filters['object_id'] = self._filters['object_id']
-                filters['content_type'] = ContentType.objects.get_for_id(self._filters['type_id'])
-                return filters
-            else:
-                raise BadRequestException(
-                    "Invalid arguement for metadata. Must supply object_id and type_id.")
-        return {}
-
     @classmethod
-    def get_parent_filter(cls, parent_name, parent_id, parent_type_id):
-        return {"object_id": parent_id,
-                "type_id": parent_type_id}
+    def edit_view_post_helper(cls, request, id):
+        old_resource = cls.get_object_by_id(id)
+        try:
+            data = json.loads(request.body)
+        except ValueError:
+            return render_error(
+                HTTP_STATUS_BAD_REQUEST,
+                "The edit operation could not be performed because the data provided in the request body cannot be parsed as legal JSON.",
+                request)
+        # pass in the object_id and content_type_id of the original object
+        data['object_id'] = old_resource.object_id
+        data['content_type_id'] = old_resource.content_type_id
+        return cls.create_single(data, request)
+
+    def deserialize(self):
+        # request comes from edit_view
+        if 'object_id' not in self._filters and 'content_type_id' not in self._filters:
+            self._filters['object_id'] = self._data['object_id']
+            self._filters['content_type_id'] = self._data['content_type_id']
+        return super(MetadataResource, self).deserialize()
+
+    def get_queryset(self):
+        queryset = self._queryset.filter(**self._filters).order_by('key', '-timestamp').distinct('key')
+        return queryset[self._offset:self._offset + self._limit]
+
+    def get_total_count(self):
+        try:
+            return self._total_count
+        except AttributeError:
+            pass
+        qs = self._queryset.filter(**self._filters).order_by('key').distinct('key')
+        self._total_count = qs.count()
+        return self._total_count
+
+    def serialize_list(self, embed, cache):
+        if not embed:
+            return super(MetadataResource, self).serialize_list(embed, cache)
+
+        href = self.get_list_href()
+
+        serialized_data = {
+            '_links': {
+                'self': {'href': href},
+                'curies': CHAIN_CURIES,
+                'createForm': {
+                    'href': self.get_create_href(),
+                    'title': 'Add Metadata'
+                }
+            },
+            'totalCount': self.get_total_count()
+        }
+        objs = self.get_queryset()
+        serialized_data['data'] = [{
+            'key': obj.key,
+            'value': obj.value}
+            for obj in objs]
+
+        serialized_data = self.add_page_links(serialized_data, href)
+        return serialized_data
 
 
 class SensorDataResource(Resource):
@@ -341,6 +386,7 @@ class ScalarSensorResource(Resource):
     # for now, name is hardcoded as the only attribute of metric and unit
     stub_fields = {'metric': 'name', 'unit': 'name'}
     queryset = ScalarSensor.objects
+
     related_fields = {
         'ch:dataHistory': CollectionField(ScalarSensorDataResource,
                                           reverse_name='sensor'),
@@ -348,8 +394,7 @@ class ScalarSensorResource(Resource):
                                             reverse_name='sensor'),
         'ch:device': ResourceField('chain.core.resources.DeviceResource',
                                    'device'),
-        'ch:metadata': CollectionField(MetadataResource,
-                                       reverse_name='sensor')
+        'ch:metadata': MetadataCollectionField(MetadataResource)
     }
 
     def serialize_single(self, embed, cache, *args, **kwargs):
@@ -564,8 +609,7 @@ class PresenceSensorResource(Resource):
                                           reverse_name='sensor'),
         'ch:device': ResourceField('chain.core.resources.DeviceResource',
                                    'device'),
-        'ch:metadata': CollectionField(MetadataResource,
-                                       reverse_name='sensor')
+        'ch:metadata': MetadataCollectionField(MetadataResource)
     }
 
     def serialize_single(self, embed, cache, *args, **kwargs):
@@ -649,8 +693,7 @@ class PersonResource(Resource):
         'ch:presence-data': CollectionField(PresenceDataResource,
                                             reverse_name='person'),
         'ch:site': ResourceField('chain.core.resources.SiteResource', 'site'),
-        'ch:metadata': CollectionField(MetadataResource,
-                                       reverse_name='person')
+        'ch:metadata': MetadataCollectionField(MetadataResource)
     }
     queryset = Person.objects
 
@@ -902,8 +945,7 @@ class DeviceResource(Resource):
         'ch:sensors': CollectionField(MixedSensorResource,
                                       reverse_name='device'),
         'ch:site': ResourceField('chain.core.resources.SiteResource', 'site'),
-        'ch:metadata': CollectionField(MetadataResource,
-                                       reverse_name='device')
+        'ch:metadata': MetadataCollectionField(MetadataResource)
     }
     queryset = Device.objects
 
@@ -927,8 +969,7 @@ class SiteResource(Resource):
     related_fields = {
         'ch:devices': CollectionField(DeviceResource, reverse_name='site'),
         'ch:people': CollectionField(PersonResource, reverse_name='site'),
-        'ch:metadata': CollectionField(MetadataResource,
-                                       reverse_name='site')
+        'ch:metadata': MetadataCollectionField(MetadataResource)
     }
     queryset = Site.objects
 
