@@ -107,18 +107,11 @@ class InfluxClient(object):
         return result
 
     def get_databases(self):
-        # wait up to 15 seconds
-        retries = 15
-        series = {}
-        # when influx first boots up the `values` field doesn't appear in the
-        # result, so retry a few times
-        while 'values' not in series and retries > 0:
-            sleep(1)
-            response = self.get('SHOW DATABASES', False)
-            series = response.json()['results'][0]['series'][0]
-            retries -= 1
+        response = self.get('SHOW DATABASES', False)
+        series = response.json()['results'][0]['series'][0]
         if 'values' not in series:
-            raise Exception("Timed out waiting for InfluxDB to initialize")
+            # there's only a values list if there's at least one value
+            return []
 
         return [sub[0] for sub in series['values']]
 
