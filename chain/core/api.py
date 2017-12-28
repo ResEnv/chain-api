@@ -236,16 +236,18 @@ class Resource(object):
                 'self': {
                     'href': self.get_single_href(),
                 },
-                'editForm': {
-                    'href': self.get_edit_href(),
-                    'title': 'Edit %s' % capitalize(self.resource_type)
-                },
                 'ch:websocketStream': {
                     'href': self.get_websocket_href(),
                     'title': 'Websocket Stream'
                 },
                 'curies': CHAIN_CURIES
             }
+            if kwargs.get('edit', True):
+                data['_links']['editForm'] = {
+                    'href': self.get_edit_href(),
+                    'title': 'Edit %s' % capitalize(self.resource_type)
+                }
+
             for field_name, collection in self.related_fields.items():
                 # collection is a CollectionField or ResourceField here
                 data['_links'][field_name] = collection.serialize(
@@ -740,35 +742,31 @@ class Resource(object):
             return cls.render_response(schema, request)
 
         elif request.method == 'POST':
-            return cls.edit_view_post_helper(request, id)
-
-    @classmethod
-    def edit_view_post_helper(cls, request, id):
-        # if not request.user.is_authenticated():
-        #    return render_401(request)
-        resource = cls(obj=cls.get_object_by_id(id), request=request)
-        try:
-            data = json.loads(request.body)
-        except ValueError:
-            return render_error(
-                HTTP_STATUS_BAD_REQUEST,
-                "The edit operation could not be performed because the data provided in the request body cannot be parsed as legal JSON.",
-                request)
-        try:
-            resource.update(data)
-        except IntegrityError:
-            return render_error(
-                400, 'Error storing object. Either required fields are '
-                'missing data or a matching object already exists',
-                request)
-        response_data = resource.serialize()
-        # push to the appropriate streams
-        tags = resource.get_tags()
-        if tags:
-            stream_data = json.dumps(resource.serialize_stream())
-        for tag in tags:
-            zmq_socket.send_string(tag + ' ' + stream_data)
-        return cls.render_response(response_data, request)
+            # if not request.user.is_authenticated():
+            #    return render_401(request)
+            resource = cls(obj=cls.get_object_by_id(id), request=request)
+            try:
+                data = json.loads(request.body)
+            except ValueError:
+                return render_error(
+                    HTTP_STATUS_BAD_REQUEST,
+                    "The edit operation could not be performed because the data provided in the request body cannot be parsed as legal JSON.",
+                    request)
+            try:
+                resource.update(data)
+            except IntegrityError:
+                return render_error(
+                    400, 'Error storing object. Either required fields are '
+                    'missing data or a matching object already exists',
+                    request)
+            response_data = resource.serialize()
+            # push to the appropriate streams
+            tags = resource.get_tags()
+            if tags:
+                stream_data = json.dumps(resource.serialize_stream())
+            for tag in tags:
+                zmq_socket.send_string(tag + ' ' + stream_data)
+            return cls.render_response(response_data, request)
 
     @classmethod
     @csrf_exempt

@@ -157,10 +157,12 @@ class ChainTestCase(TestCase):
         ]
         for site in self.sites:
             site.save()
-            self.metadata.append(Metadata(value="Test Metadata 1",
+            self.metadata.append(Metadata(key="Test",
+                                          value="Test Metadata 1",
                                           timestamp=now().isoformat(),
                                           content_object=site))
-            self.metadata.append(Metadata(value="Test Metadata 2",
+            self.metadata.append(Metadata(key="Test",
+                                          value="Test Metadata 2",
                                           timestamp=now().isoformat(),
                                           content_object=site))
 
@@ -178,10 +180,12 @@ class ChainTestCase(TestCase):
         self.sensors = []
         for device in self.devices:
             device.save()
-            self.metadata.append(Metadata(value="Test Metadata 1",
+            self.metadata.append(Metadata(key="Test",
+                                          value="Test Metadata 1",
                                           timestamp=now().isoformat(),
                                           content_object=device))
-            self.metadata.append(Metadata(value="Test Metadata 2",
+            self.metadata.append(Metadata(key="Test",
+                                          value="Test Metadata 2",
                                           timestamp=now().isoformat(),
                                           content_object=device))
 
@@ -194,10 +198,12 @@ class ChainTestCase(TestCase):
         self.scalar_data = []
         for sensor in self.sensors:
             sensor.save()
-            self.metadata.append(Metadata(value="Test Metadata 1",
+            self.metadata.append(Metadata(key="Test",
+                                          value="Test Metadata 1",
                                           timestamp=now().isoformat(),
                                           content_object=sensor))
-            self.metadata.append(Metadata(value="Test Metadata 1",
+            self.metadata.append(Metadata(key="Test",
+                                          value="Test Metadata 1",
                                           timestamp=now().isoformat(),
                                           content_object=sensor))
 
@@ -1227,7 +1233,7 @@ class ApiMetadataTests(ChainTestCase):
 
     def test_metadata_should_be_postable_to_site_device_resource(self):
         resources = self.get_site_device_sensor()
-        for i, resource in enumerate(resources):
+        for resource in resources:
             metadata = self.get_resource(resource.links['ch:metadata'].href)
             metadata_url = metadata.links.createForm.href
             new_metadata = {
@@ -1244,7 +1250,7 @@ class ApiMetadataTests(ChainTestCase):
 
     def test_posting_metadata_should_sanitize_args_for_response(self):
         resources = self.get_site_device_sensor()
-        for i, resource in enumerate(resources):
+        for resource in resources:
             metadata = self.get_resource(resource.links['ch:metadata'].href)
             metadata_url = metadata.links.createForm.href
             new_metadata = {
@@ -1280,48 +1286,38 @@ class ApiMetadataTests(ChainTestCase):
         self.assertIn('data', metadata)
         self.assertEqual(type(metadata.data), list)
         self.assertGreater(len(metadata.data), 0)
-        data_not_found = True
+        data_found = False
         for data in metadata.data:
             if data['key'] == 'Test':
                 self.assertEqual(data['value'], 'New Metadata')
-                data_not_found = False
-        if data_not_found:
-            self.assertTrue(False)
+                data_found = True
+        self.assertTrue(data_found)
 
-    def test_edit_metadata_should_create_new_metadata(self):
+    def test_metadata_should_be_immutable(self):
         device = self.get_a_device()
         metadata = self.get_resource(device.links['ch:metadata'].href)
         metadata_url = metadata.links.createForm.href
-        new_time = now()
-        old_time = new_time - timedelta(days=2)
-        old_metadata = {
-            "key": "Reference",
-            "value": "Old Reference",
-            "timestamp": old_time.isoformat()
-        }
         new_metadata = {
-            "key": "Reference",
-            "value": "New Reference",
-            "timestamp": new_time.isoformat()
+            "key": "Test edit",
+            "value": 123,
+            "timestamp": now().isoformat()
         }
-        response = self.create_resource(metadata_url, old_metadata)
-        old_id = re.search(r'(\d+)$', response.links.self.href).group(0)
-        edit_url = response.links.editForm.href
-        new_response = self.create_resource(edit_url, new_metadata)
-        new_id = re.search(r'(\d+)$', new_response.links.self.href).group(0)
-        self.assertNotEqual(old_id, new_id)
-        db_old_metadata = Metadata.objects.get(id=old_id)
-        db_new_metadata = Metadata.objects.get(id=new_id)
-        for field in old_metadata:
-            db_value = getattr(db_old_metadata, field)
-            if field == 'timestamp':
-                db_value = db_value.isoformat()
-            self.assertEqual(old_metadata[field], db_value)
-        for field in new_metadata:
-            db_value = getattr(db_new_metadata, field)
-            if field == 'timestamp':
-                db_value = db_value.isoformat()
-            self.assertEqual(new_metadata[field], db_value)
+        response = self.create_resource(metadata_url, new_metadata)
+        metadata_id = re.search(r'(\d+)$', response.links.self.href).group(0)
+        edit_url = BASE_API_URL + 'metadata/' + metadata_id + '/edit'
+        mime_type = 'application/hal+json'
+        accept_header = mime_type + ',' + ACCEPT_TAIL
+        response = None
+        try:
+            response = self.client.post(edit_url,
+                                        new_metadata,
+                                        content_type=mime_type,
+                                        HTTP_ACCEPT=accept_header,
+                                        HTTP_HOST='localhost')
+        except:
+            self.assertTrue(False)
+        self.assertEqual(response.status_code, HTTP_STATUS_BAD_REQUEST)
+        self.assertEqual(response['Content-Type'], "application/json")
 
 
 # these tests are testing specific URL conventions within this application

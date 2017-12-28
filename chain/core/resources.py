@@ -1,8 +1,8 @@
 from chain.core.api import Resource, ResourceField, CollectionField, \
     MetadataCollectionField
-from chain.core.api import full_reverse
+from chain.core.api import full_reverse, render_error
 from chain.core.api import CHAIN_CURIES
-from chain.core.api import BadRequestException
+from chain.core.api import BadRequestException, HTTP_STATUS_BAD_REQUEST
 from chain.core.api import register_resource
 from chain.core.models import Site, Device, ScalarSensor, \
     PresenceSensor, PresenceData, Person, Metadata
@@ -28,28 +28,6 @@ class MetadataResource(Resource):
     required_fields = ['key', 'value']
     model_fields = ['timestamp', 'key', 'value']
     queryset = Metadata.objects
-
-    @classmethod
-    def edit_view_post_helper(cls, request, id):
-        old_resource = cls.get_object_by_id(id)
-        try:
-            data = json.loads(request.body)
-        except ValueError:
-            return render_error(
-                HTTP_STATUS_BAD_REQUEST,
-                "The edit operation could not be performed because the data provided in the request body cannot be parsed as legal JSON.",
-                request)
-        # pass in the object_id and content_type_id of the original object
-        data['object_id'] = old_resource.object_id
-        data['content_type_id'] = old_resource.content_type_id
-        return cls.create_single(data, request)
-
-    def deserialize(self):
-        # request comes from edit_view
-        if 'object_id' not in self._filters and 'content_type_id' not in self._filters:
-            self._filters['object_id'] = self._data['object_id']
-            self._filters['content_type_id'] = self._data['content_type_id']
-        return super(MetadataResource, self).deserialize()
 
     def get_queryset(self):
         queryset = self._queryset.filter(**self._filters).order_by('key', '-timestamp').distinct('key')
@@ -89,6 +67,23 @@ class MetadataResource(Resource):
 
         serialized_data = self.add_page_links(serialized_data, href)
         return serialized_data
+
+    def serialize_single(self, embed=True, cache=None, rels=True, *args, **kwargs):
+        return super(
+            MetadataResource,
+            self).serialize_single(
+            embed,
+            cache,
+            rels,
+            *args,
+            **dict(kwargs, edit=False))
+
+    @classmethod
+    @csrf_exempt
+    def edit_view(cls, request, id):
+        return render_error(HTTP_STATUS_BAD_REQUEST,
+                            "Metadata are immutable",
+                            request)
 
 
 class SensorDataResource(Resource):
