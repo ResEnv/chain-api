@@ -318,7 +318,7 @@ A metadata contains extra information about other resources. Currently metadata 
 attached to sites, devices, and sensors. The `data` field is a list of key/value pairs
 containing the most recent value for each key associated with that resource. The
 `createForm` link from the collection resource gives the URL to post data to this
-data set. Creating a new metadata with an exisitng key will shadow the old metadata with
+data set. Creating a new metadata with an existing key will shadow the old metadata with
 that key. Metadata is immutable, and does not contain the `editForm` link.
 
 
@@ -352,12 +352,12 @@ that key. Metadata is immutable, and does not contain the `editForm` link.
   },
   "data": [
     {
-      "key": "depth_cm"
+      "key": "depth_cm",
       "value": "20"
     },
     {
-      "key": "reference_v"
-      "value": "some referece voltage"
+      "key": "reference_v",
+      "value": "3.3"
     }
   ]
 ```
