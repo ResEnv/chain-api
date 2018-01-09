@@ -18,6 +18,9 @@ from chain.settings import WEBSOCKET_PATH, WEBSOCKET_HOST, \
 import zmq
 import re
 from pytz import AmbiguousTimeError
+from django.contrib.contenttypes.models import ContentType
+from django.utils import six
+from django.utils.encoding import smart_text
 
 def capitalize(word):
     return word[0].upper() + word[1:]
@@ -106,6 +109,9 @@ class CollectionField(object):
         self._reverse_name = reverse_name
         self._child_resource_class = child_resource_class
         self._embed = embed
+
+    def create_parent_filter(self, parent):
+        return {self._reverse_name + '_id': parent._obj.id}
     
     def serialize(self, parent, request, cache):
         queryset = self._child_resource_class.queryset
@@ -113,10 +119,22 @@ class CollectionField(object):
         # generate a filter on the child collection so we get the actual
         # children, and not all the resources
 
-        parent_filter = {self._reverse_name + '_id': parent._obj.id}
+        parent_filter = self.create_parent_filter(parent)
         return self._child_resource_class(is_list=True, request=request,
                                           filters=parent_filter).serialize(
                                               embed=self._embed, cache=cache)
+
+class MetadataCollectionField(CollectionField):
+
+    '''A MetadataCollection field is a field on a resource that points to a
+    metadata collection'''
+
+    def __init__(self, child_resource_class, embed=False):
+        self._child_resource_class = child_resource_class
+        self._embed = embed
+
+    def create_parent_filter(self, parent):
+        return {'object_id': parent._obj.id, 'content_type_id': parent.get_content_type_id()}
 
 
 class ResourceField(object):
@@ -191,6 +209,9 @@ class Resource(object):
     def get_object_by_id(cls, id):
         return cls.queryset.get(id=id)
 
+    def get_content_type_id(self):
+        return ContentType.objects.get_for_model(self.model).id
+
     def serialize_single(self, embed=True, cache=None, rels=True, *args, **kwargs):
         '''Serializes this object, assuming that there is a single instance to
         be serialized. Note that this only gets called from the top-level
@@ -215,16 +236,18 @@ class Resource(object):
                 'self': {
                     'href': self.get_single_href(),
                 },
-                'editForm': {
-                    'href': self.get_edit_href(),
-                    'title': 'Edit %s' % capitalize(self.resource_type)
-                },
                 'ch:websocketStream': {
                     'href': self.get_websocket_href(),
                     'title': 'Websocket Stream'
                 },
                 'curies': CHAIN_CURIES
             }
+            if kwargs.get('edit', True):
+                data['_links']['editForm'] = {
+                    'href': self.get_edit_href(),
+                    'title': 'Edit %s' % capitalize(self.resource_type)
+                }
+
             for field_name, collection in self.related_fields.items():
                 # collection is a CollectionField or ResourceField here
                 data['_links'][field_name] = collection.serialize(
@@ -487,6 +510,11 @@ class Resource(object):
                 raise BadRequestException(
                     "The url to the given resource does not exist.")
             return lookup
+        # TextField missing to_python in Django 1.6
+        elif field_class == models.TextField:
+            if isinstance(value, six.string_types) or value is None:
+                return value
+            return smart_text(value)
         return field.to_python(value)
 
     def deserialize(self):

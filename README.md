@@ -311,6 +311,58 @@ URL to post data to this data set.
 }
 ```
 
+Metadata
+--------
+
+A metadata contains extra information about other resources. Currently metadata can be
+attached to sites, devices, and sensors. The `data` field is a list of key/value pairs
+containing the most recent value for each key associated with that resource. The
+`createForm` link from the collection resource gives the URL to post data to this
+data set. Creating a new metadata with an existing key will shadow the old metadata with
+that key. Metadata is immutable, and does not contain the `editForm` link.
+
+
+### Resource Fields
+
+* `data` (list) - List of data, each of which is a JSON object with a `value`
+  key and a `key` key. The type of the `value` key is string
+* `totalCount` (int) - The total number of unique metadata keys in the collection. If the
+  total count is too large a single response may only have one page of data
+
+### Example
+
+```json
+{
+  "totalCount": 2,
+  "_links": {
+    "curies": [
+      {
+        "href": "http://chain-api.media.mit.edu/rels/{rel}",
+        "name": "ch",
+        "templated": true
+      }
+    ],
+    "self": {
+      "href": "http://chain-api.media.mit.edu/metadata/?content_type_id=11&object_id=1"
+    },
+    "createForm": {
+      "href": "http://chain-api.media.mit.edu/sensordata/create?content_type_id=11&object_id=1",
+      "title": "Add Metadata"
+    }
+  },
+  "data": [
+    {
+      "key": "depth_cm",
+      "value": "20"
+    },
+    {
+      "key": "reference_v",
+      "value": "3.3"
+    }
+  ]
+}
+```
+
 General API Concept Overview
 ============================
 

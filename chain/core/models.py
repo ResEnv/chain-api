@@ -1,11 +1,22 @@
 from django.db import models
 from django.utils import timezone
-
+from django.contrib.contenttypes.models import ContentType
+from django.contrib.contenttypes.generic import GenericForeignKey
 
 class GeoLocation(models.Model):
     latitude = models.FloatField()
     longitude = models.FloatField()
     elevation = models.FloatField(null=True, blank=True)
+
+
+class Metadata(models.Model):
+    '''Metadata assoicated with a site, a device, or a sensor'''
+    content_type = models.ForeignKey(ContentType)
+    object_id = models.PositiveIntegerField()
+    content_object = GenericForeignKey('content_type', 'object_id')
+    key = models.CharField(max_length=255)
+    value = models.TextField(blank=True)
+    timestamp = models.DateTimeField(default=timezone.now, blank=True)
 
 
 class Site(models.Model):
