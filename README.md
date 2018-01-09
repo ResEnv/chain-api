@@ -360,6 +360,7 @@ that key. Metadata is immutable, and does not contain the `editForm` link.
       "value": "3.3"
     }
   ]
+}
 ```
 
 General API Concept Overview
