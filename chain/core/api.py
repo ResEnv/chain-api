@@ -253,6 +253,15 @@ class Resource(object):
                 data['_links'][field_name] = collection.serialize(
                     self, self._request, cache)
 
+            title = self.display_field
+            if title in self.model_fields:
+                data['_links']['self']['title'] = self.serialize_field(
+                    getattr(self._obj, title))
+            elif title in self.stub_fields.keys():
+                stub_data = getattr(self._obj, title)
+                data['_links']['self']['title'] = getattr(stub_data,
+                    self.stub_fields[title])
+
         for field_name in self.model_fields:
             data[field_name] = self.serialize_field(
                 getattr(self._obj, field_name))
