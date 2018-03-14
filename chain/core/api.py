@@ -112,7 +112,7 @@ class CollectionField(object):
 
     def create_parent_filter(self, parent):
         return {self._reverse_name + '_id': parent._obj.id}
-    
+
     def serialize(self, parent, request, cache):
         queryset = self._child_resource_class.queryset
 
@@ -204,7 +204,7 @@ class Resource(object):
         self._request = request
         self._limit = limit or self.page_size
         self._offset = offset or 0
-    
+
     @classmethod
     def get_object_by_id(cls, id):
         return cls.queryset.get(id=id)
@@ -221,15 +221,7 @@ class Resource(object):
         if not embed:
             # this is just a link, don't embed the full object
             data['href'] = self.get_single_href()
-            title = self.display_field
-            if title in self.model_fields:
-                data['title'] = self.serialize_field(getattr(self._obj, title))
-            elif title in self.stub_fields.keys():
-                stub_data = getattr(self._obj, title)
-                data['title'] = getattr(stub_data, self.stub_fields[title])
-            else:
-                raise NotImplementedError(
-                    'display_field must be a model field or stub field')
+            data['title'] = self.get_title()
             return data
         if rels:
             data['_links'] = {
@@ -253,14 +245,7 @@ class Resource(object):
                 data['_links'][field_name] = collection.serialize(
                     self, self._request, cache)
 
-            title = self.display_field
-            if title in self.model_fields:
-                data['_links']['self']['title'] = self.serialize_field(
-                    getattr(self._obj, title))
-            elif title in self.stub_fields.keys():
-                stub_data = getattr(self._obj, title)
-                data['_links']['self']['title'] = getattr(stub_data,
-                    self.stub_fields[title])
+            data['_links']['self']['title'] = self.get_title()
 
         for field_name in self.model_fields:
             data[field_name] = self.serialize_field(
@@ -304,6 +289,18 @@ class Resource(object):
             qs = qs.filter(**self._filters)
         self._total_count = qs.count()
         return self._total_count
+
+    def get_title(self):
+        tfield = self.display_field
+        if tfield in self.model_fields:
+            return self.serialize_field(getattr(self._obj, tfield))
+        elif tfield in self.stub_fields.keys():
+            stub_data = getattr(self._obj, tfield)
+            return getattr(stub_data, self.stub_fields[tfield])
+        else:
+            raise NotImplementedError(
+                'display_field must be a model field or stub field')
+
 
     def get_queryset(self):
         '''Returns the queryset resulting from this request, including

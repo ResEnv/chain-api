@@ -549,6 +549,7 @@ class ApiSitesTests(ChainTestCase):
         db_obj = Site.objects.get(name='MIT Media Lab')
         self.assertEqual(new_site['name'], response.name)
         self.assertEqual(new_site['name'], db_obj.name)
+        self.assertEqual(new_site['name'], response.links['self'].title)
         self.assertEqual(new_site['rawZMQStream'],
                          response.links.rawZMQStream.href)
         self.assertEqual(new_site['rawZMQStream'],
@@ -724,7 +725,8 @@ class ApiDeviceTests(ChainTestCase):
             "name": "Unit Test Thermostat 42",
             "room": "E14-548R"
         }
-        self.create_resource(dev_url, new_device)
+        response = self.create_resource(dev_url, new_device)
+        self.assertEqual(new_device['name'], response.links['self'].title)
         # make sure that a device now exists with the right name
         db_device = Device.objects.get(name=new_device['name'])
         # make sure that the device is set up in the right site
@@ -829,10 +831,11 @@ class ApiScalarSensorTests(ChainTestCase):
             'metric': 'Beauty',
             'unit': 'millihelen',
         }
-        self.create_resource(sensors.links['createForm'].href, new_sensor)
+        response = self.create_resource(sensors.links['createForm'].href, new_sensor)
         db_sensor = ScalarSensor.objects.get(metric__name='Beauty',
                                              device__name=device.name)
         self.assertEqual('millihelen', db_sensor.unit.name)
+        self.assertEqual('Beauty', response.links['self'].title)
 
     def test_sensor_should_have_data_url(self):
         sensor = self.get_a_sensor()
@@ -886,6 +889,7 @@ class ApiPresenceSensorTests(ChainTestCase):
         db_sensor = PresenceSensor.objects.get(metric__name='rfid',
                                                device__name=device.name)
         self.assertTrue(db_sensor is not None)
+        self.assertEqual(new_sensor_res.links['self'].title, new_sensor['metric'])
 
         # Reload the list of sensors:
         sensors = self.get_resource(device.links['ch:sensors'].href)
