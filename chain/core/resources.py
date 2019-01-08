@@ -807,10 +807,10 @@ class MixedSensorResource(Resource):
             'model': ScalarSensor,
             'resource': ScalarSensorResource
         },
-        'presence': {
-            'model': PresenceSensor,
-            'resource': PresenceSensorResource
-        }
+        # 'presence': {
+        #     'model': PresenceSensor,
+        #     'resource': PresenceSensorResource
+        # }
     }
 
     related_fields = {
@@ -963,7 +963,7 @@ class SiteResource(Resource):
     required_fields = ['name']
     related_fields = {
         'ch:devices': CollectionField(DeviceResource, reverse_name='site'),
-        'ch:people': CollectionField(PersonResource, reverse_name='site'),
+        # 'ch:people': CollectionField(PersonResource, reverse_name='site'),
         'ch:metadata': MetadataCollectionField(MetadataResource)
     }
     queryset = Site.objects
@@ -1113,9 +1113,10 @@ resources = [
     ScalarSensorDataResource,
     AggregateScalarSensorDataResource,
     ScalarSensorResource,
-    PresenceDataResource,
-    PresenceSensorResource,
-    PersonResource,
+    # Disable all the person/presence stuff, which isn't being used anymore
+    # PresenceDataResource,
+    # PresenceSensorResource,
+    # PersonResource,
     MixedSensorResource,
     DeviceResource,
     SiteResource]

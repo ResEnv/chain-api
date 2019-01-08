@@ -1,7 +1,6 @@
 # NOTE: this dockerfile assumes the context directory is the root of the
 # repository, so it should be run using the `-f` flag.
 
-# Runs chain webserver on port 8080 within docker image
 FROM ubuntu:18.04
 ENV TZ=America/New_York
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
@@ -13,6 +12,7 @@ RUN apt-get update && apt-get install -y sudo && rm -rf /var/lib/apt/lists/*
 
 MAINTAINER Ken Leidal version: 0.0.1
 
+# Runs chain webserver on port 8080 within docker image
 EXPOSE 8080
 
 ENV CHAIN_HOME /opt/chain-api

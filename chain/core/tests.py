@@ -171,12 +171,12 @@ class ChainTestCase(TestCase):
                                site=self.sites[i % len(self.sites)])
                         for i in range(0, num_devices)]
         num_people = 2 * len(self.sites)
-        self.people = [Person(first_name='John',
-                              last_name = 'Doe %d' % i,
-                              site=self.sites[i % len(self.sites)])
-                       for i in range(0, num_people)]
-        for person in self.people:
-            person.save()
+        # self.people = [Person(first_name='John',
+        #                       last_name = 'Doe %d' % i,
+        #                       site=self.sites[i % len(self.sites)])
+        #                for i in range(0, num_people)]
+        # for person in self.people:
+        #     person.save()
         self.sensors = []
         for device in self.devices:
             device.save()
@@ -286,11 +286,11 @@ class ChainTestCase(TestCase):
         site = self.get_a_site()
         return self.get_resource(site.links['ch:devices'].href)
 
-    def get_a_person(self):
-        site = self.get_a_site()
-        people = self.get_resource(site.links['ch:people'].href)
-        return self.get_resource(people.links['items'][0].href)
-
+    # def get_a_person(self):
+    #     site = self.get_a_site()
+    #     people = self.get_resource(site.links['ch:people'].href)
+    #     return self.get_resource(people.links['items'][0].href)
+    #
     def get_a_device(self):
         '''GETs a device through the API for testing'''
         devices = self.get_devices()
@@ -873,134 +873,134 @@ class ApiScalarSensorTests(ChainTestCase):
         self.assertEqual(response.active, sensor['active'])
 
 
-class ApiPresenceSensorTests(ChainTestCase):
-    def test_presence_sensors_should_be_postable_to_existing_device(self):
-        device = self.get_a_device()
-        sensors = self.get_resource(device.links['ch:sensors'].href)
-        sensor_url = sensors.links['createForm'].href
-
-        new_sensor = {
-            'sensor-type': 'presence',
-            'metric': 'rfid',
-            'unit': 'N/A',
-        }
-        new_sensor_res = self.create_resource(sensor_url, new_sensor)
-        new_sensor_link = new_sensor_res['_links']['self']['href']
-        db_sensor = PresenceSensor.objects.get(metric__name='rfid',
-                                               device__name=device.name)
-        self.assertTrue(db_sensor is not None)
-        self.assertEqual(new_sensor_res.links['self'].title, new_sensor['metric'])
-
-        # Reload the list of sensors:
-        sensors = self.get_resource(device.links['ch:sensors'].href)
-
-        # Check to see if new sensor included in the list:
-        found_self = False
-        for link in sensors.links['items']:
-            if link['href'] == new_sensor_link:
-                found_self = True
-                break
-        self.assertTrue(found_self)
-
-    def test_presence_sensors_should_be_postable_to_newly_posted_device(self):
-        site = self.get_a_site()
-        devices = self.get_resource(site.links['ch:devices'].href)
-
-        new_device = {
-            "building": "E14",
-            "description": "Another great device",
-            "floor": "5",
-            "name": "Unit Test Presence Sensor 49382",
-            "room": "E14-548R"
-        }
-        device = self.create_resource(devices.links['createForm'].href,
-                                      new_device)
-
-        sensors = self.get_resource(device.links['ch:sensors'].href)
-        sensor_url = sensors.links['createForm'].href
-        new_sensor = {
-            'sensor-type': 'presence',
-            'metric': 'rfid',
-            'unit': 'N/A',
-        }
-        new_sensor_res = self.create_resource(sensor_url, new_sensor)
-        new_sensor_link = new_sensor_res['_links']['self']['href']
-        db_sensor = PresenceSensor.objects.get(metric__name='rfid',
-                                               device__name=device.name)
-        self.assertTrue(db_sensor is not None)
-
-        # Reload the list of sensors:
-        sensors = self.get_resource(device.links['ch:sensors'].href)
-
-        # Check to see if new sensor included in the list:
-        found_self = False
-        for link in sensors.links['items']:
-            if link['href'] == new_sensor_link:
-                found_self = True
-                break
-        self.assertTrue(found_self)
-
-    def test_presence_sensor_should_have_data_url(self):
-        sensor = self.get_a_sensor_of_type('presence')
-        self.assertTrue(sensor is not None)
-        self.assertIn('ch:dataHistory', sensor.links)
-
-    def test_presence_sensor_should_have_parent_link(self):
-        sensor = self.get_a_sensor_of_type('presence')
-        self.assertTrue(sensor is not None)
-        self.assertIn('ch:device', sensor.links)
-
-    '''def test_sensor_should_have_value_and_timestamp(self):
-        sensor = self.get_a_sensor_of_type('presence')
-        self.assertTrue(sensor is not None)
-        self.assertIn('value', sensor)
-        self.assertIn('updated', sensor)'''
-
-    def test_presence_sensor_should_have_presence_datatype(self):
-        sensor = self.get_a_sensor_of_type('presence')
-        self.assertTrue(sensor is not None)
-        self.assertIn('dataType', sensor)
-        self.assertEquals(sensor.dataType, 'presence')
-
-    def test_presence_sensor_should_be_editable(self):
-        sensor = self.get_a_sensor_of_type('presence')
-        self.assertTrue(sensor is not None)
-        edit_href = sensor.links.editForm.href
-        edit_form = self.get_resource(edit_href)
-        new_sensor = obj_from_filled_schema(edit_form)
-        new_sensor['unit'] = 'rfid2'
-        self.update_resource(edit_href, new_sensor)
-
-
-class ApiPresenceSensorDataTests(ChainTestCase):
-    def setUp(self):
-        super(ApiPresenceSensorDataTests, self).setUp()
-        # make sure there's data in the first presence sensor
-        sensor = self.get_a_sensor_of_type('presence')
-        data = self.get_resource(sensor.links['ch:dataHistory'].href)
-        create_url = data.links['createForm'].href
-        new_data = {
-            'present': True,
-            'person': self.get_a_person().links['self'].href
-        }
-        self.create_resource(create_url, new_data)
-
-    def test_presence_data_should_have_edit_form(self):
-        sensor = self.get_a_sensor_of_type('presence')
-        all_data = self.get_resource(sensor.links['ch:dataHistory'].href)
-        data = self.get_resource(all_data.links['items'][0].href)
-        edit_href = data.links['editForm'].href
-        self.get_resource(edit_href)
-
-    def test_presence_data_should_be_editable(self):
-        sensor = self.get_a_sensor_of_type('presence')
-        all_data = self.get_resource(sensor.links['ch:dataHistory'].href)
-        data = self.get_resource(all_data.links['items'][0].href)
-        edit_href = data.links['editForm'].href
-        schema = self.get_resource(edit_href)
-        new_data = obj_from_filled_schema(schema)
-        new_data['present'] = not new_data['present']
-        self.update_resource(edit_href, new_data)
+# class ApiPresenceSensorTests(ChainTestCase):
+#     def test_presence_sensors_should_be_postable_to_existing_device(self):
+#         device = self.get_a_device()
+#         sensors = self.get_resource(device.links['ch:sensors'].href)
+#         sensor_url = sensors.links['createForm'].href
+#
+#         new_sensor = {
+#             'sensor-type': 'presence',
+#             'metric': 'rfid',
+#             'unit': 'N/A',
+#         }
+#         new_sensor_res = self.create_resource(sensor_url, new_sensor)
+#         new_sensor_link = new_sensor_res['_links']['self']['href']
+#         db_sensor = PresenceSensor.objects.get(metric__name='rfid',
+#                                                device__name=device.name)
+#         self.assertTrue(db_sensor is not None)
+#         self.assertEqual(new_sensor_res.links['self'].title, new_sensor['metric'])
+#
+#         # Reload the list of sensors:
+#         sensors = self.get_resource(device.links['ch:sensors'].href)
+#
+#         # Check to see if new sensor included in the list:
+#         found_self = False
+#         for link in sensors.links['items']:
+#             if link['href'] == new_sensor_link:
+#                 found_self = True
+#                 break
+#         self.assertTrue(found_self)
+#
+#     def test_presence_sensors_should_be_postable_to_newly_posted_device(self):
+#         site = self.get_a_site()
+#         devices = self.get_resource(site.links['ch:devices'].href)
+#
+#         new_device = {
+#             "building": "E14",
+#             "description": "Another great device",
+#             "floor": "5",
+#             "name": "Unit Test Presence Sensor 49382",
+#             "room": "E14-548R"
+#         }
+#         device = self.create_resource(devices.links['createForm'].href,
+#                                       new_device)
+#
+#         sensors = self.get_resource(device.links['ch:sensors'].href)
+#         sensor_url = sensors.links['createForm'].href
+#         new_sensor = {
+#             'sensor-type': 'presence',
+#             'metric': 'rfid',
+#             'unit': 'N/A',
+#         }
+#         new_sensor_res = self.create_resource(sensor_url, new_sensor)
+#         new_sensor_link = new_sensor_res['_links']['self']['href']
+#         db_sensor = PresenceSensor.objects.get(metric__name='rfid',
+#                                                device__name=device.name)
+#         self.assertTrue(db_sensor is not None)
+#
+#         # Reload the list of sensors:
+#         sensors = self.get_resource(device.links['ch:sensors'].href)
+#
+#         # Check to see if new sensor included in the list:
+#         found_self = False
+#         for link in sensors.links['items']:
+#             if link['href'] == new_sensor_link:
+#                 found_self = True
+#                 break
+#         self.assertTrue(found_self)
+#
+#     def test_presence_sensor_should_have_data_url(self):
+#         sensor = self.get_a_sensor_of_type('presence')
+#         self.assertTrue(sensor is not None)
+#         self.assertIn('ch:dataHistory', sensor.links)
+#
+#     def test_presence_sensor_should_have_parent_link(self):
+#         sensor = self.get_a_sensor_of_type('presence')
+#         self.assertTrue(sensor is not None)
+#         self.assertIn('ch:device', sensor.links)
+#
+#     '''def test_sensor_should_have_value_and_timestamp(self):
+#         sensor = self.get_a_sensor_of_type('presence')
+#         self.assertTrue(sensor is not None)
+#         self.assertIn('value', sensor)
+#         self.assertIn('updated', sensor)'''
+#
+#     def test_presence_sensor_should_have_presence_datatype(self):
+#         sensor = self.get_a_sensor_of_type('presence')
+#         self.assertTrue(sensor is not None)
+#         self.assertIn('dataType', sensor)
+#         self.assertEquals(sensor.dataType, 'presence')
+#
+#     def test_presence_sensor_should_be_editable(self):
+#         sensor = self.get_a_sensor_of_type('presence')
+#         self.assertTrue(sensor is not None)
+#         edit_href = sensor.links.editForm.href
+#         edit_form = self.get_resource(edit_href)
+#         new_sensor = obj_from_filled_schema(edit_form)
+#         new_sensor['unit'] = 'rfid2'
+#         self.update_resource(edit_href, new_sensor)
+#
+#
+# class ApiPresenceSensorDataTests(ChainTestCase):
+#     def setUp(self):
+#         super(ApiPresenceSensorDataTests, self).setUp()
+#         # make sure there's data in the first presence sensor
+#         sensor = self.get_a_sensor_of_type('presence')
+#         data = self.get_resource(sensor.links['ch:dataHistory'].href)
+#         create_url = data.links['createForm'].href
+#         new_data = {
+#             'present': True,
+#             'person': self.get_a_person().links['self'].href
+#         }
+#         self.create_resource(create_url, new_data)
+#
+#     def test_presence_data_should_have_edit_form(self):
+#         sensor = self.get_a_sensor_of_type('presence')
+#         all_data = self.get_resource(sensor.links['ch:dataHistory'].href)
+#         data = self.get_resource(all_data.links['items'][0].href)
+#         edit_href = data.links['editForm'].href
+#         self.get_resource(edit_href)
+#
+#     def test_presence_data_should_be_editable(self):
+#         sensor = self.get_a_sensor_of_type('presence')
+#         all_data = self.get_resource(sensor.links['ch:dataHistory'].href)
+#         data = self.get_resource(all_data.links['items'][0].href)
+#         edit_href = data.links['editForm'].href
+#         schema = self.get_resource(edit_href)
+#         new_data = obj_from_filled_schema(schema)
+#         new_data['present'] = not new_data['present']
+#         self.update_resource(edit_href, new_data)
 
 
 class ApiScalarSensorDataTests(ChainTestCase):
