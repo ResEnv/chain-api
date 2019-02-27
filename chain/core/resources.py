@@ -13,6 +13,7 @@ import calendar
 from chain.localsettings import INFLUX_HOST, INFLUX_PORT, INFLUX_DATABASE, INFLUX_MEASUREMENT
 from chain.influx_client import InfluxClient
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.cache import cache_control
 from django.utils.dateparse import parse_datetime
 import json
 
@@ -1014,7 +1015,9 @@ class SiteResource(Resource):
         }
         return schema
 
+    # cache for 1hr
     @classmethod
+    @cache_control(max_age=3600)
     def site_summary_view(cls, request, id):
         #filters = request.GET.dict()
         devices = Device.objects.filter(site_id=id).select_related(

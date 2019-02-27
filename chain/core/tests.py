@@ -228,7 +228,8 @@ class ChainTestCase(TestCase):
     def get_resource(self, url, mime_type='application/hal+json',
                      expect_status_code=HTTP_STATUS_SUCCESS,
                      check_mime_type=True,
-                     check_vary_header=True):
+                     check_vary_header=True,
+                     should_cache=None):
         accept_header = mime_type + ',' + ACCEPT_TAIL
         response = self.client.get(url,
                                    HTTP_ACCEPT=accept_header,
@@ -241,6 +242,11 @@ class ChainTestCase(TestCase):
             # intermediate caching servers that it needs to include the Accept
             # header in its cache lookup key
             self.assertIn(response['Vary'], "Accept")
+        if should_cache is not None:
+            if should_cache:
+                self.assertIn("max-age", response['Cache-Control'])
+            else:
+                self.assertFalse(response.has_header('Cache-Control'))
         if response['Content-Type'] == 'application/hal+json':
             return HALDoc(json.loads(response.content))
         elif response['Content-Type'] == 'application/json':
@@ -274,41 +280,41 @@ class ChainTestCase(TestCase):
         else:
             return response.content
 
-    def get_sites(self):
+    def get_sites(self, **kwargs):
         root = self.get_resource(BASE_API_URL)
         sites_url = root.links['ch:sites'].href
-        return self.get_resource(sites_url)
+        return self.get_resource(sites_url, **kwargs)
 
-    def get_a_site(self):
+    def get_a_site(self, **kwargs):
         '''GETs a site through the API for testing'''
         sites = self.get_sites()
         self.assertIn('items', sites.links)
         self.assertIn('href', sites.links.items[0])
         site_url = sites.links.items[0].href
         # following the link like a good RESTful client
-        return self.get_resource(site_url)
+        return self.get_resource(site_url, **kwargs)
 
-    def get_devices(self):
+    def get_devices(self, **kwargs):
         site = self.get_a_site()
-        return self.get_resource(site.links['ch:devices'].href)
+        return self.get_resource(site.links['ch:devices'].href, **kwargs)
 
     # def get_a_person(self):
     #     site = self.get_a_site()
     #     people = self.get_resource(site.links['ch:people'].href)
     #     return self.get_resource(people.links['items'][0].href)
     #
-    def get_a_device(self):
+    def get_a_device(self, **kwargs):
         '''GETs a device through the API for testing'''
         devices = self.get_devices()
-        return self.get_resource(devices.links.items[0].href)
+        return self.get_resource(devices.links.items[0].href, **kwargs)
 
-    def get_sensors(self):
+    def get_sensors(self, **kwargs):
         device = self.get_a_device()
-        return self.get_resource(device.links['ch:sensors'].href)
+        return self.get_resource(device.links['ch:sensors'].href, **kwargs)
 
-    def get_a_sensor(self):
+    def get_a_sensor(self, **kwargs):
         sensors = self.get_sensors()
-        return self.get_resource(sensors.links.items[0].href)
+        return self.get_resource(sensors.links.items[0].href, **kwargs)
 
     def create_a_sensor_of_type(self, sensor_type):
         device = self.get_a_device()
@@ -362,6 +368,19 @@ class BasicHALJSONTests(ChainTestCase):
         self.assertEqual(response.status_code, HTTP_STATUS_SUCCESS)
         self.assertEqual(response['Content-Type'], 'application/hal+json')
 
+
+class CacheTests(ChainTestCase):
+
+    def test_site_is_not_cached(self):
+        site = self.get_a_site(should_cache=False)
+
+    def test_device_is_not_cached(self):
+        device = self.get_a_device(should_cache=False)
+
+    def test_site_summary_is_cached(self):
+        site = self.get_a_site()
+        summary = self.get_resource(site.links['ch:siteSummary'].href,
+                                    should_cache=True)
 
 class DefaultMIMETests(ChainTestCase):
 
