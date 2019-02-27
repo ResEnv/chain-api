@@ -21,6 +21,7 @@ from pytz import AmbiguousTimeError
 from django.contrib.contenttypes.models import ContentType
 from django.utils import six
 from django.utils.encoding import smart_text
+from django.utils.cache import patch_vary_headers
 
 def capitalize(word):
     return word[0].upper() + word[1:]
@@ -632,15 +633,19 @@ class Resource(object):
             if accept in ['*/*', 'application/*', '*/json', '*/hal+json']:
                 accept = 'application/hal+json'
             if accept in ['application/hal+json', 'application/json']:
-                return HttpResponse(json.dumps(data), status=status,
+                resp = HttpResponse(json.dumps(data), status=status,
                                     content_type=accept)
+                patch_vary_headers(resp, ['Accept'])
+                return resp
             elif accept == 'text/html':
                 context = {'resource': data,
                            'json_str': json.dumps(data, indent=2)}
                 template = jinja_env.get_template('resource.html')
-                return HttpResponse(template.render(**context),
+                resp = HttpResponse(template.render(**context),
                                     status=status,
                                     content_type=accept)
+                patch_vary_headers(resp, ['Accept'])
+                return resp
         err_data = {
             'message': "MIME type not supported.\ Try text/html, \
             application/json, or application/hal+json",

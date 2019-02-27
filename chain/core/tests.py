@@ -227,7 +227,8 @@ class ChainTestCase(TestCase):
 
     def get_resource(self, url, mime_type='application/hal+json',
                      expect_status_code=HTTP_STATUS_SUCCESS,
-                     check_mime_type=True):
+                     check_mime_type=True,
+                     check_vary_header=True):
         accept_header = mime_type + ',' + ACCEPT_TAIL
         response = self.client.get(url,
                                    HTTP_ACCEPT=accept_header,
@@ -235,6 +236,11 @@ class ChainTestCase(TestCase):
         self.assertEqual(response.status_code, expect_status_code)
         if check_mime_type:
             self.assertEqual(response['Content-Type'], mime_type)
+        if check_vary_header:
+            # all resource responses should have the "Vary" header, which tells
+            # intermediate caching servers that it needs to include the Accept
+            # header in its cache lookup key
+            self.assertIn(response['Vary'], "Accept")
         if response['Content-Type'] == 'application/hal+json':
             return HALDoc(json.loads(response.content))
         elif response['Content-Type'] == 'application/json':
@@ -458,7 +464,7 @@ class ApiSitesTests(ChainTestCase):
         while non_existant_site_url in site_urls:
             non_existant_site_url += str(random.randint(100, 999))
         self.get_resource(non_existant_site_url, expect_status_code=HTTP_STATUS_NOT_FOUND, \
-            check_mime_type=False)
+            check_mime_type=False, check_vary_header=False)
 
     def test_sites_coll_should_have_self_rel(self):
         sites = self.get_sites()
@@ -691,7 +697,7 @@ class ApiDeviceTests(ChainTestCase):
         devices = self.get_devices()
         self.get_resource(devices.links.items[0].href \
             + "NONEXISTANT_RESOURCE", expect_status_code=HTTP_STATUS_NOT_FOUND, \
-            check_mime_type=False)
+            check_mime_type=False, check_vary_header=False)
 
     def test_device_should_have_sensors_link(self):
         device = self.get_a_device()
@@ -1125,28 +1131,28 @@ class ApiScalarSensorDataTests(ChainTestCase):
 
     def test_sensor_data_timestamp_edge_cases(self):
         sensor = self.get_a_sensor()
-        try:
-            self.get_resource(
-                sensor.links['ch:dataHistory'].href +
-                "&timestamp__gte=NaN&timestamp__lt=NaN",
-                expect_status_code=HTTP_STATUS_BAD_REQUEST,
-                check_mime_type=False)
-            self.get_resource(
-                sensor.links['ch:dataHistory'].href + "&timestamp__gte=NaN",
-                expect_status_code=HTTP_STATUS_BAD_REQUEST,
-                check_mime_type=False)
-            self.get_resource(
-                sensor.links['ch:dataHistory'].href + "&timestamp__lt=NaN",
-                expect_status_code=HTTP_STATUS_BAD_REQUEST,
-                check_mime_type=False)
-            self.get_resource(
-                sensor.links['ch:dataHistory'].href +
-                "&timestamp__lt=TestingBadInput",
-                expect_status_code=HTTP_STATUS_BAD_REQUEST,
-                check_mime_type=False)
-            # Timestamp edge cases were handled correctly
-        except Exception:
-            self.assertTrue(False)  # Timestamp edge cases crashed the server
+        self.get_resource(
+            sensor.links['ch:dataHistory'].href +
+            "&timestamp__gte=NaN&timestamp__lt=NaN",
+            expect_status_code=HTTP_STATUS_BAD_REQUEST,
+            check_mime_type=False,
+            check_vary_header=False)
+        self.get_resource(
+            sensor.links['ch:dataHistory'].href + "&timestamp__gte=NaN",
+            expect_status_code=HTTP_STATUS_BAD_REQUEST,
+            check_mime_type=False,
+            check_vary_header=False)
+        self.get_resource(
+            sensor.links['ch:dataHistory'].href + "&timestamp__lt=NaN",
+            expect_status_code=HTTP_STATUS_BAD_REQUEST,
+            check_mime_type=False,
+            check_vary_header=False)
+        self.get_resource(
+            sensor.links['ch:dataHistory'].href +
+            "&timestamp__lt=TestingBadInput",
+            expect_status_code=HTTP_STATUS_BAD_REQUEST,
+            check_mime_type=False,
+            check_vary_header=False)
 
 
 class ApiAggregateScalarSensorDataTests(ChainTestCase):
@@ -1179,15 +1185,13 @@ class ApiAggregateScalarSensorDataTests(ChainTestCase):
                                                         time_end,
                                                         time_begin), True)
 
-    def test_aggregate_sensor_data_query_should_include_arguement(self):
+    def test_aggregate_sensor_data_query_should_include_argument(self):
         sensor = self.get_a_sensor()
-        try:
-            self.get_resource(
-                sensor.links['ch:aggregateData'].href,
-                expect_status_code=HTTP_STATUS_BAD_REQUEST,
-                check_mime_type=False)
-        except Exception:
-            self.assertTrue(False)
+        self.get_resource(
+            sensor.links['ch:aggregateData'].href,
+            expect_status_code=HTTP_STATUS_BAD_REQUEST,
+            check_mime_type=False,
+            check_vary_header=False)
 
     def test_aggregate_sensor_data_should_have_data_type(self):
         sensor = self.get_a_sensor()
@@ -1215,17 +1219,14 @@ class ApiAggregateScalarSensorDataTests(ChainTestCase):
             self.assertIn('mean', sensor_data.data[0])
             self.assertIn('count', sensor_data.data[0])
 
-    def test_aggregate_sensor_data_invalid_arguements(self):
+    def test_aggregate_sensor_data_invalid_arguments(self):
         sensor = self.get_a_sensor()
         href = sensor.links['ch:aggregateData'].href
-        try:
-            self.get_resource(
-                href.replace('{&aggtime}', '&aggtime=1s'),
-                expect_status_code=HTTP_STATUS_BAD_REQUEST,
-                check_mime_type=False)
-
-        except Exception:
-            self.assertTrue(False)
+        self.get_resource(
+            href.replace('{&aggtime}', '&aggtime=1s'),
+            expect_status_code=HTTP_STATUS_BAD_REQUEST,
+            check_mime_type=False,
+            check_vary_header=False)
 
 class ApiMetadataTests(ChainTestCase):
 
