@@ -79,7 +79,8 @@ def close_socket(zmq_sock):
 def select_zmq_socks():
     logger.info("Starting select loop over ZMQ sockets")
     while True:
-        gevent.sleep(seconds=0.0625, ref=True)
+        # force a context switch
+        gevent.idle()
         while len(zmq_socks) == 0:
             gevent.sleep(seconds=0.0625, ref=True)
         # It's important to have a timeout for the select loop, because
