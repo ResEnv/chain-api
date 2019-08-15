@@ -2,8 +2,11 @@ from django.utils.log import AdminEmailHandler
 from django.core.cache import get_cache
 
 class ThrottledAdminEmailHandler(AdminEmailHandler):
+    # as of August 15, 2019 we're using the in-memory cache, which means that
+    # each worker (currently 4) has its own copy of this variable, so we'll
+    # actually send 4x as many errors as MAX_EMAILS_IN_PERIOD
     PERIOD_LENGTH_IN_SECONDS = 60*60*24
-    MAX_EMAILS_IN_PERIOD = 2
+    MAX_EMAILS_IN_PERIOD = 20
     COUNTER_CACHE_KEY = "email_admins_counter"
 
     def increment_counter(self):
