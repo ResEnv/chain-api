@@ -28,7 +28,7 @@ setup(
         'gunicorn==19.9.0',
         'chainclient>=0.1',
         # loosen up pyzmq so we can use the debian package
-        'pyzmq >= 16.0.0, <17.0.0',
+        'pyzmq >= 15.0.0, <17.0.0',
         'docopt==0.6.1',
         'coloredlogs==0.4.7',
         'gevent==1.0',
