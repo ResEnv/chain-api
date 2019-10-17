@@ -93,7 +93,6 @@ INSTALLED_APPS = (
     'django.contrib.staticfiles',
     # 'debug_toolbar',
     'chain.core',
-    'south',
     'django_extensions',
     'corsheaders',
     # Uncomment the next line to enable the admin:
@@ -106,6 +105,10 @@ INSTALLED_APPS = (
 # don't run each migration, just use syncdb to get to the final state
 # from http://stackoverflow.com/questions/25161425/disable-migrations-when-running-unit-tests-in-django-1-7
 SOUTH_TESTS_MIGRATE = False
+
+# this should be the default test runner, but needed this to disable a warning:
+# https://stackoverflow.com/questions/25871261/django-1-7-how-do-i-suppress-1-6-w001-some-project-unittests-may-not-execut
+TEST_RUNNER = 'django.test.runner.DiscoverRunner'
 
 # tell the debug toolbar not to try to be too clever
 DEBUG_TOOLBAR_PATCH_SETTINGS = False

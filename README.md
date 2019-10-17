@@ -673,6 +673,14 @@ If you want to run a shell on the box for testing (e.g. trying out new versions 
 
 The docker configuration creates an .htpassword file with username `yoda` and password `123` that you can use to `POST` data to the API.
 
+### Re-building Docker Boxes
+
+If you change the versions in the `setup.py` file then those packages will need to be re-installed every time you run the docker box. Re-building will lock in these changes and speed up docker boot times.
+
+To re-build the boxes:
+
+1. run `./build.sh` from the `docker/base` directory
+2. run `./build.sh` from the `docker/dev` directory
 
 # Chain API Production Server Setup Instructions
 

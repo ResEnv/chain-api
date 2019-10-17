@@ -3,4 +3,4 @@
 $CHAIN_HOME/docker/base/startup
 
 cd $CHAIN_HOME
-./manage.py test chain
+./manage.py test chain.core

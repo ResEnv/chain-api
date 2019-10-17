@@ -166,7 +166,7 @@ class PresenceData(models.Model):
     sensor = models.ForeignKey(PresenceSensor, related_name='presence_data')
     timestamp = models.DateTimeField(default=timezone.now, blank=True)
     person = models.ForeignKey(Person, related_name='presense_data')
-    present = models.BooleanField()
+    present = models.BooleanField(default=None)
 
     class Meta:
         verbose_name_plural = "presence data"

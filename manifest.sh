@@ -25,13 +25,14 @@ sudo locale-gen en_US en_US.UTF-8 de_AT.UTF-8
 sudo dpkg-reconfigure locales
 
 #Packages
-sudo apt-get --yes --force-yes install python-dev libpq-dev python-pip
-sudo apt-get --yes --force-yes install nginx
-sudo apt-get --yes --force-yes install influxdb
-sudo apt-get --yes --force-yes install supervisor
-sudo apt-get --yes --force-yes install apache2-utils
-sudo apt-get --yes --force-yes install postgresql-10 postgresql-contrib
-# sudo apt-get --yes --force-yes install libzmq-dev
+sudo apt-get --yes install python-dev libpq-dev python-pip
+sudo apt-get --yes install nginx
+sudo apt-get --yes install influxdb
+sudo apt-get --yes install supervisor
+sudo apt-get --yes install apache2-utils
+sudo apt-get --yes install postgresql-10 postgresql-contrib
+# install this from system libs instead of using pip so it brings in the correct libzmq
+sudo apt-get --yes install python-zmq
 
 #Postgres setup
 #su – postgres
