@@ -22,7 +22,7 @@ setup(
         'django==1.7.11',
         'django-extensions==1.3.3',
         'django-cors-headers==0.13',
-        'jinja2==2.7.2',
+        'jinja2==2.10.3',
         'mimeparse==0.1.3',
         'django-debug-toolbar==1.4',
         'gunicorn==19.9.0',
