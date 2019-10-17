@@ -31,7 +31,8 @@ setup(
         'pyzmq >= 15.0.0, <17.0.0',
         'docopt==0.6.1',
         'coloredlogs==0.4.7',
-        'gevent==1.0',
+        # also loosened to use the debian package
+        'gevent >=1.0',
         'gevent-websocket==0.9.3',
         'flask==0.12.4',
         'websocket-client==0.12.0',
