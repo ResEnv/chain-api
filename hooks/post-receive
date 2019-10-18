@@ -32,6 +32,12 @@ echo ""
 ./setup.py develop
 
 echo ""
+echo "Stopping Supervisor Tasks"
+echo "-------------------------"
+echo ""
+supervisorctl stop all
+
+echo ""
 echo "Syncing Database"
 echo "----------------"
 echo ""
@@ -48,7 +54,7 @@ echo ""
 echo "Restarting Supervisor Tasks"
 echo "---------------------------"
 echo ""
-supervisorctl restart all
+supervisorctl start all
 
 echo ""
 echo "Deployment Complete!"

@@ -5,6 +5,7 @@ from django.db import IntegrityError
 import itertools
 from time import sleep
 from chain.core.api import BadRequestException
+from itertools import izip
 
 EPOCH = UTC.localize(datetime.utcfromtimestamp(0))
 
@@ -45,18 +46,33 @@ class InfluxClient(object):
                                 data)
         return response
 
-    def post_data(self, site_id, device_id, sensor_id, value, timestamp=None):
-        timestamp = InfluxClient.convert_timestamp(timestamp)
-        data = '{0},sensor_id={1},site_id={2},device_id={3} value={4}'.format(self._measurement,
+    def make_post_query_string(self, site_id, device_id, sensor_id, metric, value, timestamp=None):
+        data = '{0},sensor_id={1},site_id={2},device_id={3},metric={4} value={5}'.format(self._measurement,
                                                                               sensor_id,
                                                                               site_id,
                                                                               device_id,
+                                                                              metric,
                                                                               value)
         if timestamp:
+            timestamp = InfluxClient.convert_timestamp(timestamp)
             data += ' ' + str(timestamp)
+        return data
+
+    def post_data(self, site_id, device_id, sensor_id, metric, value, timestamp=None):
+        data = self.make_post_query_string(site_id, device_id, sensor_id, metric, value, timestamp)
         response = self.post('write', data)
         if response.status_code != HTTP_STATUS_SUCCESSFUL_WRITE:
-            raise IntegrityError('Error storing data')
+            raise IntegrityError('Failed Query(status {}):\n{}\nResponse:\n{}'.format(response.status_code, data, response.json()))
+        return response
+
+    def post_data_bulk(self, site_id, device_id, sensor_id, metric, values, timestamps):
+        query = ""
+        for (value, timestamp) in izip(values, timestamps):
+            query += self.make_post_query_string(site_id, device_id, sensor_id, metric, value, timestamp) + "\n"
+        # print("posting query:\n{}\n".format(query))
+        response = self.post('write', query)
+        if response.status_code != HTTP_STATUS_SUCCESSFUL_WRITE:
+            raise IntegrityError('Failed Query(status {}):\n{}\nResponse:\n{}'.format(response.status_code, data, response.json()))
         return response
 
     def get(self, query, database=False):
@@ -73,8 +89,6 @@ class InfluxClient(object):
         return response
 
     def get_sensor_data(self, filters):
-        timestamp_gte = InfluxClient.convert_timestamp(filters['timestamp__gte'])
-        timestamp_lt = InfluxClient.convert_timestamp(filters['timestamp__lt'])
         if 'aggtime' not in filters:
             measurement = self._measurement
         # arguements are unicode strings
@@ -87,10 +101,17 @@ class InfluxClient(object):
         else:
             raise BadRequestException('Invalid argument for aggtime. Must be 1h, 1d, or 1w')
 
-        query = "SELECT * FROM {0} WHERE sensor_id = \'{1}\' AND time >= {2} AND time < {3}".format(measurement,
-                                                                                                    filters['sensor_id'],
-                                                                                                    timestamp_gte,
-                                                                                                    timestamp_lt)
+        # exclude the old values that don't have metrics
+        query = "SELECT * FROM {0} WHERE sensor_id = '{1}' AND metric != ''".format(measurement,
+                                                                   filters['sensor_id'])
+        if 'timestamp__gte' in filters:
+            timestamp_gte = InfluxClient.convert_timestamp(filters['timestamp__gte'])
+            query += ' AND time >= {}'.format(timestamp_gte)
+        if 'timestamp__lt' in filters:
+            timestamp_lt = InfluxClient.convert_timestamp(filters['timestamp__lt'])
+            query += ' AND time < {}'.format(timestamp_lt)
+
+
         result = self.get_values(self.get(query, True))
         return result
 
@@ -115,10 +136,16 @@ class InfluxClient(object):
 
         return [sub[0] for sub in series['values']]
 
+    # returns a list of dictionaries, with one dictionary for each series in the
+    # query result. Each dictionary maps the column name to a list of data
     def get_values(self,response):
         json = response.json()
-        if len(json['results'])==0:
-            return []
+        try:
+            if len(json['results'])==0:
+                return []
+        except:
+            import pdb
+            pdb.set_trace()
         if 'series' not in json['results'][0]:
             return []
         if len(json['results'][0]['series']) == 0:
@@ -136,7 +163,7 @@ class InfluxClient(object):
             series = json['results'][0]['series'][0]
             values = series['values']
             columns = series['columns']
-            result = [dict(itertools.izip(columns, values[i])) for i in range(len(values))]
+            result = [dict(itertools.izip(columns, value)) for value in values]
         return result
 
 

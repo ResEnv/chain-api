@@ -148,8 +148,9 @@ class ScalarSensorDataResource(SensorDataResource):
             self.value = self.sanitize_field_value('value', self._data.get('value'))
             self.timestamp = self.sanitize_field_value('timestamp', self._data.get('timestamp'))
             # add ids up the hierarchy
-            sensor = ScalarSensor.objects.select_related('device').get(id=self.sensor_id)
+            sensor = ScalarSensor.objects.select_related('device', 'metric').get(id=self.sensor_id)
             self.device_id = sensor.device.id
+            self.metric = sensor.metric
             self.site_id = sensor.device.site_id
             # treat sensor data like an object
             self._state = 'object'
@@ -177,8 +178,12 @@ class ScalarSensorDataResource(SensorDataResource):
             return timezone.make_aware(timestamp, timezone.get_current_timezone())
 
 
+    # we store the metric as a tag in Influx for convenience of querying
+    # for clients that are using influx directly. It's not a real field that's
+    # handled by Chain
     def save(self):
-        response = influx_client.post_data(self.site_id, self.device_id, self.sensor_id, self.value, self.timestamp)
+        response = influx_client.post_data(self.site_id, self.device_id, self.sensor_id,
+                                           self.metric, self.value, self.timestamp)
         return response
 
     def serialize_list(self, embed, cache):
