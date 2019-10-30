@@ -62,8 +62,8 @@ def add_convenience_tags(apps, schema_editor):
             starttime = 0
             offset = 0
             while True:
-                query = "SELECT * FROM {} WHERE time > {}ns AND sensor_id = '{}' AND metric = '' LIMIT {}".format(
-                    measurement, starttime, sensor.id, CHUNK_LIMIT)
+                # note this doesn't work if you specify the time as {}ns explicitly
+                query = "SELECT * FROM {} WHERE time > {} AND sensor_id = '{}' AND metric = '' LIMIT {}".format( measurement, starttime, sensor.id, CHUNK_LIMIT)
 
                 print("\rMigrating {} of {} sensors (requesting data {} of {})                  ".format(
                     sensorsmigrated+1, len(sensors), offset+1, count), end='')
@@ -92,8 +92,6 @@ def add_convenience_tags(apps, schema_editor):
                     stdout.flush()
                     influx_client.post_data_bulk(site.id, device.id, sensor.id, sensor.metric, values, timestamps)
                 else:
-                    # import pdb
-                    # pdb.set_trace()
                     query = ""
                     print("\rMigrating {} of {} sensors (building query for data {} of {})                ".format(
                         sensorsmigrated+1, len(sensors), offset+1, count), end='')
