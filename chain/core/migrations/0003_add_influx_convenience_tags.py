@@ -9,13 +9,16 @@ from django.utils.timezone import now
 from django.utils.dateparse import parse_datetime
 from chain.influx_client import InfluxClient, HTTP_STATUS_SUCCESSFUL_WRITE
 from django.db import IntegrityError
+from sys import stdout
 
 def add_convenience_tags(apps, schema_editor):
     sensors = ScalarSensor.objects.all()
     print("\n\nMigrating data for {} sensors".format(len(sensors)))
+    stdout.flush()
     for agg in ["", "_1h", "_1d", "_1w"]:
         measurement = influx_client._measurement + agg
         print("Migrating data from {} measurement...".format(measurement))
+        stdout.flush()
 
         sensorsmigrated = 0
         datamigrated = 0
@@ -29,20 +32,26 @@ def add_convenience_tags(apps, schema_editor):
 
             print("\rmigrating {} of {} sensors (requesting data)                  ".format(
                 sensorsmigrated+1, len(sensors)), end='')
+            stdout.flush()
             db_data = influx_client.get_values(influx_client.get(query, True))
             print("\r                                                             ", end='')
+            stdout.flush()
             print("\rmigrating {} of {} sensors ({} data points)".format(
                 sensorsmigrated+1, len(sensors), len(db_data)), end='')
+            stdout.flush()
             if agg == "":
                 values = [d["value"] for d in db_data]
                 print(".", end='')
+                stdout.flush()
                 timestamps = [parse_datetime(d["time"]) for d in db_data]
                 print(".", end='')
+                stdout.flush()
                 # TODO: I think under-the-hood this ends up converting back and forth
                 # between dict-of-arrays and array-of-dicts format, so there's some
                 # opportunity for optimizastion
                 influx_client.post_data_bulk(site.id, device.id, sensor.id, sensor.metric, values, timestamps)
                 print(".", end='')
+                stdout.flush()
             else:
                 # import pdb
                 # pdb.set_trace()
@@ -53,9 +62,11 @@ def add_convenience_tags(apps, schema_editor):
                     data['min'], data['max'], data['count'], data['sum'], data['mean'],
                     InfluxClient.convert_timestamp(parse_datetime(data['time']))) + "\n"
                 print(".", end='')
+                stdout.flush()
 
                 response = influx_client.post('write', query)
                 print(".", end='')
+                stdout.flush()
                 if response.status_code != HTTP_STATUS_SUCCESSFUL_WRITE:
                     raise IntegrityError('Failed Query(status {}):\n{}\nResponse:\n{}'.format(
                         response.status_code, data, response.json()))
@@ -63,6 +74,7 @@ def add_convenience_tags(apps, schema_editor):
             sensorsmigrated += 1
             datamigrated += len(db_data)
         print("\nMigrated {} data points for measurement {}\n".format(datamigrated, measurement))
+        stdout.flush()
 
 # we don't actually need to remove the tags, they don't do any harm
 def noop(apps, schema_editor):
