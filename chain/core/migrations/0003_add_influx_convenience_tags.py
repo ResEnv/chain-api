@@ -12,9 +12,11 @@ from chain.influx_client import InfluxClient, HTTP_STATUS_SUCCESSFUL_WRITE
 from django.db import IntegrityError
 from sys import stdout
 
-epoch = datetime(1970, 1, 1, 0, 0, 0)
+CHUNK_LIMIT = 10000
+EPOCH = datetime(1970, 1, 1, 0, 0, 0)
+
 def ms_to_dt(ms):
-    return epoch + timedelta(milliseconds=ms)
+    return EPOCH + timedelta(milliseconds=ms)
 
 def add_convenience_tags(apps, schema_editor):
     sensors = ScalarSensor.objects.all()
@@ -31,57 +33,79 @@ def add_convenience_tags(apps, schema_editor):
             device = sensor.device
             site = device.site
 
-            # select all this sensor's data that doesn't yet have a metric
-            query = "SELECT * FROM {0} WHERE sensor_id = '{1}' AND metric = ''".format(measurement,
-                                                                       sensor.id)
-
-            print("\rMigrating {} of {} sensors (requesting data)                  ".format(
+            print("\rMigrating {} of {} sensors (requesting count)                  ".format(
                 sensorsmigrated+1, len(sensors)), end='')
             stdout.flush()
-            db_data = influx_client.get_values(influx_client.get(query, True, epoch="ms"))
-            print("\r                                                             ", end='')
-            stdout.flush()
-            print("\rMigrating {} of {} sensors ({} data points)".format(
-                sensorsmigrated+1, len(sensors), len(db_data)), end='')
-            stdout.flush()
-            if agg == "":
-                values = [d["value"] for d in db_data]
-                print(".", end='')
-                stdout.flush()
-                try:
-                    timestamps = [ms_to_dt(d["time"]) for d in db_data]
-                except:
-                    print(d["time"])
-                    raise
-                print(".", end='')
-                stdout.flush()
-                # TODO: I think under-the-hood this ends up converting back and forth
-                # between dict-of-arrays and array-of-dicts format, so there's some
-                # opportunity for optimizastion
-                influx_client.post_data_bulk(site.id, device.id, sensor.id, sensor.metric, values, timestamps)
-                print(".", end='')
-                stdout.flush()
-            else:
-                # import pdb
-                # pdb.set_trace()
-                query = ""
-                for data in db_data:
-                    query += "{},sensor_id={},site_id={},device_id={},metric={} min={},max={},count={}i,sum={},mean={} {}".format(
-                    measurement, sensor.id, site.id, device.id, sensor.metric,
-                    data['min'], data['max'], data['count'], data['sum'], data['mean'],
-                    InfluxClient.convert_timestamp(ms_to_dt(data['time']))) + "\n"
-                print(".", end='')
-                stdout.flush()
+            # doesn't really matter which column we use for the aggregates
+            countcol = "value" if agg == "" else "mean"
+            countdata = influx_client.get(
+                "SELECT COUNT({}) FROM {} WHERE sensor_id = '{}' AND metric = ''".format(
+                    countcol, measurement, sensor.id), True).json()
+            assert len(countdata["results"]) == 1
+            result = countdata["results"][0]
+            assert len(result["series"]) == 1
+            series = result["series"][0]
+            assert len(series["columns"]) == 2
+            assert len(series["values"]) == 1
+            count = series["values"][0][series["columns"].index("count")]
+            # select all this sensor's data that doesn't yet have a metric
+            offset = 0
+            while True:
+                query = "SELECT * FROM {} WHERE sensor_id = '{}' AND metric = '' LIMIT {} OFFSET {}".format(
+                    measurement, sensor.id, CHUNK_LIMIT, offset)
 
-                response = influx_client.post('write', query)
-                print(".", end='')
+                print("\rMigrating {} of {} sensors (requesting data {} of {})                  ".format(
+                    sensorsmigrated+1, len(sensors), offset+1, count), end='')
                 stdout.flush()
-                if response.status_code != HTTP_STATUS_SUCCESSFUL_WRITE:
-                    raise IntegrityError('Failed Query(status {}):\n{}\nResponse:\n{}'.format(
-                        response.status_code, data, response.json()))
+                db_data = influx_client.get_values(influx_client.get(query, True, epoch="ms"))
+                if len(db_data) == 0:
+                    break
+                print("\rMigrating {} of {} sensors (processing values for {} of {})             ".format(
+                    sensorsmigrated+1, len(sensors), offset+1, count), end='')
+                stdout.flush()
+                if agg == "":
+                    values = [d["value"] for d in db_data]
+                    print("\rMigrating {} of {} sensors (processing timestamps for {} of {})             ".format(
+                        sensorsmigrated+1, len(sensors), offset+1, count), end='')
+                    stdout.flush()
+                    try:
+                        timestamps = [ms_to_dt(d["time"]) for d in db_data]
+                    except:
+                        print(d["time"])
+                        raise
+                    # TODO: I think under-the-hood this ends up converting back and forth
+                    # between dict-of-arrays and array-of-dicts format, so there's some
+                    # opportunity for optimizastion
+                    print("\rMigrating {} of {} sensors (posting data {} of {})                ".format(
+                        sensorsmigrated+1, len(sensors), offset+1, count), end='')
+                    stdout.flush()
+                    influx_client.post_data_bulk(site.id, device.id, sensor.id, sensor.metric, values, timestamps)
+                    print(".", end='')
+                    stdout.flush()
+                else:
+                    # import pdb
+                    # pdb.set_trace()
+                    query = ""
+                    print("\rMigrating {} of {} sensors (building query for data {} of {})                ".format(
+                        sensorsmigrated+1, len(sensors), offset+1, count), end='')
+                    stdout.flush()
+                    for data in db_data:
+                        query += "{},sensor_id={},site_id={},device_id={},metric={} min={},max={},count={}i,sum={},mean={} {}".format(
+                        measurement, sensor.id, site.id, device.id, sensor.metric,
+                        data['min'], data['max'], data['count'], data['sum'], data['mean'],
+                        InfluxClient.convert_timestamp(ms_to_dt(data['time']))) + "\n"
+
+                    print("\rMigrating {} of {} sensors (posting data {} of {})                ".format(
+                        sensorsmigrated+1, len(sensors), offset+1, count), end='')
+                    stdout.flush()
+                    response = influx_client.post('write', query)
+                    if response.status_code != HTTP_STATUS_SUCCESSFUL_WRITE:
+                        raise IntegrityError('Failed Query(status {}):\n{}\nResponse:\n{}'.format(
+                            response.status_code, data, response.json()))
+                offset += CHUNK_LIMIT
+                datamigrated += len(db_data)
 
             sensorsmigrated += 1
-            datamigrated += len(db_data)
         print("\nMigrated {} data points for measurement {}\n".format(datamigrated, measurement))
         stdout.flush()
 
