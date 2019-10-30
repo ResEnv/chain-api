@@ -75,18 +75,12 @@ class InfluxClient(object):
             raise IntegrityError('Failed Query(status {}):\n{}\nResponse:\n{}'.format(response.status_code, data, response.json()))
         return response
 
-    def get(self, query, database=False):
-        # database arguement should be true for any sensor data queries
+    def get(self, query, database=False, **kwargs):
+        # database argument should be true for any sensor data queries
+        kwargs['q'] = query
         if database:
-            response = self.request('GET',
-                                    self._url + '/query',
-                                    {'db': self._database,'q': query})
-        else:
-            response = self.request('GET',
-                                    self._url + '/query',
-                                    {'q': query})
-
-        return response
+            kwargs['db'] = self._database
+        return self.request('GET', self._url + '/query', kwargs)
 
     def get_sensor_data(self, filters):
         if 'aggtime' not in filters:

@@ -6,10 +6,15 @@ from django.db import models, migrations
 from chain.core.models import ScalarSensor
 from chain.core.resources import influx_client
 from django.utils.timezone import now
-from django.utils.dateparse import parse_datetime
+from datetime import datetime, timedelta
+# from django.utils.dateparse import parse_datetime
 from chain.influx_client import InfluxClient, HTTP_STATUS_SUCCESSFUL_WRITE
 from django.db import IntegrityError
 from sys import stdout
+
+epoch = datetime(1970, 1, 1, 0, 0, 0)
+def ms_to_dt(ms):
+    return epoch + timedelta(milliseconds=ms)
 
 def add_convenience_tags(apps, schema_editor):
     sensors = ScalarSensor.objects.all()
@@ -30,20 +35,24 @@ def add_convenience_tags(apps, schema_editor):
             query = "SELECT * FROM {0} WHERE sensor_id = '{1}' AND metric = ''".format(measurement,
                                                                        sensor.id)
 
-            print("\rmigrating {} of {} sensors (requesting data)                  ".format(
+            print("\rMigrating {} of {} sensors (requesting data)                  ".format(
                 sensorsmigrated+1, len(sensors)), end='')
             stdout.flush()
-            db_data = influx_client.get_values(influx_client.get(query, True))
+            db_data = influx_client.get_values(influx_client.get(query, True, epoch="ms"))
             print("\r                                                             ", end='')
             stdout.flush()
-            print("\rmigrating {} of {} sensors ({} data points)".format(
+            print("\rMigrating {} of {} sensors ({} data points)".format(
                 sensorsmigrated+1, len(sensors), len(db_data)), end='')
             stdout.flush()
             if agg == "":
                 values = [d["value"] for d in db_data]
                 print(".", end='')
                 stdout.flush()
-                timestamps = [parse_datetime(d["time"]) for d in db_data]
+                try:
+                    timestamps = [ms_to_dt(d["time"]) for d in db_data]
+                except:
+                    print(d["time"])
+                    raise
                 print(".", end='')
                 stdout.flush()
                 # TODO: I think under-the-hood this ends up converting back and forth
@@ -60,7 +69,7 @@ def add_convenience_tags(apps, schema_editor):
                     query += "{},sensor_id={},site_id={},device_id={},metric={} min={},max={},count={}i,sum={},mean={} {}".format(
                     measurement, sensor.id, site.id, device.id, sensor.metric,
                     data['min'], data['max'], data['count'], data['sum'], data['mean'],
-                    InfluxClient.convert_timestamp(parse_datetime(data['time']))) + "\n"
+                    InfluxClient.convert_timestamp(ms_to_dt(data['time']))) + "\n"
                 print(".", end='')
                 stdout.flush()
 
