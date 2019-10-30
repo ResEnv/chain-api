@@ -41,13 +41,19 @@ def add_convenience_tags(apps, schema_editor):
             countdata = influx_client.get(
                 "SELECT COUNT({}) FROM {} WHERE sensor_id = '{}' AND metric = ''".format(
                     countcol, measurement, sensor.id), True).json()
-            assert len(countdata["results"]) == 1
-            result = countdata["results"][0]
-            assert len(result["series"]) == 1
-            series = result["series"][0]
-            assert len(series["columns"]) == 2
-            assert len(series["values"]) == 1
-            count = series["values"][0][series["columns"].index("count")]
+            try:
+                assert len(countdata["results"]) == 1
+                result = countdata["results"][0]
+                assert len(result["series"]) == 1
+                series = result["series"][0]
+                assert len(series["columns"]) == 2
+                assert len(series["values"]) == 1
+                count = series["values"][0][series["columns"].index("count")]
+            except:
+                print("\n==============================")
+                print(countdata)
+                print("================================")
+                raise
             # select all this sensor's data that doesn't yet have a metric
             offset = 0
             while True:
