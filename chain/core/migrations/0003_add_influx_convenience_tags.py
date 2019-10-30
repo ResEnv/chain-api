@@ -57,15 +57,18 @@ def add_convenience_tags(apps, schema_editor):
                 print("================================")
                 raise
             # select all this sensor's data that doesn't yet have a metric
+            # apparently working through large datasets with LIMIT and OFFSET
+            # is slow, so we'll go through time instead
+            starttime = 0
             offset = 0
             while True:
-                query = "SELECT * FROM {} WHERE sensor_id = '{}' AND metric = '' LIMIT {} OFFSET {}".format(
-                    measurement, sensor.id, CHUNK_LIMIT, offset)
+                query = "SELECT * FROM {} WHERE time > {}ns AND sensor_id = '{}' AND metric = '' LIMIT {}".format(
+                    measurement, starttime, sensor.id, CHUNK_LIMIT)
 
                 print("\rMigrating {} of {} sensors (requesting data {} of {})                  ".format(
                     sensorsmigrated+1, len(sensors), offset+1, count), end='')
                 stdout.flush()
-                db_data = influx_client.get_values(influx_client.get(query, True, epoch="ms"))
+                db_data = influx_client.get_values(influx_client.get(query, True, epoch="ns"))
                 if len(db_data) == 0:
                     break
                 print("\rMigrating {} of {} sensors (processing values for {} of {})             ".format(
@@ -77,7 +80,7 @@ def add_convenience_tags(apps, schema_editor):
                         sensorsmigrated+1, len(sensors), offset+1, count), end='')
                     stdout.flush()
                     try:
-                        timestamps = [ms_to_dt(d["time"]) for d in db_data]
+                        timestamps = [ms_to_dt(d["time"]/1000000) for d in db_data]
                     except:
                         print(d["time"])
                         raise
@@ -88,8 +91,6 @@ def add_convenience_tags(apps, schema_editor):
                         sensorsmigrated+1, len(sensors), offset+1, count), end='')
                     stdout.flush()
                     influx_client.post_data_bulk(site.id, device.id, sensor.id, sensor.metric, values, timestamps)
-                    print(".", end='')
-                    stdout.flush()
                 else:
                     # import pdb
                     # pdb.set_trace()
@@ -101,7 +102,7 @@ def add_convenience_tags(apps, schema_editor):
                         query += "{},sensor_id={},site_id={},device_id={},metric={} min={},max={},count={}i,sum={},mean={} {}".format(
                         measurement, sensor.id, site.id, device.id, sensor.metric,
                         data['min'], data['max'], data['count'], data['sum'], data['mean'],
-                        InfluxClient.convert_timestamp(ms_to_dt(data['time']))) + "\n"
+                        InfluxClient.convert_timestamp(ms_to_dt(data['time']/1000000))) + "\n"
 
                     print("\rMigrating {} of {} sensors (posting data {} of {})                ".format(
                         sensorsmigrated+1, len(sensors), offset+1, count), end='')
@@ -110,7 +111,8 @@ def add_convenience_tags(apps, schema_editor):
                     if response.status_code != HTTP_STATUS_SUCCESSFUL_WRITE:
                         raise IntegrityError('Failed Query(status {}):\n{}\nResponse:\n{}'.format(
                             response.status_code, data, response.json()))
-                offset += CHUNK_LIMIT
+                offset += len(db_data)
+                starttime = db_data[-1]["time"]
                 datamigrated += len(db_data)
 
             sensorsmigrated += 1
