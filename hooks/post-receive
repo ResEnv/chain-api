@@ -41,7 +41,6 @@ echo ""
 echo "Syncing Database"
 echo "----------------"
 echo ""
-./manage.py syncdb
 ./manage.py migrate core
 
 echo ""
