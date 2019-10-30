@@ -44,6 +44,8 @@ def add_convenience_tags(apps, schema_editor):
             try:
                 assert len(countdata["results"]) == 1
                 result = countdata["results"][0]
+                if result == {}:
+                    continue
                 assert len(result["series"]) == 1
                 series = result["series"][0]
                 assert len(series["columns"]) == 2
