@@ -27,16 +27,22 @@ def add_convenience_tags(apps, schema_editor):
             query = "SELECT * FROM {0} WHERE sensor_id = '{1}' AND metric = ''".format(measurement,
                                                                        sensor.id)
 
+            print("\rmigrating {} of {} sensors (requesting data)                  ".format(
+                sensorsmigrated+1, len(sensors)), end='')
             db_data = influx_client.get_values(influx_client.get(query, True))
-            print("\rmigrating {} of {} sensors ({} data points)            ".format(
+            print("\r                                                             ", end='')
+            print("\rmigrating {} of {} sensors ({} data points)".format(
                 sensorsmigrated+1, len(sensors), len(db_data)), end='')
             if agg == "":
                 values = [d["value"] for d in db_data]
+                print(".", end='')
                 timestamps = [parse_datetime(d["time"]) for d in db_data]
+                print(".", end='')
                 # TODO: I think under-the-hood this ends up converting back and forth
                 # between dict-of-arrays and array-of-dicts format, so there's some
                 # opportunity for optimizastion
                 influx_client.post_data_bulk(site.id, device.id, sensor.id, sensor.metric, values, timestamps)
+                print(".", end='')
             else:
                 # import pdb
                 # pdb.set_trace()
@@ -46,8 +52,10 @@ def add_convenience_tags(apps, schema_editor):
                     measurement, sensor.id, site.id, device.id, sensor.metric,
                     data['min'], data['max'], data['count'], data['sum'], data['mean'],
                     InfluxClient.convert_timestamp(parse_datetime(data['time']))) + "\n"
+                print(".", end='')
 
                 response = influx_client.post('write', query)
+                print(".", end='')
                 if response.status_code != HTTP_STATUS_SUCCESSFUL_WRITE:
                     raise IntegrityError('Failed Query(status {}):\n{}\nResponse:\n{}'.format(
                         response.status_code, data, response.json()))
