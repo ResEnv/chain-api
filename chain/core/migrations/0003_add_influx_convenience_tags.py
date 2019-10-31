@@ -111,16 +111,17 @@ def add_convenience_tags(apps, schema_editor):
                             response.status_code, data, response.json()))
                 starttime = db_data[-1]["time"]
 
-                query = "DELETE FROM {} WHERE time <= {} AND sensor_id = '{}' AND metric = ''".format(
-                    measurement, starttime, sensor.id, CHUNK_LIMIT)
-
-                print("\rMigrating {} of {} sensors (deleting old data {} of {})                  ".format(
-                    sensorsmigrated+1, len(sensors), offset+1, count), end='')
-                stdout.flush()
-                influx_client.post("query", query, True)
-
                 offset += len(db_data)
                 datamigrated += len(db_data)
+
+            # we've finished all the data for this sensor, delete the old data
+            query = "DELETE FROM {} WHERE sensor_id = '{}' AND metric = ''".format(
+                measurement, sensor.id)
+
+            print("\rMigrating {} of {} sensors (deleting old data)                  ".format(
+                sensorsmigrated+1, len(sensors)), end='')
+            stdout.flush()
+            influx_client.post("query", query, True)
 
             sensorsmigrated += 1
         print("\nMigrated {} data points for measurement {}\n".format(datamigrated, measurement))
