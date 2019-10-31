@@ -6,6 +6,7 @@ import itertools
 from time import sleep
 from chain.core.api import BadRequestException
 from itertools import izip
+from time import sleep
 
 EPOCH = UTC.localize(datetime.utcfromtimestamp(0))
 
@@ -25,7 +26,8 @@ class InfluxClient(object):
         if self._database not in self.get_databases():
             self.get('CREATE DATABASE ' + self._database)
 
-    def request(self, method, url, params=None, data=None, headers=None, retries=3):
+    def request(self, method, url, params=None, data=None, headers=None, retries=4):
+        sleeptime = 1
         while True:
             response = self._session.request(method=method,
                                              url=url,
@@ -37,6 +39,8 @@ class InfluxClient(object):
             retries -= 1
             if retries == 0:
                 return response
+            sleep(sleeptime)
+            sleeptime *= 2
 
     def post(self, endpoint, data, query=False):
         if endpoint == 'write':
