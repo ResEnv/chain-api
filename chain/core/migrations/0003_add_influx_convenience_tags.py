@@ -109,8 +109,17 @@ def add_convenience_tags(apps, schema_editor):
                     if response.status_code != HTTP_STATUS_SUCCESSFUL_WRITE:
                         raise IntegrityError('Failed Query(status {}):\n{}\nResponse:\n{}'.format(
                             response.status_code, data, response.json()))
-                offset += len(db_data)
                 starttime = db_data[-1]["time"]
+
+                query = "DELETE FROM {} WHERE time <= {} AND sensor_id = '{}' AND metric = ''".format(
+                    measurement, starttime, sensor.id, CHUNK_LIMIT)
+
+                print("\rMigrating {} of {} sensors (deleting old data {} of {})                  ".format(
+                    sensorsmigrated+1, len(sensors), offset+1, count), end='')
+                stdout.flush()
+                influx_client.post("query", query, True)
+
+                offset += len(db_data)
                 datamigrated += len(db_data)
 
             sensorsmigrated += 1

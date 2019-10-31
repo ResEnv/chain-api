@@ -121,3 +121,9 @@ class AddInfluxConvenienceTags(TestMigrations):
                     self.assertEqual(qd["mean"], sum(values)/len(values))
                     self.assertEqual(qd["min"], min(values))
                     self.assertEqual(qd["max"], max(values))
+        # check that old data is removed
+        for agg in ["", "_1h", "_1d", "_1w"]:
+            query = "SELECT * FROM {}{} WHERE metric = ''".format(
+                INFLUX_MEASUREMENT, agg)
+            db_data = influx_client.get_values(influx_client.get(query, True))
+            self.assertEqual(len(db_data), 0)

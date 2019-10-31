@@ -25,13 +25,18 @@ class InfluxClient(object):
         if self._database not in self.get_databases():
             self.get('CREATE DATABASE ' + self._database)
 
-    def request(self, method, url, params=None, data=None, headers=None):
-        response = self._session.request(method=method,
-                                         url=url,
-                                         params=params,
-                                         data=data,
-                                         headers=headers)
-        return response
+    def request(self, method, url, params=None, data=None, headers=None, retries=3):
+        while True:
+            response = self._session.request(method=method,
+                                             url=url,
+                                             params=params,
+                                             data=data,
+                                             headers=headers)
+            if response.status_code / 100 == 2:
+                return response
+            retries -= 1
+            if retries == 0:
+                return response
 
     def post(self, endpoint, data, query=False):
         if endpoint == 'write':
@@ -59,10 +64,14 @@ class InfluxClient(object):
         return data
 
     def post_data(self, site_id, device_id, sensor_id, metric, value, timestamp=None):
-        data = self.make_post_query_string(site_id, device_id, sensor_id, metric, value, timestamp)
-        response = self.post('write', data)
+        query = self.make_post_query_string(site_id, device_id, sensor_id, metric, value, timestamp)
+        response = self.post('write', query)
         if response.status_code != HTTP_STATUS_SUCCESSFUL_WRITE:
-            raise IntegrityError('Failed Query(status {}):\n{}\nResponse:\n{}'.format(response.status_code, data, response.json()))
+            querylines = query.splitlines()
+            if len(querylines) > 20:
+                querylines = querylines[0:20] + ["...{} more".format(len(querylines)-20)]
+            raise IntegrityError('Failed Query(status {}):\nQuery:\n{}\n\nResponse:\n{}\n'.format(
+                response.status_code, "\n".join(querylines), response.json()))
         return response
 
     def post_data_bulk(self, site_id, device_id, sensor_id, metric, values, timestamps):
@@ -72,7 +81,11 @@ class InfluxClient(object):
         # print("posting query:\n{}\n".format(query))
         response = self.post('write', query)
         if response.status_code != HTTP_STATUS_SUCCESSFUL_WRITE:
-            raise IntegrityError('Failed Query(status {}):\n{}\nResponse:\n{}'.format(response.status_code, data, response.json()))
+            querylines = query.splitlines()
+            if len(querylines) > 20:
+                querylines = querylines[0:20] + ["...{} more".format(len(querylines)-20)]
+            raise IntegrityError('Failed Query(status {}):\nQuery:{}\nResponse:\n{}'.format(
+                response.status_code, "\n".join(querylines), response.json()))
         return response
 
     def get(self, query, database=False, **kwargs):
