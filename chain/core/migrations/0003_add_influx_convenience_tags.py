@@ -98,10 +98,15 @@ def add_convenience_tags(apps, schema_editor):
                         sensorsmigrated+1, len(sensors), offset+1, count), end='')
                     stdout.flush()
                     for data in db_data:
-                        query += "{},sensor_id={},site_id={},device_id={},metric={} min={},max={},count={}i,sum={},mean={} {}".format(
-                        measurement, sensor.id, site.id, device.id, sensor.metric,
-                        data['min'], data['max'], data['count'], data['sum'], data['mean'],
-                        InfluxClient.convert_timestamp(ms_to_dt(data['time']/1000000))) + "\n"
+                        fieldstrs = []
+                        for rollup in ['min', 'max', 'count', 'sum', 'mean']:
+                            if data[rollup] is not None:
+                                fieldstrs.append('{}={}'.format(rollup, data[rollup]))
+                                if rollup == 'count':
+                                    fieldstrs[-1] += 'i'
+                        query += "{},sensor_id={},site_id={},device_id={},metric={} {} {}".format(
+                            measurement, sensor.id, site.id, device.id, sensor.metric, ",".join(fieldstrs),
+                            InfluxClient.convert_timestamp(ms_to_dt(data['time']/1000000))) + "\n"
 
                     print("\rMigrating {} of {} sensors (posting data {} of {})                ".format(
                         sensorsmigrated+1, len(sensors), offset+1, count), end='')
