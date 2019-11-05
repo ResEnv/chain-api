@@ -93,21 +93,25 @@ def add_convenience_tags(apps, schema_editor):
                     stdout.flush()
                     influx_client.post_data_bulk(site.id, device.id, sensor.id, sensor.metric, values, timestamps)
                 else:
-                    query = ""
+                    querylines = []
                     print("\rMigrating {} of {} sensors (building query for data {} of {})                ".format(
                         sensorsmigrated+1, len(sensors), offset+1, count), end='')
                     stdout.flush()
                     for data in db_data:
                         fieldstrs = []
-                        for rollup in ['min', 'max', 'count', 'sum', 'mean']:
+                        for rollup in ['min', 'max', 'sum', 'mean']:
                             if data[rollup] is not None:
                                 fieldstrs.append('{}={}'.format(rollup, data[rollup]))
-                                if rollup == 'count':
-                                    fieldstrs[-1] += 'i'
-                        query += "{},sensor_id={},site_id={},device_id={},metric={} {} {}".format(
+                        if data['count'] is not None:
+                            fieldstrs.append('count={}i'.format(data['count']))
+                        querylines.append("{},sensor_id={},site_id={},device_id={},metric={} {} {}".format(
                             measurement, sensor.id, site.id, device.id, sensor.metric, ",".join(fieldstrs),
-                            InfluxClient.convert_timestamp(ms_to_dt(data['time']/1000000))) + "\n"
+                            InfluxClient.convert_timestamp(ms_to_dt(data['time']/1000000))))
 
+                    print("\rMigrating {} of {} sensors (consolidating query for data {} of {})                ".format(
+                        sensorsmigrated+1, len(sensors), offset+1, count), end='')
+                    stdout.flush()
+                    query = '\n'.join(querylines)
                     print("\rMigrating {} of {} sensors (posting data {} of {})                ".format(
                         sensorsmigrated+1, len(sensors), offset+1, count), end='')
                     stdout.flush()
