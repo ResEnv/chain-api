@@ -19,7 +19,7 @@ setup(
     license='MIT',
     install_requires=[
         'psycopg2==2.7.6.1',
-        'django==1.7.11',
+        'django==1.11.28',
         'django-extensions==1.3.3',
         'django-cors-headers==0.13',
         'jinja2==2.10.3',
