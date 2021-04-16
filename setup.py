@@ -24,7 +24,7 @@ setup(
         'django-cors-headers==0.13',
         'jinja2==2.10.3',
         'mimeparse==0.1.3',
-        'django-debug-toolbar==1.4',
+        'django-debug-toolbar==1.11.1',
         'gunicorn==19.9.0',
         'chainclient>=0.1',
         # loosen up pyzmq so we can use the debian package
